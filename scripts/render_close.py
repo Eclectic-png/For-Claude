@@ -9,7 +9,7 @@ cam_d = bpy.data.cameras.new("RC"); cam_d.lens = 85; cam_d.clip_start = 0.001
 cam = bpy.data.objects.new("RC", cam_d); sc.collection.objects.link(cam); sc.camera = cam
 li_d = bpy.data.lights.new("RL", 'SUN'); li_d.energy = 3
 li = bpy.data.objects.new("RL", li_d); sc.collection.objects.link(li)
-sc.render.resolution_x = sc.render.resolution_y = 800
+sc.render.resolution_x = sc.render.resolution_y = 1200
 views = {"close": (n, 0.11), "below": ((n + Vector((0, 0, -0.9))).normalized(), 0.30)}
 for vname, (dirv, dist) in views.items():
     cam.location = A + dirv * dist

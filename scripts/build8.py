@@ -1,9 +1,9 @@
-"""Detail pass on the anus of Hips.blend (v8: squeezed pucker):
+"""Detail pass on the anus of Hips.blend (v8: squeezed pucker, randomised 3D creases):
 skin crease smoothing, cleft walls pressed in around the anus, high-detail pucker rebuilt as an AP slit with
 creases fanning out of it, laid out by arc length over the skin so it rides up the cheek walls,
 pigment as an editable shader mask, internal fit raised 1 cm, angled anal canal + lower rectal ampulla,
 sphincter re-seated."""
-import bpy, bmesh, math, sys, json, os
+import bpy, bmesh, math, sys, json, os, random
 import numpy as np
 from mathutils import Vector, Matrix
 
@@ -30,6 +30,8 @@ O = Vector((0.0, 0.0565, 0.790))                 # on the cleft floor, centre of
 bm = bmesh.new(); bm.from_mesh(me)
 pig_layer = bm.verts.layers.float.get("anus_pigment") or bm.verts.layers.float.new("anus_pigment")  # before taking refs
 cre_layer = bm.verts.layers.float.get("anus_crease") or bm.verts.layers.float.new("anus_crease")
+fs_layer = bm.verts.layers.float.get("anus_fold_shade") or bm.verts.layers.float.new("anus_fold_shade")
+bn_layer = bm.verts.layers.float_vector.get("anus_base_normal") or bm.verts.layers.float_vector.new("anus_base_normal")
 bm.verts.ensure_lookup_table(); bm.faces.ensure_lookup_table()
 bm.normal_update()
 ann = np.array([tuple(v.co) for v in bm.verts if 0.010 < (v.co - O).length < 0.016])
@@ -276,24 +278,59 @@ report["deleted_verts"] = len(D); report["hole_loop"] = len(L)
 SLIT = 3.0                       # mm, half-length of the closed AP slit
 K_LAT = 0.85                     # lateral (arc length) / AP for the confocal rings -> AP-elongated
 RINGS = [3.06, 3.5, 3.9, 4.4, 5.0, 5.7, 6.4, 7.2, 8.0, 8.8]     # AP semi-axis of each ring, mm
-# folds on one lip (theta in [0, pi]); mirrored to the other lip so the skin stays exactly mirror-symmetric.
-# (angle deg, weight, width rad, AP radius where the fold dies out) - uneven so they don't read as a ladder
-FOLDS = [(0, 0.8, 0.07, 6.0), (18, 0.6, 0.055, 5.4), (37, 0.95, 0.065, 6.4), (57, 0.75, 0.06, 5.7),
-         (78, 1.05, 0.07, 6.6), (97, 0.85, 0.06, 6.1), (117, 1.0, 0.065, 6.5), (139, 0.7, 0.055, 5.6),
-         (160, 0.9, 0.06, 6.2), (180, 0.8, 0.07, 6.0)]
-FOLDS += [(-a, w, sg, re) for a, w, sg, re in FOLDS if 0 < a < 180]
-FUNNEL = 1.2; R_FOLD = 7.4; FOLD_DEPTH = 0.14; SLIT_DEPTH = 0.6
-def crease(theta, r=None):
+# Creases are modelled (relief), not painted. Each lip gets its own randomly drawn set - no mirroring - with its own
+# angle, depth, width, length, a gentle bend and a slight wobble; each fold tapers from the slit outwards, and a few
+# short shallow wrinkles sit between the main ones. Seeded: a rebuild gives the same pattern, change CREASE_SEED for
+# another.
+CREASE_SEED = 11
+_rng = random.Random(CREASE_SEED)
+
+
+def _fold(th0, w, sig, r0, r1):
+    return dict(th0=th0, w=w, sig=sig, r0=r0, r1=r1, bend=_rng.uniform(-0.15, 0.15),
+                wob=_rng.uniform(0.0, 0.04), wf=_rng.uniform(0.6, 1.6), wp=_rng.uniform(0, 2 * math.pi))
+
+
+FOLDS = []
+for end in (0.0, math.pi):                                           # one fold along the cleft at each slit end
+    FOLDS.append(_fold(end + _rng.uniform(-0.07, 0.07), _rng.uniform(0.6, 0.85), _rng.uniform(0.09, 0.12),
+                       RINGS[0], _rng.uniform(5.8, 6.8)))
+for lip in (0.0, math.pi):                                           # lip with s > 0, then s < 0
+    n_main = _rng.choice((6, 7, 7, 8)); sp = math.pi / (n_main + 1)
+    for i in range(1, n_main + 1):
+        FOLDS.append(_fold(lip + i * sp + _rng.uniform(-0.28, 0.28) * sp, _rng.uniform(0.65, 1.15),
+                           _rng.uniform(0.085, 0.13), RINGS[0] + _rng.choice((0.0, 0.0, _rng.uniform(0.1, 0.5))),
+                           _rng.uniform(5.4, 7.0)))
+    for _ in range(_rng.randint(2, 4)):                              # short shallow secondary wrinkles
+        r0 = _rng.uniform(3.4, 4.6)
+        FOLDS.append(_fold(lip + _rng.uniform(0.15, math.pi - 0.15), _rng.uniform(0.3, 0.5),
+                           _rng.uniform(0.065, 0.085), r0, r0 + _rng.uniform(1.2, 2.2)))
+FUNNEL = 0.9; R_FOLD = 7.4; FOLD_DEPTH = 0.35; SLIT_DEPTH = 0.5; RIDGE = 0.3
+# pigment outline: a few low harmonics with random phases (+-~4 %) so it isn't a perfect, mirrored oval
+PIG_WOBBLE = [(k, _rng.uniform(0.008, 0.016), _rng.uniform(0, 2 * math.pi)) for k in (2, 3, 5)]
+
+
+def pig_r(r, th):
+    return r * (1 + sum(a * math.sin(k * th + ph) for k, a, ph in PIG_WOBBLE))
+
+
+def crease(theta, r):
+    """0..~1.3 groove strength at elliptic angle theta, AP radius r"""
     s_ = 0.0
-    for a, w, sg, re in FOLDS:
-        dt = (theta - math.radians(a) + math.pi) % (2 * math.pi) - math.pi
-        fade = 1.0 if r is None else 1 - ss(re - 1.2, re, r)
-        s_ += w * fade * math.exp(-dt * dt / (2 * sg * sg))
-    return s_
+    for f in FOLDS:
+        t = min(max((r - RINGS[0]) / (f["r1"] - RINGS[0]), 0.0), 1.0)
+        c = f["th0"] + f["bend"] * t + f["wob"] * math.sin(2 * math.pi * f["wf"] * t + f["wp"])
+        dt = (theta - c + math.pi) % (2 * math.pi) - math.pi
+        sig = f["sig"] * (1.1 - 0.5 * t)                             # narrows towards its outer end
+        env = 1 - ss(f["r1"] - 1.8, f["r1"], r)
+        if f["r0"] > RINGS[0]:
+            env *= ss(f["r0"], f["r0"] + 0.4, r)
+        s_ += f["w"] * env * math.exp(-dt * dt / (2 * sig * sig))
+    return min(s_, 1.3)
 
 
 def fold_amp(r):                 # wrinkles are deepest just outside the slit and die out before the cheek walls
-    return FOLD_DEPTH * ss(RINGS[0], RINGS[0] + 0.5, r) * (1 - ss(4.5, 6.4, r))
+    return FOLD_DEPTH * ss(RINGS[0], RINGS[0] + 0.6, r) * (1 - ss(4.8, 7.0, r))
 
 
 def paint_amp(r):                # painted crease lines run a little further than the relief
@@ -407,10 +444,14 @@ for v, (r, th) in info.items():
         relief = -FUNNEL - SLIT_DEPTH * sw ** 1.5
         v[pig_layer] = 1.0; v[cre_layer] = 0.9 * sw ** 0.5
     else:
-        relief = -FUNNEL * (1 - ss(RINGS[0], R_FOLD, r)) + fold_amp(r) * (0.15 - crease(th, r))
-        v[pig_layer] = 1 - ss(5.0, 8.0, r)
+        relief = -FUNNEL * (1 - ss(RINGS[0], R_FOLD, r)) + fold_amp(r) * (RIDGE - crease(th, r))
+        v[pig_layer] = 1 - ss(5.6, 7.8, pig_r(r, th))
         v[cre_layer] = min(1.0, crease(th, r)) * paint_amp(r)
     v.co = base_pos[v] + bnorm[v] * (relief / 1000)
+    v[fs_layer] = 1 - ss(6.5, 8.6, r)              # where the fold shading acts (0 at the outer ring)
+bm.normal_update()
+for v in bm.verts:                                 # smooth (un-creased) normal, for the fold shading's reference light
+    v[bn_layer] = bnorm.get(v, v.normal)
 
 outer = rings[-1]
 outer_edges = [bm.edges.get((outer[k], outer[(k + 1) % len(outer)])) for k in range(len(outer))]
@@ -546,7 +587,7 @@ nt.links.new(attr.outputs["Fac"], stren.inputs[0])
 cattr = nt.nodes.new("ShaderNodeAttribute"); cattr.name = "AnusPig_CreaseMask"; cattr.attribute_name = "anus_crease"
 cattr.attribute_type = 'GEOMETRY'
 cstren = nt.nodes.new("ShaderNodeMath"); cstren.name = "AnusPig_CreaseStrength"; cstren.label = "Crease line strength"
-cstren.operation = 'MULTIPLY'; cstren.inputs[1].default_value = 0.6; cstren.use_clamp = True
+cstren.operation = 'MULTIPLY'; cstren.inputs[1].default_value = 0.0; cstren.use_clamp = True   # 0 = no painted lines
 nt.links.new(cattr.outputs["Fac"], cstren.inputs[0])
 cols = {"maintex": ("Lit colour", (0.98, 0.66, 0.71), "Crease colour (lit)", (0.82, 0.47, 0.55)),
         "darktex": ("Shadow colour", (0.84, 0.55, 0.61), "Crease colour (shadow)", (0.66, 0.37, 0.45))}
@@ -575,6 +616,57 @@ attr.location = (x0 - 420, y0); stren.location = (x0 - 210, y0)
 cattr.location = (x0 - 420, y0 - 300); cstren.location = (x0 - 210, y0 - 300)
 for nd in (attr, stren, cattr, cstren):
     nd.parent = frame
+
+# 3D creases in a two-tone shader: the hard cut hides small relief, so inside the anus the toon result is darkened
+# by how much the creased surface is lit relative to the smooth surface under it (light ratio from two Diffuse
+# evaluations). It follows the scene light and uses the shader's own light / shadow colours.
+for nd in [x for x in nt.nodes if x.name.startswith("AnusFold")]:
+    nt.nodes.remove(nd)
+raw_out = nt.nodes["RawShade"].outputs["Raw shading"]; raw_in = nt.nodes["Shader"].inputs["Raw Shading"]
+for lk in list(raw_out.links):
+    if lk.to_socket == raw_in:
+        nt.links.remove(lk)
+fframe = nt.nodes.new("NodeFrame"); fframe.name = "AnusFold_Frame"; fframe.label = "Anus crease shading (3D)"
+
+
+def fnode(kind, name, label=None, op=None, vals=None, clamp=False):
+    nd = nt.nodes.new(kind); nd.name = "AnusFold_" + name; nd.parent = fframe
+    if label: nd.label = label
+    if op: nd.operation = op
+    for i, val in (vals or {}).items():
+        nd.inputs[i].default_value = val
+    if clamp: nd.use_clamp = True
+    return nd
+
+
+fmask = fnode("ShaderNodeAttribute", "Mask"); fmask.attribute_name = "anus_fold_shade"; fmask.attribute_type = 'GEOMETRY'
+fbn = fnode("ShaderNodeAttribute", "BaseNormal"); fbn.attribute_name = "anus_base_normal"; fbn.attribute_type = 'GEOMETRY'
+fnorm = fnode("ShaderNodeVectorMath", "BaseNormalUnit", op='NORMALIZE')
+dgeo = fnode("ShaderNodeBsdfDiffuse", "LightCreased"); dbase = fnode("ShaderNodeBsdfDiffuse", "LightSmooth")
+for d_ in (dgeo, dbase):
+    d_.inputs["Color"].default_value = (1, 1, 1, 1)
+rgeo = fnode("ShaderNodeShaderToRGB", "RGBCreased"); rbase = fnode("ShaderNodeShaderToRGB", "RGBSmooth")
+bgeo = fnode("ShaderNodeRGBToBW", "BWCreased"); bbase = fnode("ShaderNodeRGBToBW", "BWSmooth")
+eps = fnode("ShaderNodeMath", "Eps", op='ADD', vals={1: 1e-4})
+ratio = fnode("ShaderNodeMath", "Ratio", op='DIVIDE', clamp=True)
+gam = fnode("ShaderNodeMath", "Contrast", label="Contrast (power)", op='POWER', vals={1: 1.6}, clamp=True)
+inv = fnode("ShaderNodeMath", "Darkening", op='SUBTRACT', vals={0: 1.0})
+fstr = fnode("ShaderNodeMath", "Strength", label="Crease shading strength", op='MULTIPLY', vals={1: 0.8})
+fmul = fnode("ShaderNodeMath", "Masked", op='MULTIPLY')
+keep = fnode("ShaderNodeMath", "Keep", op='SUBTRACT', vals={0: 1.0})
+fout = fnode("ShaderNodeMath", "Apply", op='MULTIPLY', clamp=True)
+L = nt.links.new
+L(fbn.outputs["Vector"], fnorm.inputs[0]); L(fnorm.outputs["Vector"], dbase.inputs["Normal"])
+L(dgeo.outputs[0], rgeo.inputs[0]); L(dbase.outputs[0], rbase.inputs[0])
+L(rgeo.outputs["Color"], bgeo.inputs[0]); L(rbase.outputs["Color"], bbase.inputs[0])
+L(bbase.outputs[0], eps.inputs[0]); L(bgeo.outputs[0], ratio.inputs[0]); L(eps.outputs[0], ratio.inputs[1])
+L(ratio.outputs[0], gam.inputs[0]); L(gam.outputs[0], inv.inputs[1])
+L(inv.outputs[0], fstr.inputs[0]); L(fstr.outputs[0], fmul.inputs[0]); L(fmask.outputs["Fac"], fmul.inputs[1])
+L(fmul.outputs[0], keep.inputs[1]); L(raw_out, fout.inputs[0]); L(keep.outputs[0], fout.inputs[1])
+L(fout.outputs[0], raw_in)
+_x, _y = nt.nodes["Shader"].location.x - 1500, nt.nodes["Shader"].location.y - 700
+for i, nd in enumerate((fmask, fbn, fnorm, dgeo, dbase, rgeo, rbase, bgeo, bbase, eps, ratio, gam, inv, fstr, fmul, keep, fout)):
+    nd.location = (_x + 180 * (i // 2), _y - 160 * (i % 2))
 
 # body normal map off over the rebuilt cleft: the 1024 px map is magnified ~15x here and still carries the old
 # cleft/anus shape, so under the toon cut it draws texel-sized spikes (sawtooth pigment edge, white sliver above the
