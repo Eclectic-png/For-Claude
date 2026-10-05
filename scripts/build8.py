@@ -305,7 +305,7 @@ for lip in (0.0, math.pi):                                           # lip with 
         r0 = _rng.uniform(3.4, 4.6)
         FOLDS.append(_fold(lip + _rng.uniform(0.15, math.pi - 0.15), _rng.uniform(0.3, 0.5),
                            _rng.uniform(0.065, 0.085), r0, r0 + _rng.uniform(1.2, 2.2)))
-FUNNEL = 0.3; R_FOLD = 7.4; FOLD_DEPTH = 0.35; SLIT_DEPTH = 0.5; RIDGE = 0.3
+FUNNEL = 0.3; R_FOLD = 7.4; FOLD_DEPTH = 0.65; SLIT_DEPTH = 0.5; RIDGE = 0.3
 # pigment outline: a few low harmonics with random phases (+-~4 %) so it isn't a perfect, mirrored oval
 PIG_WOBBLE = [(k, _rng.uniform(0.008, 0.016), _rng.uniform(0, 2 * math.pi)) for k in (2, 3, 5)]
 
@@ -364,9 +364,13 @@ def surf_point(a_mm, s_mm):
         assert phi < math.radians(150), (a_mm, s_mm)
 
 
+LIP_GAP = 0.4                    # the open fissure's lips sit this close (fraction of the innermost ring's width)
+
+
 def ring_xy(r, th):
     """confocal ellipse with foci at the slit ends; r = AP semi-axis"""
-    return r * math.cos(th), K_LAT * math.sqrt(max(r * r - SLIT * SLIT, 0.0)) * math.sin(th)
+    k = K_LAT * (LIP_GAP if r == RINGS[0] else 1.0)
+    return r * math.cos(th), k * math.sqrt(max(r * r - SLIT * SLIT, 0.0)) * math.sin(th)
 
 
 S_OUT = 18 if len(L) < 27 else (36 if len(L) < 54 else 72)
@@ -457,6 +461,7 @@ for v, (r, th) in info.items():
 # the surface normal points sideways and would pinch the pucker.
 PUFF = 0.5                       # mm, height of the rise at the slit's lips
 SLIT_V = 0.7                     # mm, depth of the V below the lips
+LIP_ROLL = 0.9                   # mm the lips curl down into the open fissure
 relief_of = {}; puff_of = {}
 for v, (r, th) in info.items():
     puff_of[v] = n * (PUFF / 1000 * (1 - ss(RINGS[0], RINGS[-1] - 0.4, max(r, RINGS[0]))) ** 1.3)
@@ -465,7 +470,7 @@ for v, (r, th) in info.items():
         relief = -SLIT_V * sw ** 0.6
         v[pig_layer] = 1.0; v[cre_layer] = 0.9 * sw ** 0.5
     else:
-        relief = fold_amp(r) * (RIDGE - crease(th, r))
+        relief = fold_amp(r) * (RIDGE - crease(th, r)) - LIP_ROLL * (1 - ss(RINGS[0], RINGS[0] + 1.0, r)) ** 1.5
         v[pig_layer] = 1 - ss(5.6, 7.8, pig_r(r, th))
         v[cre_layer] = min(1.0, crease(th, r)) * paint_amp(r)
     relief_of[v] = relief / 1000
@@ -571,6 +576,14 @@ for _ in range(8):
 bm.normal_update()
 _skin_tree = BVHTree.FromBMesh(bm)                # the canal's bottom ring follows the final skin
 ring0 = [_skin_tree.find_nearest(p_)[0] for p_ in ring0]
+# open the fissure: drop the skin that zipped the slit shut, so it leads straight into the anal canal (the canal's
+# bottom ring sits exactly on the lips)
+_n0 = len(bm.verts)
+bmesh.ops.delete(bm, geom=[v for v in slit_verts if v.is_valid and v not in rings[0]], context='VERTS')
+_lipset = {v for v in rings[0] if v.is_valid}       # zipper remnants left by the tip weld
+bmesh.ops.delete(bm, geom=[f for f in bm.faces if all(v in _lipset for v in f.verts)], context='FACES_ONLY')
+report["fissure_open_removed_verts"] = _n0 - len(bm.verts)
+bm.verts.ensure_lookup_table(); bm.normal_update()
 refined_ids = None
 bm.verts.ensure_lookup_table()
 refined_ids = [v.index for v in bm.verts if in_refine(v.co)]
