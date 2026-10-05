@@ -305,7 +305,7 @@ for lip in (0.0, math.pi):                                           # lip with 
         r0 = _rng.uniform(3.4, 4.6)
         FOLDS.append(_fold(lip + _rng.uniform(0.15, math.pi - 0.15), _rng.uniform(0.3, 0.5),
                            _rng.uniform(0.065, 0.085), r0, r0 + _rng.uniform(1.2, 2.2)))
-FUNNEL = 0.9; R_FOLD = 7.4; FOLD_DEPTH = 0.35; SLIT_DEPTH = 0.5; RIDGE = 0.3
+FUNNEL = 0.3; R_FOLD = 7.4; FOLD_DEPTH = 0.35; SLIT_DEPTH = 0.5; RIDGE = 0.3
 # pigment outline: a few low harmonics with random phases (+-~4 %) so it isn't a perfect, mirrored oval
 PIG_WOBBLE = [(k, _rng.uniform(0.008, 0.016), _rng.uniform(0, 2 * math.pi)) for k in (2, 3, 5)]
 
@@ -437,6 +437,16 @@ def base_normal(p):
 
 
 bnorm = {v: base_normal(base_pos[v]) for v in info}
+# The filled base still sags towards the original model's deep anus dimple (~1.3 mm low in the middle). Lift it so
+# the centre sits level with the skin at the front / back ends of the pucker; fades to nothing at the outer ring.
+_ends = [v for r_, ring in zip(RINGS, rings) if r_ == RINGS[-1] for v in ring
+         if abs(math.sin(info[v][1])) < 0.2]
+_end_h = sum(to_local(base_pos[v])[2] for v in _ends) / len(_ends)
+_ctr_h = to_local(base_pos[M[H // 2]])[2]
+LIFT = max(0.0, _end_h - _ctr_h)
+report["base_lift_mm"] = round(LIFT * 1000, 2)
+for v, (r, th) in info.items():
+    base_pos[v] = base_pos[v] + bnorm[v] * (LIFT * (1 - ss(RINGS[0], RINGS[-1] - 0.4, max(r, RINGS[0]))))
 # relief along the (smooth) base normal: shallow funnel, creases fanning from the slit, closed slit groove
 for v, (r, th) in info.items():
     if v in slit_verts:

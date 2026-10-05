@@ -305,7 +305,7 @@ for lip in (0.0, math.pi):                                           # lip with 
         r0 = _rng.uniform(3.4, 4.6)
         FOLDS.append(_fold(lip + _rng.uniform(0.15, math.pi - 0.15), _rng.uniform(0.3, 0.5),
                            _rng.uniform(0.065, 0.085), r0, r0 + _rng.uniform(1.2, 2.2)))
-FUNNEL = 0.9; R_FOLD = 7.4; FOLD_DEPTH = 0.6; SLIT_DEPTH = 0.6; RIDGE = 0.45
+FUNNEL = 0.3; R_FOLD = 7.4; FOLD_DEPTH = 0.4; SLIT_DEPTH = 0.5; RIDGE = 0.35
 PUFF = 1.0                       # mm the pucker rises (dome) before the slit dips back in
 # pigment outline: a few low harmonics with random phases (+-~4 %) so it isn't a perfect, mirrored oval
 PIG_WOBBLE = [(k, _rng.uniform(0.008, 0.016), _rng.uniform(0, 2 * math.pi)) for k in (2, 3, 5)]
@@ -438,18 +438,31 @@ def base_normal(p):
 
 
 bnorm = {v: base_normal(base_pos[v]) for v in info}
+# The filled base still sags towards the original model's deep anus dimple (~1.3 mm low in the middle). Lift it so
+# the centre sits level with the skin at the front / back ends of the pucker; fades to nothing at the outer ring.
+_ends = [v for r_, ring in zip(RINGS, rings) if r_ == RINGS[-1] for v in ring
+         if abs(math.sin(info[v][1])) < 0.2]
+_end_h = sum(to_local(base_pos[v])[2] for v in _ends) / len(_ends)
+_ctr_h = to_local(base_pos[M[H // 2]])[2]
+LIFT = max(0.0, _end_h - _ctr_h)
+report["base_lift_mm"] = round(LIFT * 1000, 2)
+for v, (r, th) in info.items():
+    base_pos[v] = base_pos[v] + bnorm[v] * (LIFT * (1 - ss(RINGS[0], RINGS[-1] - 0.4, max(r, RINGS[0]))))
 # relief along the (smooth) base normal: shallow funnel, creases fanning from the slit, closed slit groove
 for v, (r, th) in info.items():
     if v in slit_verts:
         sw = math.sin(th)
+        puff_v = Vector()
         relief = -FUNNEL - SLIT_DEPTH * sw ** 1.5
         v[pig_layer] = 1.0; v[cre_layer] = 0.9 * sw ** 0.5
     else:
-        relief = (PUFF * math.sin(math.pi * min(max((r - RINGS[0]) / (8.6 - RINGS[0]), 0), 1)) ** 0.7
-                  - FUNNEL * (1 - ss(RINGS[0], RINGS[0] + 1.2, r)) + fold_amp(r) * (RIDGE - crease(th, r)))
+        relief = -FUNNEL * (1 - ss(RINGS[0], RINGS[0] + 1.2, r)) + fold_amp(r) * (RIDGE - crease(th, r))
+        # the dome rises straight out of the cleft (along n), not along the surface normal - on the steep cheek
+        # walls that normal points sideways and would pinch the pucker into a narrow, cracked wedge
+        puff_v = n * (PUFF / 1000 * math.sin(math.pi * min(max((r - RINGS[0]) / (8.6 - RINGS[0]), 0), 1)) ** 0.7)
         v[pig_layer] = 1 - ss(5.6, 7.8, pig_r(r, th))
         v[cre_layer] = min(1.0, crease(th, r)) * paint_amp(r)
-    v.co = base_pos[v] + bnorm[v] * (relief / 1000)
+    v.co = base_pos[v] + bnorm[v] * (relief / 1000) + (puff_v if v not in slit_verts else Vector())
     v[fs_layer] = 1 - ss(6.5, 8.6, r)              # where the fold shading acts (0 at the outer ring)
 bm.normal_update()
 for v in bm.verts:                                 # smooth (un-creased) normal, for the fold shading's reference light
