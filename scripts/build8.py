@@ -90,16 +90,101 @@ for v in bm.verts:               # x' = x * (1 - SQ*w): monotonic in x, so nothi
 bm.normal_update()
 report["cleft_squeeze"] = SQ
 
-# ======================= 3. region to rebuild + smooth base surface (old pucker faired away) =======================
+# ======================= 2c. refine the cleft =======================
+# The body is a low-poly game mesh: across its big triangles the toon shader's hard light/shadow cut comes out as a
+# zigzag along the cheek walls, and the strip joining the dense pucker to it gets long thin triangles (white slivers).
+# Split every cleft edge into 4 and put the new vertices on the Phong surface of the original triangles (curved by the
+# vertex normals): old vertices stay put, so the silhouette is unchanged.
 from mathutils.bvhtree import BVHTree
 from mathutils.interpolate import poly_3d_calc
+REFINE_CUTS = 3
+A_FRONT, A_BACK = 45, 80         # mm along the cleft: towards the perineum / up towards the coccyx
 
-EA, EB = 0.0098, 0.0080          # projected semi-axes of the rebuilt region (AP, lateral)
+# the cleft floor curves away from the local frame further up (19 mm off at 45 mm, 56 mm at 75 mm), so the region
+# follows a sampled midline floor profile instead of a fixed height band
+_t = BVHTree.FromBMesh(bm); _fa, _fh = [], []
+for a_mm in range(-A_FRONT - 10, A_BACK + 11, 5):
+    P = O + u * (a_mm / 1000)
+    hit = _t.ray_cast(P - n * 0.08, n, 0.2)[0]
+    if hit is not None:
+        _fa.append(a_mm); _fh.append((hit - O).dot(n) * 1000)
+
+
+def cleft_floor_h(a_mm):
+    return float(np.interp(a_mm, _fa, _fh))
+
+
+def cleft_coords(p):
+    a, b, h = (x * 1000 for x in to_local(p))
+    return a, b, h - cleft_floor_h(a)
+
+
+def in_refine(p):
+    a, b, hr = cleft_coords(p)
+    return -A_FRONT < a < A_BACK and abs(b) < 28 and -15 < hr < 30
+
+
+old = bm.copy(); bmesh.ops.triangulate(old, faces=old.faces[:]); old.faces.ensure_lookup_table(); old.normal_update()
+old_tree = BVHTree.FromBMesh(old)
+
+
+def phong_old(p, alpha=0.75):
+    loc, _, fi, _ = old_tree.find_nearest(p)
+    vs = [l.vert for l in old.faces[fi].loops]
+    ws = poly_3d_calc([v.co for v in vs], loc)
+    q = Vector()
+    for w_, v in zip(ws, vs):
+        q += (loc - v.normal * (loc - v.co).dot(v.normal)) * w_
+    return loc.lerp(q, alpha)
+
+
+before = set(bm.verts)
+ref_edges = [e for e in bm.edges if not e.is_boundary and all(in_refine(v.co) for v in e.verts)]
+bmesh.ops.subdivide_edges(bm, edges=ref_edges, cuts=REFINE_CUTS, use_grid_fill=True)
+refined_new = [v for v in bm.verts if v not in before]
+for v in refined_new:
+    v.co = phong_old(v.co)
+    if abs(v.co.x) < 2e-5:
+        v.co.x = 0.0
+old.free()
+bm.verts.ensure_lookup_table(); bm.faces.ensure_lookup_table(); bm.normal_update()
+report["refined_edges"] = len(ref_edges); report["refine_new_verts"] = len(refined_new)
+
+# ======================= 3. region to rebuild + smooth base surface (old pucker faired away) =======================
+# The hole is cut in the same (a, s) surface coordinates the pucker is laid out in (a along the cleft, s = arc
+# length across it), a fixed margin outside the outer ring, so the bridge strip is narrow everywhere - a projected
+# ellipse would reach far up the steep cheek walls and leave tall sliver triangles there.
+H0 = 0.007                       # ray origin height above the cleft floor (in the air of the cleft)
+D_AP, D_LAT = 8.8 + 1.2, 0.85 * math.sqrt(8.8 ** 2 - 3.0 ** 2) + 1.2     # outer ring semi-axes + margin, mm
+_cur = BVHTree.FromBMesh(bm)
+
+
+def surf_coords(p, tree=_cur):
+    """(a, s) in mm of a point on the skin: s = arc length across the cleft from the midline (signed by side)"""
+    a = to_local(p)[0]
+    C = O + u * a + n * H0; q = p - C
+    x_, y_ = q.dot(bv), -q.dot(n)
+    sg = 1.0 if x_ >= 0 else -1.0; phi_v = math.atan2(abs(x_), y_)
+    step = math.radians(0.5); phi = 0.0; prev = None; acc = 0.0
+    while True:
+        last = phi >= phi_v
+        ph = min(phi, phi_v)
+        hit = tree.ray_cast(C, -n * math.cos(ph) + bv * (sg * math.sin(ph)), 0.05)[0]
+        if hit is None:
+            return a * 1000, sg * 1e9
+        if prev is not None:
+            acc += (hit - prev).length
+        if last:
+            return a * 1000, sg * acc * 1000
+        prev = hit; phi += step
 
 
 def in_D(p):
     a, b, h = to_local(p)
-    return (a / EA) ** 2 + (b / EB) ** 2 < 1.0 and abs(h) < 0.012
+    if abs(a) > 0.0115 or abs(b) > 0.012 or not -0.008 < h < 0.02:
+        return False
+    a_mm, s_mm = surf_coords(p)
+    return (a_mm / D_AP) ** 2 + (s_mm / D_LAT) ** 2 < 1.0
 
 
 seed = min(bm.verts, key=lambda v: (v.co - O).length)
@@ -198,9 +283,6 @@ FOLDS = [(0, 0.8, 0.07, 6.0), (18, 0.6, 0.055, 5.4), (37, 0.95, 0.065, 6.4), (57
          (160, 0.9, 0.06, 6.2), (180, 0.8, 0.07, 6.0)]
 FOLDS += [(-a, w, sg, re) for a, w, sg, re in FOLDS if 0 < a < 180]
 FUNNEL = 1.2; R_FOLD = 7.4; FOLD_DEPTH = 0.14; SLIT_DEPTH = 0.6
-H0 = 0.007                       # ray origin height above the cleft floor (in the air of the cleft)
-
-
 def crease(theta, r=None):
     s_ = 0.0
     for a, w, sg, re in FOLDS:
@@ -246,9 +328,11 @@ def ring_xy(r, th):
     return r * math.cos(th), K_LAT * math.sqrt(max(r * r - SLIT * SLIT, 0.0)) * math.sin(th)
 
 
+S_OUT = 18 if len(L) < 27 else (36 if len(L) < 54 else 72)
+report["outer_ring_verts"] = S_OUT
 rings = []; new_faces = []; info = {}
 for r in RINGS:
-    S = 144 if r < 6.0 else (72 if r < 7.0 else (36 if r < 8.4 else 18))
+    S = 144 if r < 6.0 else (72 if r < 7.0 else (max(S_OUT, 36) if r < 8.4 else S_OUT))
     ring = []
     for k in range(S):
         th = 2 * math.pi * k / S
@@ -306,17 +390,27 @@ for v in info:
         v.co.x = 0.0
 bm.normal_update()
 base_pos = {v: v.co.copy() for v in info}
+
+
+def base_normal(p):
+    loc, _, fi, _ = base_tree.find_nearest(p)
+    vs = [l.vert for l in btri.faces[fi].loops]
+    ws = poly_3d_calc([v.co for v in vs], loc)
+    return sum((v.normal * w_ for w_, v in zip(ws, vs)), Vector()).normalized()
+
+
+bnorm = {v: base_normal(base_pos[v]) for v in info}
 # relief along the (smooth) base normal: shallow funnel, creases fanning from the slit, closed slit groove
 for v, (r, th) in info.items():
     if v in slit_verts:
         sw = math.sin(th)
-        relief = -FUNNEL - SLIT_DEPTH * sw ** 0.7
+        relief = -FUNNEL - SLIT_DEPTH * sw ** 1.5
         v[pig_layer] = 1.0; v[cre_layer] = 0.9 * sw ** 0.5
     else:
         relief = -FUNNEL * (1 - ss(RINGS[0], R_FOLD, r)) + fold_amp(r) * (0.15 - crease(th, r))
         v[pig_layer] = 1 - ss(5.0, 8.0, r)
         v[cre_layer] = min(1.0, crease(th, r)) * paint_amp(r)
-    v.co = base_pos[v] + v.normal * (relief / 1000)
+    v.co = base_pos[v] + bnorm[v] * (relief / 1000)
 
 outer = rings[-1]
 outer_edges = [bm.edges.get((outer[k], outer[(k + 1) % len(outer)])) for k in range(len(outer))]
@@ -381,7 +475,27 @@ report["pigment_outline_mm"] = {
     "lateral_over_surface": round(2 * K_LAT * math.sqrt(8.0 ** 2 - SLIT ** 2), 1),
     "lateral_projected": round((pr[q].co.x - pr[3 * q].co.x) * 1000, 1),
     "climb_up_cheek_wall": round((to_local(pr[q].co)[2] - floor_h) * 1000, 1)}
+refined_ids = None
+bm.verts.ensure_lookup_table()
+refined_ids = [v.index for v in bm.verts if in_refine(v.co)]
 bm.to_mesh(me); me.update(); bm.free(); base.free(); btri.free()
+if me.has_custom_normals:
+    keep = [tuple(c.vector) for c in me.corner_normals]
+    reg = set(refined_ids)
+    me.normals_split_custom_set([(0.0, 0.0, 0.0) if l.vertex_index in reg else keep[i] for i, l in enumerate(me.loops)])
+    me.update()
+
+
+def cleft_nm_off(p):             # 1 over the refined cleft, fading to 0 before the edge of the refined region
+    a, b, hr = cleft_coords(p)
+    fa = 1 - (ss(A_BACK - 18, A_BACK - 3, a) if a > 0 else ss(A_FRONT - 17, A_FRONT - 3, -a))
+    return fa * (1 - ss(16, 26, abs(b))) * ss(-14, -8, hr) * (1 - ss(22, 29, hr))
+
+
+if "cleft_nm_off" in me.attributes:
+    me.attributes.remove(me.attributes["cleft_nm_off"])
+_nm = me.attributes.new("cleft_nm_off", 'FLOAT', 'POINT')
+_nm.data.foreach_set("value", [cleft_nm_off(v.co) for v in me.vertices])
 
 # ======================= 6. remove the old pigment dot from the textures =======================
 SPOT = (0.1566, 0.5109); RUV = 0.0098
@@ -461,6 +575,27 @@ attr.location = (x0 - 420, y0); stren.location = (x0 - 210, y0)
 cattr.location = (x0 - 420, y0 - 300); cstren.location = (x0 - 210, y0 - 300)
 for nd in (attr, stren, cattr, cstren):
     nd.parent = frame
+
+# body normal map off over the rebuilt cleft: the 1024 px map is magnified ~15x here and still carries the old
+# cleft/anus shape, so under the toon cut it draws texel-sized spikes (sawtooth pigment edge, white sliver above the
+# anus). The refined geometry (2c) carries the shape instead. Drives RawShade's own "Use Normals?" input.
+for nd in [x for x in nt.nodes if x.name.startswith("CleftNM")]:
+    nt.nodes.remove(nd)
+rs = nt.nodes["RawShade"]; use_nm = rs.inputs["Use Normals?"]
+nframe = nt.nodes.new("NodeFrame"); nframe.name = "CleftNM_Frame"; nframe.label = "Body normal map off in the cleft"
+nma = nt.nodes.new("ShaderNodeAttribute"); nma.name = "CleftNM_Mask"; nma.attribute_name = "cleft_nm_off"
+nma.attribute_type = 'GEOMETRY'
+nms = nt.nodes.new("ShaderNodeMath"); nms.name = "CleftNM_Strength"; nms.label = "Strength (1 = normal map fully off)"
+nms.operation = 'MULTIPLY'; nms.inputs[1].default_value = 1.0; nms.use_clamp = True
+nmi = nt.nodes.new("ShaderNodeMath"); nmi.name = "CleftNM_UseNormals"; nmi.label = "Use Normals?"
+nmi.operation = 'MULTIPLY_ADD'; nmi.inputs[1].default_value = -float(use_nm.default_value)
+nmi.inputs[2].default_value = float(use_nm.default_value)          # = original * (1 - mask)
+nt.links.new(nma.outputs["Fac"], nms.inputs[0]); nt.links.new(nms.outputs[0], nmi.inputs[0])
+nt.links.new(nmi.outputs[0], use_nm)
+nma.location = (rs.location.x - 640, rs.location.y - 260); nms.location = (rs.location.x - 430, rs.location.y - 260)
+nmi.location = (rs.location.x - 220, rs.location.y - 260)
+for nd in (nma, nms, nmi):
+    nd.parent = nframe
 
 # ======================= 8. internals: raise fit 1 cm, re-seat sphincter =======================
 E = bpy.data.objects["Internal_Fit_Xform"]
