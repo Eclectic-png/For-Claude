@@ -321,11 +321,15 @@ def crease(theta, r):
         t = min(max((r - RINGS[0]) / (f["r1"] - RINGS[0]), 0.0), 1.0)
         c = f["th0"] + f["bend"] * t + f["wob"] * math.sin(2 * math.pi * f["wf"] * t + f["wp"])
         dt = (theta - c + math.pi) % (2 * math.pi) - math.pi
-        sig = f["sig"] * (1.1 - 0.5 * t)                             # narrows towards its outer end
+        # width in mm of skin, not in angle: near the slit tips one radian covers almost no skin, so an angular
+        # width would make knife-thin grooves there
+        arc = math.hypot(r * math.sin(c), K_LAT * math.sqrt(max(r * r - SLIT * SLIT, 0.0)) * math.cos(c))
+        width = max(f["sig"] * 4.5 * (1.1 - 0.5 * t), 0.18)          # mm, narrows towards its outer end
         env = 1 - ss(f["r1"] - 1.8, f["r1"], r)
         if f["r0"] > RINGS[0]:
             env *= ss(f["r0"], f["r0"] + 0.4, r)
-        s_ += f["w"] * env * math.exp(-dt * dt / (2 * sig * sig))
+        dx = dt * max(arc, 1e-4)
+        s_ += f["w"] * env * math.exp(-dx * dx / (2 * width * width))
     return min(s_, 1.3)
 
 
@@ -448,6 +452,7 @@ report["base_lift_mm"] = round(LIFT * 1000, 2)
 for v, (r, th) in info.items():
     base_pos[v] = base_pos[v] + bnorm[v] * (LIFT * (1 - ss(RINGS[0], RINGS[-1] - 0.4, max(r, RINGS[0]))))
 # relief along the (smooth) base normal: shallow funnel, creases fanning from the slit, closed slit groove
+relief_of = {}; puff_of = {}
 for v, (r, th) in info.items():
     if v in slit_verts:
         sw = math.sin(th)
@@ -457,7 +462,18 @@ for v, (r, th) in info.items():
         relief = -FUNNEL * (1 - ss(RINGS[0], R_FOLD, r)) + fold_amp(r) * (RIDGE - crease(th, r))
         v[pig_layer] = 1 - ss(5.6, 7.8, pig_r(r, th))
         v[cre_layer] = min(1.0, crease(th, r)) * paint_amp(r)
-    v.co = base_pos[v] + bnorm[v] * (relief / 1000)
+    relief_of[v] = relief / 1000
+# round off the creases: near the slit (and at its ends) a crease's angular width covers very little skin, so the
+# raw relief makes knife-edge grooves there. A few averaging passes over the grid give every groove a natural
+# minimum width without moving the pattern.
+RELIEF_SMOOTH = 14
+for _ in range(RELIEF_SMOOTH):
+    relief_of = {v: d if v in slit_verts else           # the closed slit keeps its groove
+                 0.5 * d + 0.5 * sum(relief_of.get(e.other_vert(v), d) for e in v.link_edges) / len(v.link_edges)
+                 for v, d in relief_of.items()}
+for v in info:
+    v.co = base_pos[v] + bnorm[v] * relief_of[v] + puff_of.get(v, Vector())
+for v, (r, th) in info.items():
     v[fs_layer] = 1 - ss(6.5, 8.6, r)              # where the fold shading acts (0 at the outer ring)
 bm.normal_update()
 for v in bm.verts:                                 # smooth (un-creased) normal, for the fold shading's reference light
@@ -526,6 +542,26 @@ report["pigment_outline_mm"] = {
     "lateral_over_surface": round(2 * K_LAT * math.sqrt(8.0 ** 2 - SLIT ** 2), 1),
     "lateral_projected": round((pr[q].co.x - pr[3 * q].co.x) * 1000, 1),
     "climb_up_cheek_wall": round((to_local(pr[q].co)[2] - floor_h) * 1000, 1)}
+# The slit's lips bunch up at its two tips (elliptic spacing), leaving near-zero-width triangles whose shading
+# normals spike. Weld pucker vertices closer than 0.06 mm there.
+_tips = [v for v in info if v.is_valid and (v.co - R0[0].co).length < 0.0006 or (v.co - R0[H].co).length < 0.0006]
+_n0 = len(bm.verts)
+bmesh.ops.remove_doubles(bm, verts=_tips, dist=0.00006)
+report["slit_tip_welded_verts"] = _n0 - len(bm.verts)
+bm.verts.ensure_lookup_table(); bm.normal_update()
+# soften the little pits where creases meet the slit's lips: normal-only smoothing on the skin right around the slit
+_near = [v for v in bm.verts if v.is_valid and (min(abs(to_local(v.co)[0]) - SLIT / 1000, 0) ** 2 + 0) >= 0
+         and abs(to_local(v.co)[0]) < (SLIT + 1.6) / 1000 and abs(to_local(v.co)[1]) < 0.0016 and not v.is_boundary
+         and not (v in slit_verts)]   # the slit line itself stays, so the groove keeps its depth
+for _ in range(8):
+    bm.normal_update()
+    _new = {}
+    for v in _near:
+        d_ = sum((e.other_vert(v).co for e in v.link_edges), Vector()) / len(v.link_edges) - v.co
+        _new[v] = v.co + v.normal * (0.5 * d_.dot(v.normal))
+    for v, p_ in _new.items():
+        v.co = p_
+bm.normal_update()
 refined_ids = None
 bm.verts.ensure_lookup_table()
 refined_ids = [v.index for v in bm.verts if in_refine(v.co)]
