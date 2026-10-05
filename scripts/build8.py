@@ -452,23 +452,30 @@ report["base_lift_mm"] = round(LIFT * 1000, 2)
 for v, (r, th) in info.items():
     base_pos[v] = base_pos[v] + bnorm[v] * (LIFT * (1 - ss(RINGS[0], RINGS[-1] - 0.4, max(r, RINGS[0]))))
 # relief along the (smooth) base normal: shallow funnel, creases fanning from the slit, closed slit groove
+# Profile across the slit (from your sketch): the skin rises gently towards the slit, peaks right at its lips, then
+# drops into a narrow V - no wide valley. The rise goes straight out of the cleft (along n): on the steep cheek walls
+# the surface normal points sideways and would pinch the pucker.
+PUFF = 0.5                       # mm, height of the rise at the slit's lips
+SLIT_V = 0.7                     # mm, depth of the V below the lips
 relief_of = {}; puff_of = {}
 for v, (r, th) in info.items():
+    puff_of[v] = n * (PUFF / 1000 * (1 - ss(RINGS[0], RINGS[-1] - 0.4, max(r, RINGS[0]))) ** 1.3)
     if v in slit_verts:
         sw = math.sin(th)
-        relief = -FUNNEL - SLIT_DEPTH * sw ** 1.5
+        relief = -SLIT_V * sw ** 0.6
         v[pig_layer] = 1.0; v[cre_layer] = 0.9 * sw ** 0.5
     else:
-        relief = -FUNNEL * (1 - ss(RINGS[0], R_FOLD, r)) + fold_amp(r) * (RIDGE - crease(th, r))
+        relief = fold_amp(r) * (RIDGE - crease(th, r))
         v[pig_layer] = 1 - ss(5.6, 7.8, pig_r(r, th))
         v[cre_layer] = min(1.0, crease(th, r)) * paint_amp(r)
     relief_of[v] = relief / 1000
 # round off the creases: near the slit (and at its ends) a crease's angular width covers very little skin, so the
 # raw relief makes knife-edge grooves there. A few averaging passes over the grid give every groove a natural
 # minimum width without moving the pattern.
-RELIEF_SMOOTH = 14
+RELIEF_SMOOTH = 6
+_lips = set(rings[0])
 for _ in range(RELIEF_SMOOTH):
-    relief_of = {v: d if v in slit_verts else           # the closed slit keeps its groove
+    relief_of = {v: d if (v in slit_verts or v in _lips) else           # the closed slit keeps its groove
                  0.5 * d + 0.5 * sum(relief_of.get(e.other_vert(v), d) for e in v.link_edges) / len(v.link_edges)
                  for v, d in relief_of.items()}
 for v in info:
@@ -552,7 +559,7 @@ bm.verts.ensure_lookup_table(); bm.normal_update()
 # soften the little pits where creases meet the slit's lips: normal-only smoothing on the skin right around the slit
 _near = [v for v in bm.verts if v.is_valid and (min(abs(to_local(v.co)[0]) - SLIT / 1000, 0) ** 2 + 0) >= 0
          and abs(to_local(v.co)[0]) < (SLIT + 1.6) / 1000 and abs(to_local(v.co)[1]) < 0.0016 and not v.is_boundary
-         and not (v in slit_verts)]   # the slit line itself stays, so the groove keeps its depth
+         and not (v in slit_verts) and v not in set(rings[0])]   # the slit line itself stays, so the groove keeps its depth
 for _ in range(8):
     bm.normal_update()
     _new = {}
@@ -562,6 +569,8 @@ for _ in range(8):
     for v, p_ in _new.items():
         v.co = p_
 bm.normal_update()
+_skin_tree = BVHTree.FromBMesh(bm)                # the canal's bottom ring follows the final skin
+ring0 = [_skin_tree.find_nearest(p_)[0] for p_ in ring0]
 refined_ids = None
 bm.verts.ensure_lookup_table()
 refined_ids = [v.index for v in bm.verts if in_refine(v.co)]
