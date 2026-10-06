@@ -36,6 +36,7 @@ On Windows `ANATOMY_REF` defaults to the user's path. Each script writes `report
 |---|---|---|
 | `scripts/build5.py` | original (user's local chat) | Pole-closed anus with 12 radial creases of fixed angular width whose depth grows from the centre (`sin(pi t)^0.8`), so they all narrow into one point. The user likes its lines. It stood up like a lump (biharmonic fill bridging the cleft, flat projection) and reshaped the cheeks. Renders: `out/variants/build5/`. |
 | `scripts/build5_adapted.py` | **current** | The user's build5 itself, with only three changes (each marked `adapted:`): the rebuilt region is cut narrow in surface coordinates (`surf_coords`, `D_AP` / `D_LAT`), the rings are cast on a Phong-curved base, and the lateral offsets are arc length over the skin (`surf_point`). There is also a portability fix (env var, report path, texture lookup). The cross-section (`xs2.py`) shows the centre at +2.3 mm (lump) in build5 and -0.1 mm here, with the cheek walls ~3 mm further out in build5. Renders: `out/variants/build5_adapted/`. |
+| `scripts/build5_rise.py` | **in progress** | build5_adapted with the 2 mm funnel turned into a rise toward the centre: same `1 - ss(0, R_FOLD, r)` profile, applied along n, with build5's 0.6 mm entrance dip kept at the pole. Set the height with the `ANUS_RISE` env var (default 1.0 mm). Measured rises above the surrounding floor: 0.5 gives ~0.7 mm, 1.0 gives ~1 mm, 2.0 gives ~1.8 mm. Renders for all three: `out/variants/build5_rise/`. |
 | `scripts/build7.py` | original | The local chat's last build (v7): a near-circular pucker. |
 | `scripts/build8.py` | **saved v1** (`out/versions/closed_fissure_v1/`) | Squeezed cleft, closed fissure, lips peaking at the edge, cusped wrinkles. Uses the older confocal ring layout. |
 | `scripts/build8_raised.py` | variant | v1 with a ~1 mm raised dome. |
@@ -142,10 +143,14 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
 | `hole.py` | Width of the slit hole along its length. |
 | `inside.py` | Nearest-normal inside test. Unreliable at sharp edges. |
 | `star.py` | Skin-only Workbench view of the whole crease star, looking along the outward normal. Args: `-- <outdir> <prefix> <distance_m> <wire 0/1>`. 0.022 frames the star, 0.014 with wire shows the crease rows, 0.007 frames the slit edge. In this view the image top is the back (coccyx) end. |
+| `grazing.py` | Skin-only Workbench view low along the cleft from the perineum side, for judging rises and dips. Args: `-- <outdir> <prefix>`. |
 
 `scripts/render_close.py` and `scripts/render_wire.py` produce the standard close / below / geometry renders.
 
 ## Current state and next step
+
+- **build5_rise (latest):** the user asked for the surface to rise toward the centre. Three heights were rendered side
+  by side, and the user is choosing one. Note that "level" in build5_adapted already included the 2 mm funnel dive.
 
 - **build5_adapted (latest):** the user rejected build9 and build10 as rebuilds rather than build5. They asked to go back
   to build5 and only fix its problems: the lump, the edges not riding up the cheeks, and the deformed cheeks.
