@@ -149,7 +149,15 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
 
 ## Current state and next step
 
-- **build5_rise, glitch check (latest):** the user picked `ANUS_SIG` 0.06 (now the default, no taper) and asked for a
+- **Cheek distortion check (latest):** `scripts/tools/distort.py` measures, for each of the original's 1,580 skin
+  vertices, its distance to a version's final skin. The plot is `cheek_distortion_map.png`.
+  - **Mean / max movement in mm:** at 12-20 mm from the anus, current 0.88 / 2.31, build7 1.13 / 2.73, build5 1.13 /
+    2.80, build8 1.22 / 3.60. At 20-30 mm, every version is ~0.25-0.32 / 1.5-2.05.
+  - **Beyond 45 mm:** zero for all versions.
+  - **Cause:** nearly all the movement outside the rebuilt area is step 2, the Taubin smoothing of the cleft crease
+    (in the user's build7 from the start). On its own it moves vertices up to 4 mm out to ~30 mm, mostly along the cleft
+    toward the back.
+- **build5_rise, glitch check:** the user picked `ANUS_SIG` 0.06 (now the default, no taper) and asked for a
   check of textures and shadows.
   - **Diagnosis** (renders with one change each): turning the body normal map off removed both glitches, the spiky
     shadow edge on the left cheek wall and the crease ends splitting into streaks. Resetting custom normals changed
