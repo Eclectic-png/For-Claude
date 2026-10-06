@@ -77,8 +77,34 @@ Next: item 5 (mouth-to-anus continuity check).
   it, and jejunum->ileum, cecum->ascending, asc->trans, trans->desc, desc->rectum have no facing openings (7-50 mm off).
   So the tract is visually continuous, but a hollow passage only from the rectum down (and ileum->cecum).
 - Internal_Fit_Xform scales the atlas by (0.62, 0.72, 0.72), so atlas mm are ~0.7x in the fitted body.
-- Waiting on the user: (a) move the appendix onto the cecum; (b) whether to make the whole tract a real hollow
-  passage (open + stitch each junction like the anus); (c) where the mouth / pharynx come from (head model?).
+- User's answers: no mouth / pharynx needed (the model starts at the base of the neck); fix holes if inaccurate;
+  look for missing parts; make the full connected passage only if the models are not changed much.
+
+**Item 5 DONE - connected passage (`scripts/tract_lib.py`, `scripts/build_tract_passage.py`):**
+- Holes: there were none. Every "hole" was an unwelded shading seam; each organ is a closed shell once welded at
+  1e-7 m. Not changed.
+- Missing parts: none in the depicted region. The "descending colon" model includes the sigmoid's course (curves
+  into the pelvis and overlaps the rectum 11 mm deep, `out/tract/lower_colon.png`); it is just not split out.
+- Atlas defect fixed: the ileum carried a complete duplicate of the cecum (all 288 faces, a separate closed copy).
+- `open_junction(A, B)`: cuts both shells along their intersection inside a patch round the junction (bpy
+  mesh.intersect, EXACT, A against B only), opens on each side the piece the junction curve encloses that lies
+  inside the other organ, and puts the patch back welded to the untouched rest. Both openings are the same vertex
+  loop. Side contacts between coils stay closed. Patch grows 12 / 24 / 40 mm until the curve closes; loose curve
+  ends <= 3 mm apart are bridged and the slivers stitched; if still open, one side is inflated / deflated slightly
+  (fading to 0 at the patch border). Rebuilt vertices take "AO" from the nearest old one.
+- Atlas result (`out/blend/anatomy_tract_passage.blend`, gitignored; anatomy_ref.blend itself untouched): all 9
+  junctions open, radii mm: esoph-stomach 8.0, stomach-duod 10.6, duod-jejunum 8.1 (needed a 2.5 mm / 15 mm bulge:
+  they only touched), jejunum-ileum 12.7 (jejunum deflated 1 mm locally: coincident walls), ileum-cecum 8.9,
+  cecum-asc 12.4, asc-trans 11.6, trans-desc 10.7, desc-rectum 25.4. `tools/tract_seams.py`: 18 openings, all matched
+  (0.0001 mm), no other open edges; 0 non-manifold, 0 degenerate faces.
+- Appendix: attached (moved 21.9 mm so its base sinks 1 mm into the cecum >= 15 mm from the ileal entrance; the
+  nearest spot was on the ileal opening), NOT opened (dead end). The user may prefer a smaller move.
+- Insides: every tract organ's material is lit inside + "AO_in" baked (atlas build step 5).
+- Hips.blend (`build5_passage.py` 9c): descending colon -> rectum opened the same way (r 16.9 mm); so the working
+  file runs colon -> rectum -> ampulla -> canal -> skin with exact seams (`out/tract/seams_hips_passage.json`).
+- Renders: `out/tract/openings.png` (organs alone looking into their openings), `junction_cutaways.png` (top: atlas
+  before, bottom: after, insides now lit).
+- Tools: `tract_seams.py`, `overlaps.py`, `xsect.py` (2D sections), `cutaway.py`, `opening_view.py`, `holes_view.py`.
 
 **What is missing (the next task, in order):**
 1. **Real passage.** The skin is closed at a point (the pole) and the canal (`AN_AnalCanal`) starts 0.08 mm under the

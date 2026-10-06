@@ -1,0 +1,218 @@
+[
+ {
+  "organ": "AN_Esophagus",
+  "edges": 80,
+  "r_mm": 8.0,
+  "centre": [
+   0.0152,
+   -0.1147,
+   1.1267
+  ],
+  "matched_with": "AN_Stomach",
+  "max_gap_mm": 0.0001
+ },
+ {
+  "organ": "AN_Stomach",
+  "edges": 114,
+  "r_mm": 10.56,
+  "centre": [
+   -0.0207,
+   -0.1503,
+   1.0661
+  ],
+  "matched_with": "AN_Duodenum",
+  "max_gap_mm": 0.0001
+ },
+ {
+  "organ": "AN_Stomach",
+  "edges": 80,
+  "r_mm": 8.0,
+  "centre": [
+   0.0152,
+   -0.1147,
+   1.1267
+  ],
+  "matched_with": "AN_Esophagus",
+  "max_gap_mm": 0.0001
+ },
+ {
+  "organ": "AN_Duodenum",
+  "edges": 114,
+  "r_mm": 10.56,
+  "centre": [
+   -0.0207,
+   -0.1503,
+   1.0661
+  ],
+  "matched_with": "AN_Stomach",
+  "max_gap_mm": 0.0001
+ },
+ {
+  "organ": "AN_Duodenum",
+  "edges": 64,
+  "r_mm": 8.06,
+  "centre": [
+   0.0271,
+   -0.1373,
+   1.0211
+  ],
+  "matched_with": "AN_Jejunum",
+  "max_gap_mm": 0.0
+ },
+ {
+  "organ": "AN_Jejunum",
+  "edges": 64,
+  "r_mm": 8.06,
+  "centre": [
+   0.0271,
+   -0.1373,
+   1.0211
+  ],
+  "matched_with": "AN_Duodenum",
+  "max_gap_mm": 0.0
+ },
+ {
+  "organ": "AN_Jejunum",
+  "edges": 65,
+  "r_mm": 12.73,
+  "centre": [
+   -0.0414,
+   -0.1622,
+   0.947
+  ],
+  "matched_with": "AN_Ileum",
+  "max_gap_mm": 0.0001
+ },
+ {
+  "organ": "AN_Ileum",
+  "edges": 69,
+  "r_mm": 8.86,
+  "centre": [
+   -0.0725,
+   -0.132,
+   0.8763
+  ],
+  "matched_with": "AN_Cecum",
+  "max_gap_mm": 0.0001
+ },
+ {
+  "organ": "AN_Ileum",
+  "edges": 65,
+  "r_mm": 12.73,
+  "centre": [
+   -0.0414,
+   -0.1622,
+   0.947
+  ],
+  "matched_with": "AN_Jejunum",
+  "max_gap_mm": 0.0001
+ },
+ {
+  "organ": "AN_Cecum",
+  "edges": 93,
+  "r_mm": 12.37,
+  "centre": [
+   -0.0686,
+   -0.118,
+   0.9081
+  ],
+  "matched_with": "AN_Colon_Ascending",
+  "max_gap_mm": 0.0001
+ },
+ {
+  "organ": "AN_Cecum",
+  "edges": 69,
+  "r_mm": 8.86,
+  "centre": [
+   -0.0725,
+   -0.132,
+   0.8763
+  ],
+  "matched_with": "AN_Ileum",
+  "max_gap_mm": 0.0001
+ },
+ {
+  "organ": "AN_Colon_Ascending",
+  "edges": 93,
+  "r_mm": 12.37,
+  "centre": [
+   -0.0686,
+   -0.118,
+   0.9081
+  ],
+  "matched_with": "AN_Cecum",
+  "max_gap_mm": 0.0001
+ },
+ {
+  "organ": "AN_Colon_Ascending",
+  "edges": 23,
+  "r_mm": 11.63,
+  "centre": [
+   -0.0763,
+   -0.1355,
+   1.0356
+  ],
+  "matched_with": "AN_Colon_Transverse",
+  "max_gap_mm": 0.0001
+ },
+ {
+  "organ": "AN_Colon_Transverse",
+  "edges": 23,
+  "r_mm": 11.63,
+  "centre": [
+   -0.0763,
+   -0.1355,
+   1.0356
+  ],
+  "matched_with": "AN_Colon_Ascending",
+  "max_gap_mm": 0.0001
+ },
+ {
+  "organ": "AN_Colon_Transverse",
+  "edges": 34,
+  "r_mm": 10.68,
+  "centre": [
+   0.0805,
+   -0.1267,
+   1.0388
+  ],
+  "matched_with": "AN_Colon_Descending",
+  "max_gap_mm": 0.0001
+ },
+ {
+  "organ": "AN_Colon_Descending",
+  "edges": 155,
+  "r_mm": 25.43,
+  "centre": [
+   0.0095,
+   -0.0647,
+   0.8496
+  ],
+  "matched_with": "AN_Rectum",
+  "max_gap_mm": 0.0
+ },
+ {
+  "organ": "AN_Colon_Descending",
+  "edges": 34,
+  "r_mm": 10.68,
+  "centre": [
+   0.0805,
+   -0.1267,
+   1.0388
+  ],
+  "matched_with": "AN_Colon_Transverse",
+  "max_gap_mm": 0.0001
+ },
+ {
+  "organ": "AN_Rectum",
+  "edges": 155,
+  "r_mm": 25.43,
+  "centre": [
+   0.0095,
+   -0.0647,
+   0.8496
+  ],
+  "matched_with": "AN_Colon_Descending",
+  "max_gap_mm": 0.0
+ }
+]

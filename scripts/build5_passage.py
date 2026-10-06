@@ -1320,71 +1320,18 @@ AO_DIST = 0.008                                  # m, how far occluders count (o
 AO_RAYS = 32
 
 
-def light_insides(mat):
-    nt = mat.node_tree; N = nt.nodes; Lk = nt.links
-    if mat.get("insides_lit"):
-        return
-    geo = N["Geometry"]; vt = N["Vector Transform"]
-    sg = N.new("ShaderNodeMath"); sg.operation = "MULTIPLY_ADD"; sg.inputs[1].default_value = -2.0
-    sg.inputs[2].default_value = 1.0; Lk.new(geo.outputs["Backfacing"], sg.inputs[0])
-    fl = N.new("ShaderNodeVectorMath"); fl.operation = "SCALE"
-    Lk.new(geo.outputs["Normal"], fl.inputs[0]); Lk.new(sg.outputs[0], fl.inputs["Scale"])
-    Lk.new(fl.outputs["Vector"], vt.inputs["Vector"])
-    ao = N["Color Attribute"]; ai = N.new("ShaderNodeVertexColor"); ai.layer_name = "AO_in"
-    mx = N.new("ShaderNodeMix"); mx.data_type = "RGBA"
-    Lk.new(geo.outputs["Backfacing"], mx.inputs["Factor"]); Lk.new(ao.outputs["Color"], mx.inputs[6])
-    Lk.new(ai.outputs["Color"], mx.inputs[7])
-    tgt = [l_.to_socket for l_ in ao.outputs["Color"].links if l_.to_node is not mx]
-    for t_ in tgt:
-        Lk.new(mx.outputs[2], t_)
-    Lk.new(N["Mix.002"].outputs[2], N["Emission"].inputs["Color"])     # the flat backface colour is bypassed
-    mat["insides_lit"] = True
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from tract_lib import light_insides, set_open, scene_bvh, bake_ao
 
 
-def fib_hemi(nr):
-    out = []
-    for i in range(nr):                            # cosine-weighted Fibonacci hemisphere (z up)
-        u = (i + 0.5) / nr; r_ = math.sqrt(u); ph = i * math.pi * (3 - math.sqrt(5))
-        out.append(Vector((r_ * math.cos(ph), r_ * math.sin(ph), math.sqrt(1 - u))))
-    return out
-
-
-_HEMI = fib_hemi(AO_RAYS)
-
-
-def set_open(v_):
-    for o_ in bpy.data.objects:
-        if o_.type == 'MESH' and o_.data.shape_keys and "Open" in o_.data.shape_keys.key_blocks:
-            o_.data.shape_keys.key_blocks["Open"].value = v_
-    bpy.context.view_layer.update()
-
-
-def scene_bvh():
-    dg = bpy.context.evaluated_depsgraph_get(); bb = bmesh.new()
-    for o_ in bpy.data.objects:
-        if o_.type == 'MESH' and not o_.hide_render:
-            t_ = bmesh.new(); t_.from_object(o_, dg); t_.transform(o_.matrix_world)
-            me_ = bpy.data.meshes.new("_tmp"); t_.to_mesh(me_); t_.free(); bb.from_mesh(me_); bpy.data.meshes.remove(me_)
-    tr = BVHTree.FromBMesh(bb); bb.free(); return tr
-
-
-def bake_ao(ob, name, inner, tree):
-    dg = bpy.context.evaluated_depsgraph_get(); t_ = bmesh.new(); t_.from_object(ob, dg)
-    t_.transform(ob.matrix_world); t_.normal_update(); vals = []
-    for v in t_.verts:
-        nrm = -v.normal if inner else v.normal
-        q = nrm.to_track_quat('Z', 'Y'); o_ = v.co + nrm * 2e-5; acc = 0
-        for dd in _HEMI:
-            if tree.ray_cast(o_, q @ dd, AO_DIST)[0] is None:
-                acc += 1
-        vals.append(acc / AO_RAYS)
-    t_.free()
-    ca = ob.data.color_attributes.get(name) or ob.data.color_attributes.new(name, 'FLOAT_COLOR', 'POINT')
-    for i, a_ in enumerate(vals):
-        ca.data[i].color = (a_, a_, a_, 1.0)
-    return round(float(np.mean(vals)), 3)
-
-
+# the descending colon and the rectum (both atlas shells, overlapping) open into each other, as in the full atlas
+# passage (scripts/build_tract_passage.py); only a patch round the junction changes
+import tract_lib as _TL
+_dc = bpy.data.objects.get("AN_Colon_Descending")
+if _dc is not None:
+    _rj = _TL.open_junction(_dc, rect)
+    report["colon_rectum_junction"] = {k: _rj[k] for k in ("curve_mm", "patch_radius_mm", "killed_faces")}
+    report["colon_rectum_junction"]["opening"] = _TL.opening_loops(_dc, rect)
 _tract = [o_ for o_ in bpy.data.objects if o_.type == 'MESH' and o_.data.materials
           and o_.data.materials[0] and o_.data.materials[0].name in ("AN_Rectum", "AN_Colon_Descending")]
 for m_ in {o_.data.materials[0] for o_ in _tract}:
@@ -1418,10 +1365,10 @@ for o_, vals_ in ((canal, _canal_lin), (amp, [1.0] * len(amp.data.vertices))):
 _ao = {}
 set_open(0.0); _tr = scene_bvh()
 for o_ in (canal, amp):
-    _ao[o_.name + ".AO"] = bake_ao(o_, "AO", False, _tr)
+    _ao[o_.name + ".AO"] = bake_ao(o_, "AO", False, _tr, AO_DIST, AO_RAYS)
 set_open(1.0); _tr = scene_bvh()
 for o_ in [canal, amp] + [t_ for t_ in _tract if t_ not in (canal, amp)]:
-    _ao[o_.name + ".AO_in"] = bake_ao(o_, "AO_in", True, _tr)
+    _ao[o_.name + ".AO_in"] = bake_ao(o_, "AO_in", True, _tr, AO_DIST, AO_RAYS)
 set_open(0.0)
 report["ao_mean"] = _ao
 print("REPORT", json.dumps(report))
