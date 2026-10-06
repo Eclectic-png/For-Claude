@@ -10,8 +10,8 @@
  "degenerate_faces": 0,
  "anus_centre_A": [
   0.0,
-  0.0569,
-  0.7896
+  0.057,
+  0.7895
  ],
  "boundary_edges_total": 84,
  "pucker_outer_lateral_halfwidth_mm": 4.7,
@@ -22,10 +22,10 @@
   "lateral_projected": 8.1,
   "climb_up_cheek_wall": 1.9
  },
- "slit_tip_welded_verts": 232,
+ "slit_tip_welded_verts": 233,
  "fissure_open_removed_verts": 57,
- "tip_merged_verts": 122,
- "tip_tidied_verts": 77,
+ "tip_merged_verts": 125,
+ "tip_tidied_verts": 81,
  "textures_inpainted": [
   [
    "cf_m_body_MT_CT.png",
@@ -67,12 +67,12 @@
  "anorectal_angle_deg": 107.9,
  "junction_J": [
   0.0,
-  0.0418,
-  0.8096
+  0.0419,
+  0.8095
  ],
  "junction_to_coccyx_tip_mm": 22.3,
- "junction_vs_pubococcygeal_line_mm": -5.6,
- "anus_vs_ischial_tuberosity_height_mm": -3.8,
+ "junction_vs_pubococcygeal_line_mm": -5.7,
+ "anus_vs_ischial_tuberosity_height_mm": -3.9,
  "coccyx_tip": [
   -0.0007,
   0.0633,
@@ -83,5 +83,5 @@
   -0.0042,
   0.8142
  ],
- "ampulla_len_mm": 20.8
+ "ampulla_len_mm": 20.9
 }

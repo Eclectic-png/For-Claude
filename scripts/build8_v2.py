@@ -334,12 +334,13 @@ def crease(theta, r):
         length = (f["r1"] - RINGS[0]) * 1.5
         t = min(max(along / length, 0.0), 1.0)
         off = -qx * uy + qy * ux + f["wob"] * 4.0 * math.sin(2 * math.pi * f["wf"] * t + f["wp"]) * t
-        width = max(f["sig"] * 4.5 * (1.1 - 0.5 * t), 0.18)
+        width = max(f["sig"] * 4.5 * (0.5 + 0.6 * t), 0.12)     # narrowest at the slit, where they converge
         env = (1 - ss(length * 0.7, length, along)) * ss(-0.6, -0.25, along)   # already full depth inside the crease
         if f["r0"] > RINGS[0]:
             env *= ss(f["r0"], f["r0"] + 0.4, r)
-        s_ += f["w"] * env * math.exp(-abs(off) / (0.22 * width))   # abrupt, like the centre crease
-    return min(s_, 1.3)
+        s_ = max(s_, min(f["w"], 1.0) * env * math.exp(-abs(off) / max(0.22 * width, 0.11)))   # max: converging grooves stay distinct;
+        # the groove base is never narrower than the mesh spacing (~0.1 mm) or the vertices skip the groove bottoms
+    return s_
 
 
 def fold_amp(r):                 # wrinkles are deepest just outside the slit and die out before the cheek walls
@@ -488,7 +489,7 @@ for v, (r, th) in info.items():
 # round off the creases: near the slit (and at its ends) a crease's angular width covers very little skin, so the
 # raw relief makes knife-edge grooves there. A few averaging passes over the grid give every groove a natural
 # minimum width without moving the pattern.
-RELIEF_SMOOTH = 1
+RELIEF_SMOOTH = 0
 _lips = set()
 for _ in range(RELIEF_SMOOTH):
     relief_of = {v: d if (v in slit_verts or v in _lips) else           # the closed slit keeps its groove
@@ -577,7 +578,7 @@ bm.verts.ensure_lookup_table(); bm.normal_update()
 _near = [v for v in bm.verts if v.is_valid and (min(abs(to_local(v.co)[0]) - SLIT / 1000, 0) ** 2 + 0) >= 0
          and abs(to_local(v.co)[0]) < (SLIT + 1.6) / 1000 and abs(to_local(v.co)[1]) < 0.0006 and not v.is_boundary
          and not (v in slit_verts) and v not in set(rings[0])]   # the slit line itself stays, so the groove keeps its depth
-for _ in range(3):                                   # light in v2 (was 8 passes over 1.6 mm): only the pits at the lips
+for _ in range(0):                                   # off: any averaging erases the narrow grooves
     bm.normal_update()
     _new = {}
     for v in _near:
