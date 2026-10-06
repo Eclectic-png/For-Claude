@@ -227,12 +227,12 @@ RINGS = sorted([0.06, 0.15, 0.3, 0.45, 0.6, 0.75] + RINGS + [1.15, 1.65, 2.35]) 
 # which otherwise bent only at build5's 0.9 / 1.4 / 2.0 mm rings and showed corners
 SQUEEZE = 0.75
 FOLD_W = [1.2, 0.8, 1.0, 0.75, 1.05, 0.85, 1.2, 0.85, 1.05, 0.75, 1.0, 0.8]
-SIG = float(os.environ.get("ANUS_SIG", "0.09")); R_FOLD = 7.2   # rad, a crease's angular half-width (build5: 0.09)
+SIG = float(os.environ.get("ANUS_SIG", "0.06")); R_FOLD = 7.2   # rad, a crease's angular half-width (build5: 0.09; user picked 0.06)
 # crease width: build5's fixed angular width made each crease's real width grow with r, so the grooves took ~2/3 of
 # the circumference all the way out. Past R_W the angular width now shrinks as (R_W / r)^K, so the creases still
 # narrow into the centre but stay slim further out (K = 0: build5's behaviour)
 R_W = 1.5
-CREASE_TAPER = float(os.environ.get("ANUS_CREASE_TAPER", "0.6"))
+CREASE_TAPER = float(os.environ.get("ANUS_CREASE_TAPER", "0.0"))
 N_SPOKE = 288                    # build5: 72 (5 deg apart) - the slimmer creases need finer spokes to stay clean
 # rise: build5's 2 mm funnel profile turned upside down - the surface climbs towards the centre and fades to nothing
 # at the outer ring
