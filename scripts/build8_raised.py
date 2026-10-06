@@ -277,7 +277,7 @@ report["deleted_verts"] = len(D); report["hole_loop"] = len(L)
 # cheek walls instead of being projected onto the cleft floor.
 SLIT = 3.0                       # mm, half-length of the closed AP slit
 K_LAT = 0.85                     # lateral (arc length) / AP for the confocal rings -> AP-elongated
-RINGS = [3.06, 3.5, 3.9, 4.4, 5.0, 5.7, 6.4, 7.2, 8.0, 8.8]     # AP semi-axis of each ring, mm
+RINGS = [3.06, 3.12, 3.2, 3.3, 3.42, 3.6, 3.9, 4.4, 5.0, 5.7, 6.4, 7.2, 8.0, 8.8]     # AP semi-axis of each ring, mm
 # Creases are modelled (relief), not painted. Each lip gets its own randomly drawn set - no mirroring - with its own
 # angle, depth, width, length, a gentle bend and a slight wobble; each fold tapers from the slit outwards, and a few
 # short shallow wrinkles sit between the main ones. Seeded: a rebuild gives the same pattern, change CREASE_SEED for
@@ -329,12 +329,12 @@ def crease(theta, r):
         if f["r0"] > RINGS[0]:
             env *= ss(f["r0"], f["r0"] + 0.4, r)
         dx = dt * max(arc, 1e-4)
-        s_ += f["w"] * env * math.exp(-dx * dx / (2 * width * width))
+        s_ += f["w"] * env * math.exp(-abs(dx) / (0.5 * width))       # cusp: narrow sharp groove between pads
     return min(s_, 1.3)
 
 
 def fold_amp(r):                 # wrinkles are deepest just outside the slit and die out before the cheek walls
-    return FOLD_DEPTH * ss(RINGS[0], RINGS[0] + 0.6, r) * (1 - ss(4.8, 7.0, r))
+    return FOLD_DEPTH * ss(RINGS[0] + 0.25, RINGS[0] + 0.9, r) * (1 - ss(4.8, 7.0, r))   # grooves fade before the lip turns down
 
 
 def paint_amp(r):                # painted crease lines run a little further than the relief
@@ -364,12 +364,12 @@ def surf_point(a_mm, s_mm):
         assert phi < math.radians(150), (a_mm, s_mm)
 
 
-LIP_GAP = 0.4                    # the open fissure's lips sit this close (fraction of the innermost ring's width)
+LIP_GAP = 0.03                   # the open fissure's lips sit this close (fraction of the innermost ring's width)
 
 
 def ring_xy(r, th):
     """confocal ellipse with foci at the slit ends; r = AP semi-axis"""
-    k = K_LAT * (LIP_GAP if r == RINGS[0] else 1.0)
+    k = K_LAT * (LIP_GAP + (1 - LIP_GAP) * ss(RINGS[0], RINGS[0] + 1.6, r))   # inner rings pressed against the slit
     return r * math.cos(th), k * math.sqrt(max(r * r - SLIT * SLIT, 0.0)) * math.sin(th)
 
 
@@ -464,21 +464,21 @@ SLIT_V = 0.7                     # mm, depth of the V below the lips
 LIP_ROLL = 0.9                   # mm the lips curl down into the open fissure
 relief_of = {}; puff_of = {}
 for v, (r, th) in info.items():
-    puff_of[v] = n * (PUFF / 1000 * (1 - ss(RINGS[0], RINGS[-1] - 0.4, max(r, RINGS[0]))) ** 1.3)
+    puff_of[v] = n * (PUFF / 1000 * (1 - ss(RINGS[0] + 0.8, RINGS[-1] - 0.4, max(r, RINGS[0]))))
     if v in slit_verts:
         sw = math.sin(th)
         relief = -SLIT_V * sw ** 0.6
         v[pig_layer] = 1.0; v[cre_layer] = 0.9 * sw ** 0.5
     else:
-        relief = fold_amp(r) * (RIDGE - crease(th, r)) - LIP_ROLL * (1 - ss(RINGS[0], RINGS[0] + 1.0, r)) ** 1.5
+        relief = fold_amp(r) * (RIDGE - crease(th, r)) - LIP_ROLL * math.exp(-abs(ring_xy(r, th)[1]) / 0.12) * (1 - ss(SLIT, SLIT + 0.8, abs(ring_xy(r, th)[0])))   # curl in real sideways mm, only along the slit
         v[pig_layer] = 1 - ss(5.6, 7.8, pig_r(r, th))
         v[cre_layer] = min(1.0, crease(th, r)) * paint_amp(r)
     relief_of[v] = relief / 1000
 # round off the creases: near the slit (and at its ends) a crease's angular width covers very little skin, so the
 # raw relief makes knife-edge grooves there. A few averaging passes over the grid give every groove a natural
 # minimum width without moving the pattern.
-RELIEF_SMOOTH = 6
-_lips = set(rings[0])
+RELIEF_SMOOTH = 2
+_lips = set()
 for _ in range(RELIEF_SMOOTH):
     relief_of = {v: d if (v in slit_verts or v in _lips) else           # the closed slit keeps its groove
                  0.5 * d + 0.5 * sum(relief_of.get(e.other_vert(v), d) for e in v.link_edges) / len(v.link_edges)
