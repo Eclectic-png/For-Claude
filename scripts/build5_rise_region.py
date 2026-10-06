@@ -203,6 +203,7 @@ while stack:
         continue
     D.add(v); stack += [e.other_vert(v) for e in v.link_edges]
 
+report["D_a_range_mm"] = [round(min(to_local(v.co)[0] for v in D) * 1000, 1), round(max(to_local(v.co)[0] for v in D) * 1000, 1)]
 # base = copy of the skin where D is replaced by a biharmonic (C1-smooth) fill of the cleft
 base = bm.copy(); base.verts.ensure_lookup_table(); base.faces.ensure_lookup_table()
 Didx = sorted(v.index for v in D); col = {i: k for k, i in enumerate(Didx)}
@@ -225,6 +226,9 @@ for i in Didx:
 for v in base.verts:
     if abs(v.co.x) < 2e-5: v.co.x = 0.0
 base.normal_update()
+if os.environ.get("ANUS_DEBUG_BASE"):            # region: keep a copy of the filled base for inspection
+    _dm = bpy.data.meshes.new("DebugBase"); base.to_mesh(_dm)
+    _do = bpy.data.objects.new("DebugBase", _dm); bpy.context.scene.collection.objects.link(_do); _do.hide_render = True
 base_tree = BVHTree.FromBMesh(base)
 # adapted: the rings now lie on the real cheek walls (coarse game-mesh triangles), so cast onto a Phong-curved copy
 # of the base: it passes through the original vertices and matches how that skin looks smooth-shaded
@@ -415,12 +419,85 @@ _d = _L[_E[:, 1]] - _L[_E[:, 0]]
 _w = (_d[:, 0] ** 2) / np.maximum((_d ** 2).sum(1), 1e-12)          # 1 for an edge along the cleft, 0 across it
 _h0 = np.array([to_local(base_pos[v])[2] * 1000 for v in _vl]); _h = _h0.copy()
 _mob = np.array([(1 - ss(3.0, 6.0, abs(_lay[v][1]))) * (info[v][0] < 8.6) for v in _vl])
+# region: the extra rings sit ~0.1 mm apart where the back stretch is short (front half, sides): there they are held
+# out of the sweeps (beta = 0) and afterwards take the 7.6 mm ring's change faded linearly to 0 at the outer ring, as
+# the single 7.6 -> 8.6 mm face did before (held at the base they made a fold 0.1 mm outside the 7.6 mm ring, seen as
+# a sharp outline). Where the stretch is long (beta = 1, back) they join the sweeps fully.
+_beta = np.ones(len(_vl))
+if EXT > 0:
+    _beta = np.array([ss(0.15, 0.5, math.cos(info[v][1])) if info[v][0] > R_STRETCH else 1.0 for v in _vl])
+    _mob *= _beta
+# region: ANUS_SOFT_BACK = mm before the back end of the stretched rings over which the heights are pulled back toward
+# the base (screened sweeps), so the climb eases into the cleft floor instead of meeting it at an angle
+SOFT_B = float(os.environ.get("ANUS_SOFT_BACK", "0")); SOFT_K = float(os.environ.get("ANUS_SOFT_K", "0.05"))
+_kap = np.zeros(len(_vl))
+if EXT > 0 and SOFT_B > 0:
+    _t0 = 1 - SOFT_B / (8.6 - R_STRETCH + EXT)
+    _kap = np.array([SOFT_K * ss(_t0, 1.0, (info[v][0] - R_STRETCH) / (8.6 - R_STRETCH)) * (_lay[v][0] > 0)
+                     * (info[v][0] > R_STRETCH) for v in _vl])
 _W = np.zeros(len(_vl)); np.add.at(_W, _E[:, 0], _w); np.add.at(_W, _E[:, 1], _w)
-for _ in range(LEVEL_ITERS):
-    _acc = np.zeros(len(_vl))
-    np.add.at(_acc, _E[:, 0], _w * (_h[_E[:, 1]] - _h[_E[:, 0]])); np.add.at(_acc, _E[:, 1], _w * (_h[_E[:, 0]] - _h[_E[:, 1]]))
-    _h += 0.5 * _mob * _acc / np.maximum(_W, 1e-9)
+# region: ANUS_LEVEL_MODE=linear is the converged form of that smoothing, worked out directly: along each line of
+# constant lateral offset s the height runs straight from the outer ring's front point to its back point (by real
+# a, so the dense centre rings don't bunch the slope toward the coarse outer ones), blended into the base by the same
+# lateral fade. The jacobi sweeps (default) stop far short of that: the 288-spoke centre rings barely move, which
+# leaves a pit at the centre and pushes the climb to the back edge. ANUS_SOFT_FRONT / ANUS_SOFT_BACK = mm over which
+# the slope eases from the skin's own slope at the outer ring into the straight run (no kink at the ends)
+LEVEL_MODE = os.environ.get("ANUS_LEVEL_MODE", "jacobi")
+SOFT_F = float(os.environ.get("ANUS_SOFT_FRONT", "0"))
+if LEVEL_MODE == "linear":
+    _out = [v for v in rings[-1]]
+    _oa = np.array([_lay[v][0] for v in _out]); _os = np.array([_lay[v][1] for v in _out])
+    _oh = np.array([_h0[_vi[v]] for v in _out])
+
+    def _hb(a_mm, s_mm):
+        return to_local(surf_point(a_mm, s_mm))[2] * 1000
+    _DA = 0.5
+    _om = np.array([(_hb(a_ + _DA, s_) - _hb(a_ - _DA, s_)) / (2 * _DA) for a_, s_ in zip(_oa, _os)])   # base slope dh/da
+    _fr = _oa < 0; _bk = ~_fr
+
+    def _side(mask):
+        o = np.argsort(_os[mask])
+        return _os[mask][o], _oa[mask][o], _oh[mask][o], _om[mask][o]
+    _F = _side(_fr | (np.abs(_oa) < 1e-9)); _B = _side(_bk | (np.abs(_oa) < 1e-9))
+    _hl = _h0.copy()
+    for i, v in enumerate(_vl):
+        if _mob[i] <= 0:
+            continue
+        a_, s_ = _lay[v]
+        af, hf, mf = (float(np.interp(s_, _F[0], q)) for q in _F[1:])
+        ab, hb, mb = (float(np.interp(s_, _B[0], q)) for q in _B[1:])
+        span = ab - af
+        if span < 1e-6:
+            continue
+        lf, lb = min(SOFT_F, 0.35 * span), min(SOFT_B, 0.35 * span)
+        m = (hb - hf - 0.5 * (mf * lf + mb * lb)) / (span - 0.5 * (lf + lb))
+        x = min(max(a_ - af, 0.0), span)
+        # integral of the slope: mf -> m over [0, lf], m, m -> mb over [span - lb, span]
+        hx = hf
+        if lf > 0:
+            t = min(x, lf); hx += mf * t + (m - mf) * t * t / (2 * lf)
+        hx += m * max(0.0, min(x, span - lb) - lf)
+        if lb > 0 and x > span - lb:
+            t = x - (span - lb); hx += m * t + (mb - m) * t * t / (2 * lb)
+        _hl[i] = hx
+    _h = _h0 + _mob * (_hl - _h0)
+    report["level_mode"] = "linear"
+else:
+    for _ in range(LEVEL_ITERS):
+        _acc = np.zeros(len(_vl))
+        np.add.at(_acc, _E[:, 0], _w * (_h[_E[:, 1]] - _h[_E[:, 0]])); np.add.at(_acc, _E[:, 1], _w * (_h[_E[:, 0]] - _h[_E[:, 1]]))
+        _h += 0.5 * _mob * _acc / np.maximum(_W, 1e-9) + _kap * (_h0 - _h)
+if EXT > 0:
+    _r76 = {round(info[v][1], 9): _vi[v] for v in rings[RINGS.index(R_STRETCH)]}
+    for i, v in enumerate(_vl):
+        r_, th_ = info[v]
+        if r_ > R_STRETCH and r_ < 8.6 and _beta[i] < 1:
+            j = _r76[round(th_, 9)]
+            _h[i] = _h0[i] + _beta[i] * (_h[i] - _h0[i]) + (1 - _beta[i]) * (_h[j] - _h0[j]) * (8.6 - r_) / (8.6 - R_STRETCH)
 report["level_change_mm"] = [round(float((_h - _h0).min()), 2), round(float((_h - _h0).max()), 2)]
+if os.environ.get("ANUS_DEBUG_LEVEL"):          # region: dump the levelling (layout, heights before / after, r, theta)
+    np.savez(os.environ["ANUS_DEBUG_LEVEL"], L=_L, h0=_h0, h=_h, E=_E, w=_w, mob=_mob,
+             rt=np.array([info[v] for v in _vl]))
 for v in _vl:
     base_pos[v] = base_pos[v] + n * ((_h[_vi[v]] - _h0[_vi[v]]) / 1000)
 # relief along the (smooth) base normal: radial creases; the closed centre keeps rising with the surface (no sink at

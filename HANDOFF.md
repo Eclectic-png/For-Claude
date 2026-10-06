@@ -149,7 +149,19 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
 
 ## Current state and next step
 
-- **Cliff behind the anus (latest):** the user saw a steep climb just behind (toward the back of) the anus.
+- **Back-side slope, comparison run (latest, stopped early to save credits):** the user confirmed the problem side is the
+  back (coccyx, red marker). Both the back half's tilt and the steep floor behind it are involved. Metrics come from
+  `scripts/tools/backslope.py`.
+  - **Current build:** tilt_front 3.8, tilt_back 15.2, max_slope_back 40, max_kink_back 23.
+  - **Region candidate** (`scripts/build5_rise_region.py`, `ANUS_BACK_REACH=20`): tilt_back 11.3, max_slope_back 26.5,
+    max_kink_back 27. It adds a hard seam around the anus and a fold behind it
+    (`backslope_region_candidate_vs_current.png`), so it is not adopted.
+  - **Corridor candidate** (`scripts/build5_rise_corridor.py`): no improvement yet.
+  - **Target-curve candidate:** never started.
+  - **Default:** unchanged (`build5_rise.py` with levelling on).
+  - **To resume:** `Workflow({scriptPath: <session workflows/scripts/back-slope-fix-*.js>, resumeFromRunId: "wf_64543cfe-4a4"})`.
+    The run IDs are session-local, so in a new session rerun the approaches instead.
+- **Cliff behind the anus:** the user saw a steep climb just behind (toward the back of) the anus.
   - **Measured** (`cliff_profiles.png`): the narrow fill sat low near the original pit, then climbed ~4 mm within
     2.5 mm at the back edge to meet the cleft floor. The smoothing pass also leaves that floor ~1.3 mm above the
     original.
