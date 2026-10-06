@@ -27,8 +27,17 @@ centred within 1.3 mm. Canal 37 deg from vertical, anorectal angle 108 deg, clea
 - Checks: skin within 0.05 mm of build5_rise beyond 2 mm from the centre, 0 non-manifold, 0 degenerate faces, canal
   angle / anorectal angle / clearances unchanged. Renders: `out/variants/build5_passage/` (`cmp_*` shaded,
   `section_cmp_*` midline cut-away via the new `scripts/tools/section.py`).
-- Open: the canal balloons from the slit to 3.2 mm radius between 2 and 7.5 mm (an "onion" in section); item 3
-  replaces this with a collapsed canal. A brownish hairline shows in the slit (canal material) - item 4.
+- A brownish hairline shows in the slit (canal material) - item 4.
+
+**Progress, item 3 DONE (same script):** the canal is collapsed at rest. The lumen is the skin's slit carried up 2 mm,
+then an AP slit lengthening to 2.5 mm half-length by 7 mm, then a closed 8-armed star (sides 2.0 mm from 5-10 mm,
+diagonals 1.8 mm from 7-12 mm; walls 0.01 mm off each arm's midline). The tissue between arms = the anal columns.
+Over the top 40 % it eases out to the round 36-point junction ring. Each arm owns a fixed block of 36 points (tip in
+the middle), and point k sits near angle -pi + 2 pi k / 288, ready for the Open key to spread them round a circle.
+Checks: 0 self-intersections (new `scripts/tools/selfx.py`), every canal point beyond the seam inside the skin
+(canalout), 0 non-manifold. Plots: `canal_sections_rest.png` (new `scripts/tools/canalxs.py`; needs Pillow in
+Blender's Python), `star_section_cmp.png`. Next: item 2, the Open shape key (proposed ~12 mm across at the skin,
+subtle columns, unless the user says otherwise).
 
 **What is missing (the next task, in order):**
 1. **Real passage.** The skin is closed at a point (the pole) and the canal (`AN_AnalCanal`) starts 0.08 mm under the

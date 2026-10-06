@@ -1013,12 +1013,17 @@ def build_tube(name, ring_pts_list, exact_bot, exact_top):
     return ob
 
 
-# build5_passage: the canal starts ON the skin's edge loop (hole_loop: the same N_SPOKE points, in the same places),
-# runs collapsed (the closed slit carried straight up the canal) for its first CANAL_COLL mm, then opens out to its
-# full section by CANAL_OPEN mm; it steps 2:1 down to the 36 points of the junction ring near the top
-CANAL_COLL = float(os.environ.get("ANUS_CANAL_COLL", "2.0"))   # mm
-CANAL_OPEN = 7.5                                                 # mm (build5: 0.3 of the 25 mm canal)
-Lc = (J - H).length
+# build5_passage: the canal starts ON the skin's edge loop (hole_loop: the same N_SPOKE points, in the same places)
+# and is collapsed at rest along its whole length (item 3): the closed slit is carried straight up for CANAL_COLL mm,
+# then the lumen is a closed STAR - an AP slit that lengthens, then lateral and diagonal arms (8 in all) growing in
+# between, the tissue between neighbouring arms being the anal columns. Walls LUMEN_HW mm from the arm's midline.
+# Over the top 40 % it eases out to the round junction ring the ampulla starts from. Every arm owns a fixed block of
+# N_SPOKE / 8 points (tip in the middle), so points never slide across an arm between rings, and point k always
+# sits near angle -pi + 2 pi k / N_SPOKE (the Open shape key can spread them round a circle).
+CANAL_COLL = float(os.environ.get("ANUS_CANAL_COLL", "2.0"))   # mm the skin's slit runs straight up
+LUMEN_HW = 0.01                                                  # mm, half the gap between touching walls
+N_ARM = 8; SEC = N_SPOKE // N_ARM
+Lc = (J - H).length; _Lmm = Lc * 1000
 e1, e2 = frame_at(d)
 _psi = [math.atan2((p_ - H).dot(e2), (p_ - H).dot(e1)) for p_ in hole_loop]
 _turn = sum((_psi[(k + 1) % N_SPOKE] - _psi[k] + math.pi) % (2 * math.pi) - math.pi for k in range(N_SPOKE))
@@ -1027,27 +1032,61 @@ _k0 = round((_psi[0] + math.pi) / (2 * math.pi / N_SPOKE)) % N_SPOKE
 _spoke = [(_sg * (kk - _k0)) % N_SPOKE for kk in range(N_SPOKE)]   # canal point k' sits on skin spoke _spoke[k']
 
 
-def canal_rc(th, t):   # full section: ~3.2 mm with anal columns higher up, 4 mm at the junction (as build5_rise)
+def canal_rc(th, t):   # junction ring: 4 mm with a light 8-fold column ripple (as build5_rise)
     return (3.2 + 0.8 * ss(0.5, 1.0, t)) * (1 + 0.15 * ss(0.4, 0.8, t) * math.cos(8 * th)) / 1000
 
 
+def arm_lengths(s_mm):
+    """mm; arm i points at angle -pi + i pi / 4 (i = 2, 6: front / back, i = 0, 4: sides, odd: diagonals)"""
+    ap = 0.3 + 2.2 * ss(CANAL_COLL, 7.0, s_mm)
+    side = 2.0 * ss(5.0, 10.0, s_mm)
+    diag = 1.8 * ss(7.0, 12.0, s_mm)
+    return [side, diag, ap, diag, side, diag, ap, diag]
+
+
+def star_2d(s_mm):
+    """the resting lumen at s: N_SPOKE (x, y) in mm in the canal frame (x along e1, y along e2)"""
+    Ls = arm_lengths(s_mm); al = [-math.pi + i * math.pi / 4 for i in range(N_ARM)]
+    out = [None] * N_SPOKE
+    for i in range(N_ARM):
+        ph = np.linspace(al[i] - math.pi / 8, al[i] + math.pi / 8, 1601)
+        r = np.full_like(ph, LUMEN_HW)
+        for j in range(N_ARM):
+            dp = (ph - al[j] + math.pi) % (2 * math.pi) - math.pi
+            arm = np.where(np.cos(dp) > 0, np.minimum(Ls[j], LUMEN_HW / np.maximum(np.abs(np.sin(dp)), 1e-9)), 0.0)
+            r = np.maximum(r, arm)
+        P2 = np.stack([r * np.cos(ph), r * np.sin(ph)], 1)
+        cum = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(P2, axis=0), axis=1))])
+        for jj in range(SEC):
+            u = cum[-1] * jj / SEC
+            x = float(np.interp(u, cum, P2[:, 0])); y = float(np.interp(u, cum, P2[:, 1]))
+            out[(i * SEC - SEC // 2 + jj) % N_SPOKE] = (x, y)
+    return out
+
+
 def canal_ring(s_mm, N):
-    t = s_mm / 1000 / Lc; ctr = H.lerp(J, t); w = ss(CANAL_COLL, CANAL_OPEN, s_mm); pts = []
-    for kk in range(N):
-        th = -math.pi + 2 * math.pi * kk / N
-        rnd = ctr + (e1 * math.cos(th) + e2 * math.sin(th)) * canal_rc(th, t)
-        if w < 1.0:
-            assert N == N_SPOKE
-            rnd = (hole_loop[_spoke[kk]] + (ctr - H)) * (1 - w) + rnd * w
-        pts.append(rnd)
-    return pts
+    """N_SPOKE points at s mm up the canal, then every (N_SPOKE / N)-th: the 2:1 steps keep their angles"""
+    t = s_mm / _Lmm; ctr = H.lerp(J, t)
+    w_ex = 1 - ss(CANAL_COLL, 3.5, s_mm)          # the skin's own slit, carried up
+    w_rd = ss(0.6 * _Lmm, _Lmm, s_mm)             # easing out to the round junction ring
+    st = star_2d(s_mm); pts = []
+    for kk in range(N_SPOKE):
+        th = -math.pi + 2 * math.pi * kk / N_SPOKE
+        p_ = ctr + e1 * (st[kk][0] / 1000) + e2 * (st[kk][1] / 1000)
+        if w_rd > 0:
+            p_ = p_ * (1 - w_rd) + (ctr + (e1 * math.cos(th) + e2 * math.sin(th)) * canal_rc(th, t)) * w_rd
+        if w_ex > 0:
+            p_ = (hole_loop[_spoke[kk]] + (ctr - H)) * w_ex + p_ * (1 - w_ex)
+        pts.append(p_)
+    return pts[::N_SPOKE // N]
 
 
-_Lmm = Lc * 1000
+CANAL_S = [0.15, 0.35, 0.6, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.25, 5.0, 5.75, 6.5, 7.25, 8.0, 9.0, 10.0, 11.0, 12.0,
+           13.5, 15.0, 16.5, 18.0, 19.5, 21.0]
 canal_loops = [[hole_loop[_spoke[kk]] for kk in range(N_SPOKE)]]
-for s_mm in [0.15, 0.35, 0.6, 1.0, 1.5, 2.0, 2.75, 3.5, 4.5, 5.5, 6.5, 7.5, 9.0, 11.0, 13.0, 15.0]:
+for s_mm in CANAL_S:
     canal_loops.append(canal_ring(s_mm, N_SPOKE))
-for f_, N in [(0.70, N_SPOKE // 2), (0.80, N_SPOKE // 4), (0.90, N_SPOKE // 8)]:
+for f_, N in [(0.90, N_SPOKE // 2), (0.95, N_SPOKE // 4)]:
     canal_loops.append(canal_ring(f_ * _Lmm, N))
 assert N_SPOKE // 8 == NS
 J_ring = canal_ring(_Lmm, NS)                    # = canal_r(th, 1.0) around J, as the ampulla expects
@@ -1096,7 +1135,8 @@ report["passage"] = {
     "lip_gap_max_mm": round(max((hole_loop[k] - hole_loop[N_SPOKE - k]).length for k in range(N_SPOKE // 8, 3 * N_SPOKE // 8))
                             * 1000, 4),
     "mouth_depth_below_A_mm": round((A - H).dot(-n) * -1000, 3), "canal_len_from_mouth_mm": round(_Lmm, 2),
-    "canal_order_sign": _sg, "canal_k0": _k0}
+    "canal_order_sign": _sg, "canal_k0": _k0,
+    "lumen_arms_mm": {str(s_): [round(x_, 2) for x_ in arm_lengths(s_)] for s_ in (2.0, 5.0, 8.0, 12.0)}}
 
 amp_rings = []
 for i in range(1, 8):
