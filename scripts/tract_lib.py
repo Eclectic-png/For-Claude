@@ -73,8 +73,9 @@ def _ctx_edit(ob):
     bpy.ops.object.mode_set(mode='EDIT')
 
 
-def _cut_patches(bmA, bmB, tA, tB, cA, R, eps=0.0, eps_side=1):
-    """intersect the patches of A and B within R of cA; returns (tb, src layer, kill, closed curve?, curve length)"""
+def _cut_patches(bmA, bmB, tA, tB, cA, R, eps=0.0, eps_side=1, sides=(0, 1)):
+    """intersect the patches of A and B within R of cA; returns (tb, src layer, kill, closed curve?, curve length).
+    sides: which sides lose the piece inside the other organ ((0,) = only A: B passes through A's wall)"""
     patchA = [f for f in bmA.faces if (f.calc_center_median() - cA).length < R]
     patchB = [f for f in bmB.faces if (f.calc_center_median() - cA).length < R]
     # temporary object: both patches, tagged by source; cut along the intersection with shared vertices
@@ -215,7 +216,7 @@ def _cut_patches(bmA, bmB, tA, tB, cA, R, eps=0.0, eps_side=1):
                 closed = False; continue
             paths[tag].append(pv); barrier[tag] |= pe
     kill = []
-    for tag in (0, 1):
+    for tag in sides:
         side = [f for f in tb.faces if f[src] == tag]; seen = set(); pieces = []
         for f0 in side:
             if f0 in seen:
@@ -248,15 +249,17 @@ def _cut_patches(bmA, bmB, tA, tB, cA, R, eps=0.0, eps_side=1):
         if best:
             kill.append(best[1])
     stitch = list(zip(paths[0], paths[1]))
-    ok = closed and len(kill) == 2
+    ok = closed and len(kill) == len(sides)
     return tb, src, [f for k in kill for f in k], ok, sum(e.calc_length() for e in C), (patchA, patchB), stitch
 
 
-def open_junction(A, B, centre=None, margins=(0.012, 0.024, 0.04), report=None, trees=None):
+def open_junction(A, B, centre=None, margins=(0.012, 0.024, 0.04), report=None, trees=None, sides=(0, 1)):
     """Open the A/B junction. centre: world point inside the junction zone (default: the biggest zone of A inside B).
     The patch round it grows through `margins` until the junction's intersection curve closes inside it.
     trees: {name: BVHTree} of the organs' CLOSED shells taken before any junction was opened (an opened shell
-    would break the inside tests); built here if not given."""
+    would break the inside tests); built here if not given.
+    sides=(0,) pierces instead: only A's wall is opened where B passes through it, B stays whole (a ureter's renal
+    pelvis leaving the kidney at the hilum)"""
     tA = trees[A.name] if trees and A.name in trees else closed_tree(A)
     tB = trees[B.name] if trees and B.name in trees else closed_tree(B)
     bmA, bmB = world_bm(A), world_bm(B)
@@ -268,7 +271,7 @@ def open_junction(A, B, centre=None, margins=(0.012, 0.024, 0.04), report=None, 
     else:
         best = min(compsA, key=lambda c: (comp_sphere(bmA, c)[0] - centre).length)
     cA, rA = comp_sphere(bmA, best)
-    compsB = overlap_components(bmB, tA)
+    compsB = overlap_components(bmB, tA) if 1 in sides else []
     if compsB:                                     # B's part inside A, near the same place, sizes the patch too
         cb = min(compsB, key=lambda c: (comp_sphere(bmB, c)[0] - cA).length)
         rA = max(rA, max((v.co - cA).length for k in cb for v in bmB.faces[k].verts))
@@ -276,7 +279,7 @@ def open_junction(A, B, centre=None, margins=(0.012, 0.024, 0.04), report=None, 
                                           (5e-4, 1), (-5e-4, 0), (1e-3, 1), (-1e-3, 0)) for m_ in margins]
     for margin, eps, eps_side in tries:
         R = rA + margin
-        tb, src, kill, ok, clen, (patchA, patchB), stitch = _cut_patches(bmA, bmB, tA, tB, cA, R, eps, eps_side)
+        tb, src, kill, ok, clen, (patchA, patchB), stitch = _cut_patches(bmA, bmB, tA, tB, cA, R, eps, eps_side, sides)
         if ok:
             break
         tb.free()
@@ -364,11 +367,22 @@ def opening_loops(A, B, tol=2e-6):
 
 # ---- lighting (shared with build5_passage) ----
 def light_insides(mat):
-    """organ toon shader: light backfaces (the inside) with the flipped normal and the "AO_in" bake instead of the
-    one flat backface colour"""
-    nt = mat.node_tree; N = nt.nodes; Lk = nt.links
-    if mat.get("insides_lit"):
-        return
+    """atlas toon shader: light backfaces (the inside) with the flipped normal and the "AO_in" bake instead of the
+    one flat backface colour. Works on the three atlas shader families (organ, skeleton / cartilage, lung): in each
+    the last Mix before the Emission picks the flat colour (B) on backfaces (Factor = Geometry.Backfacing); its lit
+    colour (A) is wired straight to the Emission instead. Returns False if the material is not one of them."""
+    nt = mat.node_tree if mat else None
+    if nt is None or mat.get("insides_lit"):
+        return False
+    N = nt.nodes; Lk = nt.links
+    if not all(n_ in N for n_ in ("Geometry", "Vector Transform", "Color Attribute", "Emission")):
+        return False
+    em_in = N["Emission"].inputs["Color"]
+    bf = em_in.links[0].from_node if em_in.is_linked else None
+    if bf is None or bf.bl_idname != "ShaderNodeMix" or not bf.inputs[0].is_linked or \
+            bf.inputs[0].links[0].from_socket.name != "Backfacing" or not bf.inputs[6].is_linked:
+        return False
+    lit_src = bf.inputs[6].links[0].from_socket
     geo = N["Geometry"]; vt = N["Vector Transform"]
     sg = N.new("ShaderNodeMath"); sg.operation = "MULTIPLY_ADD"; sg.inputs[1].default_value = -2.0
     sg.inputs[2].default_value = 1.0; Lk.new(geo.outputs["Backfacing"], sg.inputs[0])
@@ -382,8 +396,31 @@ def light_insides(mat):
     tgt = [l_.to_socket for l_ in ao.outputs["Color"].links if l_.to_node is not mx]
     for t_ in tgt:
         Lk.new(mx.outputs[2], t_)
-    Lk.new(N["Mix.002"].outputs[2], N["Emission"].inputs["Color"])     # the flat backface colour is bypassed
+    Lk.new(lit_src, em_in)                         # the flat backface colour is bypassed
     mat["insides_lit"] = True
+    return True
+
+
+def light_all(objs, tree=None, report=None, skip_baked=False):
+    """light_insides on every material of `objs` and an "AO_in" bake for each object whose material was lit (now or
+    earlier; skip_baked: not for objects that already carry an AO_in bake). tree: scene BVH for the bake (built if
+    None). Returns {name: mean AO_in}."""
+    out = {}; lit = []
+    for ob in objs:
+        if ob.type != 'MESH':
+            continue
+        mats = [m_ for m_ in ob.data.materials if m_]
+        for m_ in mats:
+            light_insides(m_)
+        if mats and all(m_.get("insides_lit") for m_ in mats):
+            if not (skip_baked and ob.data.color_attributes.get("AO_in")):
+                lit.append(ob)
+    tree = tree or scene_bvh()
+    for ob in lit:
+        out[ob.name] = bake_ao(ob, "AO_in", True, tree)
+    if report is not None:
+        report.update(out)
+    return out
 
 
 def fib_hemi(nr):

@@ -8,7 +8,8 @@ changing only a small patch round the junction. Before that:
   - junctions that only touch get a smooth local bulge of both walls (BULGE) so they overlap by a lumen-sized lens;
   - jejunum / ileum share coincident walls (split from one source tube): open_junction deflates the jejunum's
     patch by 1 mm (fading to nothing at the patch border) so the two walls cross cleanly.
-Afterwards every tract organ's material lights its inside (tract_lib.light_insides) and gets an "AO_in" bake.
+Afterwards every material (organs, bones, cartilage, lungs) lights its inside (tract_lib.light_insides) and every
+object gets an "AO_in" bake.
 Run: blender -b anatomy_ref.blend --python scripts/build_tract_passage.py -- <out.blend> <report folder>"""
 import bpy, bmesh, sys, os, json, math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -125,18 +126,11 @@ for a, b in JUNCTIONS:
     report["junctions"].append(r); print("JUNCTION", json.dumps(r))
     print("LOOPS after", a, b, n_loops(O[a]), n_loops(O[b]))
 
-# 5. light the insides of every tract organ (the shader painted backfaces one flat colour) and bake "AO_in", the
-# inner smooth-lighting, against the whole atlas; the outer "AO" of the rebuilt patches came from the nearest old
-# vertex in open_junction
-TRACT = ["AN_Esophagus", "AN_Stomach", "AN_Duodenum", "AN_Jejunum", "AN_Ileum", "AN_Cecum", "AN_Appendix",
-         "AN_Colon_Ascending", "AN_Colon_Transverse", "AN_Colon_Descending", "AN_Rectum"]
-for nm in TRACT:
-    for m_ in O[nm].data.materials:
-        if m_ and m_.node_tree:
-            T.light_insides(m_)
-_tr = T.scene_bvh(); report["ao_in_mean"] = {}
-for nm in TRACT:
-    report["ao_in_mean"][nm] = T.bake_ao(O[nm], "AO_in", True, _tr)
+# 5. light the insides of every organ, bone and cartilage (the shaders painted backfaces one flat colour) and bake
+# "AO_in", the inner smooth-lighting, against the whole atlas; the outer "AO" of the rebuilt patches came from the
+# nearest old vertex in open_junction
+_meshes = [o_ for o_ in O if o_.type == 'MESH' and o_.name in bpy.context.view_layer.objects]
+report["ao_in_mean"] = T.light_all(_meshes)
 
 os.makedirs(OUT, exist_ok=True)
 json.dump(report, open(os.path.join(OUT, "report.json"), "w"), indent=1)
