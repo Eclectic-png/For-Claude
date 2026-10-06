@@ -1,5 +1,5 @@
 """build5_rise: build5_adapted with the funnel turned into a rise - the surface climbs towards the centre (same
-smoothstep profile, straight out of the body along n), build5's 0.6 mm entrance dip kept at the very centre.
+smoothstep profile, straight out of the body along n), and no sink at the very centre.
 build5_adapted: the user's build5, unchanged except for three fixes (each marked "adapted:"):
   1. the region rebuilt is cut narrow, in surface coordinates, so the fill no longer flattens the cheek walls;
   2. that also stops the fill bridging the cleft, which made the anus stand up like a lump;
@@ -226,7 +226,8 @@ FOLD_W = [1.2, 0.8, 1.0, 0.75, 1.05, 0.85, 1.2, 0.85, 1.05, 0.75, 1.0, 0.8]
 SIG = 0.09; R_FOLD = 7.2
 # rise: build5's 2 mm funnel profile turned upside down - the surface climbs towards the centre and fades to nothing
 # at the outer ring
-RISE = float(os.environ.get("ANUS_RISE", "1.0"))   # mm
+RISE = float(os.environ.get("ANUS_RISE", "0.2"))   # mm (0.5 and up read as an unnatural dome)
+ENTRANCE_DIP = 0.0               # mm the pole drops below the rise (build5: 0.6 - on a rise it read as an abrupt sink)
 
 
 def crease(theta):
@@ -277,13 +278,13 @@ if sum(f.normal.dot(n) for f in new_faces) < 0:
         f.normal_flip()
 bm.normal_update()
 base_pos = {v: v.co.copy() for v in info}
-# relief along the (smooth) base normal: radial creases, closed centre 0.6 mm below the top of the rise (build5's
-# entrance). The rise goes straight out of the body (along n): along the surface normal it would push the steep
+# relief along the (smooth) base normal: radial creases; the closed centre keeps rising with the surface (no sink at
+# the end). The rise goes straight out of the body (along n): along the surface normal it would push the steep
 # cheek walls sideways into the cleft.
 for v, (r, th) in info.items():
     relief = fold_amp(r) * (0.15 - crease(th))
     if v is pole:
-        relief = -0.6
+        relief = -ENTRANCE_DIP
     rise = RISE * (1 - ss(0, R_FOLD, r))
     v.co = base_pos[v] + v.normal * (relief / 1000) + n * (rise / 1000)
     v[pig_layer] = min(1.0, (1 - ss(3.0, 8.5, r)) * (1 + 0.1 * crease(th) * fold_amp(r) / 0.42))
