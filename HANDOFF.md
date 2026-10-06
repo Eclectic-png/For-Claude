@@ -42,7 +42,8 @@ On Windows `ANATOMY_REF` defaults to the user's path. Each script writes `report
 | `scripts/build8_v2_wip.py` | parked | A failed experiment. |
 | `scripts/build8_v3.py` | superseded | Straight grid "spokes" with creases on them, a short slit (3.6 mm), a closed slit, clean tip topology. Has a U-shaped artifact and sliver faces at the tips. |
 | `scripts/build8_v4.py` | **saved v4** (`out/versions/even_mesh_v4/`) | **Current best.** The inner pucker is an even ~0.07 mm triangle mesh made by constrained Delaunay (`mathutils.geometry.delaunay_2d_cdt`). The lip ring plus four outer rings keep the join to the skin. The surface is a full membrane relax, plus a shaped lift that is smoothed and limited to 2.5 mm of the midline. `PUFF = 0`, creases on 20° spokes. The user approved its overall shape. |
-| `scripts/build8_v5.py` | **in progress** | Like v4, but the pads between creases are domes meeting at the creases (`crease()` rewritten). The user still sees grooves. See next steps. |
+| `scripts/build8_v5.py` | superseded by v6 | Like v4, but the pads between creases are domes meeting at the creases (`crease()` rewritten). The user still sees grooves. See next steps. |
+| `scripts/build8_v6.py` | **in progress** | v5, plus a crease straight up the middle from the back tip (requested by the user), and the tip tidy and lip-curl taper shrunk to `TIP_R = 0.35` mm so the creases no longer fade out near the tips. |
 
 The renders for each version are in `out/variants/<name>/` and `out/versions/<name>/`.
 
@@ -164,8 +165,17 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
     the pad on one side stands higher than the other.
   - **Defect 3, crowded tips:** where the creases converge at both slit tips, the triangles are small and irregular, and
     the surface looks lumpy.
-- **Next:** show the user these renders and ask whether to fix the three defects in a new `build8_v6.py`, leaving v5
-  untouched. Save a version only once they approve.
+- **v6 (`build8_v6.py`, renders in `out/variants/v6/`, `v5_vs_v6.png` side by side):**
+  - **Requested:** one more crease at the top middle, i.e. straight up from the back tip at 0 deg. This overrides
+    the earlier "no crease straight up the cleft" rule. It has a fixed depth and length, so `_rng` and every other
+    crease stay as in v5.
+  - **Fading fixed:** the user asked why creases fade out near the centre. The v4 tip tidy (40 normal-smoothing passes
+    within 1.2 mm of each tip) flattened them. The lip curl's taper (last 0.7 mm) also left a lump on the right lip
+    near the front tip. Both now use `TIP_R = 0.35` (the zipped `OPEN_MARGIN`). The report shows 725 of 725
+    single-vertex crease bottoms, `slit_edge_loops` 1, hole 0.000 mm, and no non-manifold edges.
+  - **Still open:** a small knot at each tip where the creases converge (`TIP_R = 0.5` was tried and was lumpier).
+    The spikes where creases meet the slit (defect 1) and the steps at outer ends (defect 2) are not yet addressed.
+- **Next:** show the user v6 and ask about the tip knots and defects 1 and 2. Save a version only once they approve.
 - **Smaller open items:**
   - A thin line runs from the slit's back tip along the cleft; not yet addressed.
   - The saved v1 still has a couple of non-manifold edges.
