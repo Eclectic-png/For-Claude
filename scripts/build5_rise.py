@@ -225,6 +225,12 @@ RINGS = [0.9, 1.4, 2.0, 2.7, 3.5, 4.4, 5.4, 6.5, 7.6, 8.6]          # mm (AP); l
 # only make a straight cone); the creases don't reach inside 0.9 mm, so they are unaffected
 RINGS = sorted([0.06, 0.15, 0.3, 0.45, 0.6, 0.75] + RINGS + [1.15, 1.65, 2.35])   # + finer steps over the shoulder,
 # which otherwise bent only at build5's 0.9 / 1.4 / 2.0 mm rings and showed corners
+# extra rings over the outer creases: with 288 spokes but build5's ~1 mm ring steps the faces there were long thin
+# slivers, and the toon light/shadow cut followed them (crease ends split into streaks). RING_STEP mm, 0 = off
+RING_STEP = float(os.environ.get("ANUS_RING_STEP", "0"))
+if RING_STEP > 0:
+    _extra = [round(2.35 + RING_STEP * k, 3) for k in range(1, int((6.9 - 2.35) / RING_STEP) + 1)]
+    RINGS = sorted(set(RINGS) | {r_ for r_ in _extra if all(abs(r_ - q) > RING_STEP / 3 for q in RINGS)})
 SQUEEZE = 0.75
 FOLD_W = [1.2, 0.8, 1.0, 0.75, 1.05, 0.85, 1.2, 0.85, 1.05, 0.75, 1.0, 0.8]
 SIG = float(os.environ.get("ANUS_SIG", "0.06")); R_FOLD = 7.2   # rad, a crease's angular half-width (build5: 0.09; user picked 0.06)
