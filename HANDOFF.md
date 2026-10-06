@@ -149,7 +149,15 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
 
 ## Current state and next step
 
-- **build5_rise, plunge (latest):** the user's sketch shows shoulders rising toward the centre that roll over smoothly into
+- **build5_rise, crease width (latest):** the user felt the grooves took about as much area as the pads. They want the
+  creases to keep widening with distance from the centre, just less.
+  - **The user's way:** a smaller `ANUS_SIG` (build5: 0.09; tried 0.06 and 0.045).
+  - **Alternative:** `ANUS_CREASE_TAPER` K shrinks the angular width as `(R_W / r)^K` past `R_W` = 1.5 mm (tried 0.4).
+  - Both need finer spokes, so `N_SPOKE` is 288 (build5: 72), with 2:1 steps to 144 / 72 at 7.6 / 8.6 mm.
+  - Only the midline spokes snap to x = 0 now (distance snapping would fold the dense centre).
+  - Defaults: `ANUS_SIG` 0.09, taper 0.6, and `ANUS_DIP` now 1.5 (the file the user opened).
+  - Comparison: `crease_width_geometry.png`.
+- **build5_rise, plunge:** the user's sketch shows shoulders rising toward the centre that roll over smoothly into
   a narrow plunge. That plunge is `DIP * (1 - sqrt(r / R_DIP))^2` with `R_DIP` 2.5 mm, along n; set it with the
   `ANUS_DIP` env var (default 1.2). The build adds rings inside 0.9 mm and at 1.15 / 1.65 / 2.35 mm so it curves
   smoothly, and the canal still opens at the 0.9 mm ring. 0.8 and 1.5 were rendered, with cross-section plots

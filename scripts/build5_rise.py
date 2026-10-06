@@ -227,7 +227,13 @@ RINGS = sorted([0.06, 0.15, 0.3, 0.45, 0.6, 0.75] + RINGS + [1.15, 1.65, 2.35]) 
 # which otherwise bent only at build5's 0.9 / 1.4 / 2.0 mm rings and showed corners
 SQUEEZE = 0.75
 FOLD_W = [1.2, 0.8, 1.0, 0.75, 1.05, 0.85, 1.2, 0.85, 1.05, 0.75, 1.0, 0.8]
-SIG = 0.09; R_FOLD = 7.2
+SIG = float(os.environ.get("ANUS_SIG", "0.09")); R_FOLD = 7.2   # rad, a crease's angular half-width (build5: 0.09)
+# crease width: build5's fixed angular width made each crease's real width grow with r, so the grooves took ~2/3 of
+# the circumference all the way out. Past R_W the angular width now shrinks as (R_W / r)^K, so the creases still
+# narrow into the centre but stay slim further out (K = 0: build5's behaviour)
+R_W = 1.5
+CREASE_TAPER = float(os.environ.get("ANUS_CREASE_TAPER", "0.6"))
+N_SPOKE = 288                    # build5: 72 (5 deg apart) - the slimmer creases need finer spokes to stay clean
 # rise: build5's 2 mm funnel profile turned upside down - the surface climbs towards the centre and fades to nothing
 # at the outer ring
 RISE = float(os.environ.get("ANUS_RISE", "0.2"))   # mm (0.5 and up read as an unnatural dome)
@@ -237,15 +243,16 @@ ENTRANCE_DIP = 0.0               # mm the pole drops below the rise (build5: 0.6
 # the user's sketch: gentle shoulders rising towards the centre that roll over and curve down into a narrow plunge.
 # D * (1 - sqrt(r / R_DIP))^2 starts with zero slope at R_DIP (no corner), steepens inwards and is near vertical at
 # the centre
-DIP = float(os.environ.get("ANUS_DIP", "1.2"))      # mm at the centre
+DIP = float(os.environ.get("ANUS_DIP", "1.5"))      # mm at the centre
 R_DIP = 2.5                      # mm where the roll-over begins
 
 
-def crease(theta):
+def crease(theta, r=0.0):
+    sig = SIG * min(1.0, R_W / max(r, 1e-9)) ** CREASE_TAPER
     s = 0.0
     for i, w in enumerate(FOLD_W):
         dt = (theta - 2 * math.pi * i / 12 + math.pi) % (2 * math.pi) - math.pi
-        s += w * math.exp(-dt * dt / (2 * SIG * SIG))
+        s += w * math.exp(-dt * dt / (2 * sig * sig))
     return s
 
 
@@ -264,15 +271,15 @@ def base_point(r, theta):
 
 rings = []; new_faces = []; info = {}
 for r in RINGS:
-    S = 72 if r < 7.0 else 36
+    S = N_SPOKE if r < 7.0 else {7.6: N_SPOKE // 2, 8.6: N_SPOKE // 4}[r]   # 2:1 steps to the join with the skin
     ring = []
     for k in range(S):
         th = 2 * math.pi * k / S
         v = bm.verts.new(base_point(r, th)); info[v] = (r, th); ring.append(v)
     rings.append(ring)
 pole = bm.verts.new(base_point(0.0, 0.0)); info[pole] = (0.0, 0.0)
-for k in range(72):
-    new_faces.append(bm.faces.new((rings[0][k], rings[0][(k + 1) % 72], pole)))
+for k in range(N_SPOKE):
+    new_faces.append(bm.faces.new((rings[0][k], rings[0][(k + 1) % N_SPOKE], pole)))
 for ri in range(len(rings) - 1):
     A_, B_ = rings[ri], rings[ri + 1]
     if len(A_) == len(B_):
@@ -280,9 +287,10 @@ for ri in range(len(rings) - 1):
         for k in range(S):
             new_faces.append(bm.faces.new((A_[k], B_[k], B_[(k + 1) % S], A_[(k + 1) % S])))
     else:
-        for k in range(36):
+        nA, nB = len(A_), len(B_)
+        for k in range(nB):
             new_faces.append(bm.faces.new((A_[2 * k], B_[k], A_[2 * k + 1])))
-            new_faces.append(bm.faces.new((A_[2 * k + 1], B_[k], B_[(k + 1) % 36], A_[(2 * k + 2) % 72])))
+            new_faces.append(bm.faces.new((A_[2 * k + 1], B_[k], B_[(k + 1) % nB], A_[(2 * k + 2) % nA])))
 bm.normal_update()
 if sum(f.normal.dot(n) for f in new_faces) < 0:
     for f in new_faces:
@@ -293,12 +301,12 @@ base_pos = {v: v.co.copy() for v in info}
 # the end). The rise goes straight out of the body (along n): along the surface normal it would push the steep
 # cheek walls sideways into the cleft.
 for v, (r, th) in info.items():
-    relief = CREASE_SCALE * fold_amp(r) * (0.15 - crease(th))
+    relief = CREASE_SCALE * fold_amp(r) * (0.15 - crease(th, r))
     if v is pole:
         relief = -ENTRANCE_DIP
     rise = RISE * (1 - ss(0, R_FOLD, r)) - DIP * (1 - min(r / R_DIP, 1.0) ** 0.5) ** 2
     v.co = base_pos[v] + v.normal * (relief / 1000) + n * (rise / 1000)
-    v[pig_layer] = min(1.0, (1 - ss(3.0, 8.5, r)) * (1 + 0.1 * crease(th) * fold_amp(r) / 0.42))
+    v[pig_layer] = min(1.0, (1 - ss(3.0, 8.5, r)) * (1 + 0.1 * crease(th, r) * fold_amp(r) / 0.42))
 
 outer = rings[-1]
 outer_edges = [bm.edges.get((outer[k], outer[(k + 1) % len(outer)])) for k in range(len(outer))]
@@ -345,9 +353,9 @@ for _ in range(3):
                for v in strip}
         for v, p in new.items():
             v.co = p
-for v in bm.verts:
-    if abs(v.co.x) < 2e-5:
-        v.co.x = 0.0
+for v in bm.verts:                                 # only the midline spokes of the new rings sit on the mirror plane
+    if (abs(math.sin(info[v][1])) < 1e-9) if v in info else abs(v.co.x) < 2e-5:   # (by distance, the dense
+        v.co.x = 0.0                                   # centre rings would fold)
 bm.normal_update()
 ring0 = [v.co.copy() for v in rings[RINGS.index(0.9)]]   # the canal still opens at build5's 0.9 mm ring
 A = sum(ring0, Vector()) / len(ring0)
@@ -356,8 +364,9 @@ report["new_verts"] = len(info); report["degenerate_faces"] = sum(1 for f in bm.
 report["anus_centre_A"] = r4(A); report["boundary_edges_total"] = sum(e.is_boundary for e in bm.edges)
 report["pucker_outer_lateral_halfwidth_mm"] = round(max(widths) * 1000, 1)
 report["pucker_surface_span_mm"] = {
-    "AP": round((rings[-1][0].co - rings[-1][18].co).length * 1000, 1),
-    "lateral_over_surface": round(sum((rings[-1][k].co - rings[-1][k + 1].co).length for k in range(9, 27)) * 1000, 1)}
+    "AP": round((rings[-1][0].co - rings[-1][len(rings[-1]) // 2].co).length * 1000, 1),
+    "lateral_over_surface": round(sum((rings[-1][k].co - rings[-1][k + 1].co).length
+                                      for k in range(len(rings[-1]) // 4, 3 * len(rings[-1]) // 4)) * 1000, 1)}
 bm.to_mesh(me); me.update(); bm.free(); base.free()
 
 # ======================= 6. remove the old pigment dot from the textures =======================
