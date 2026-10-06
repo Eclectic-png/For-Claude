@@ -34,6 +34,7 @@ On Windows `ANATOMY_REF` defaults to the user's path. Each script writes `report
 
 | Script | Status | What it is |
 |---|---|---|
+| `scripts/build5.py` | original (user's local chat) | Pole-closed anus with 12 radial creases of fixed angular width whose depth grows from the centre (`sin(pi t)^0.8`), so they all narrow into one point. The user likes its lines. It stood up like a lump (biharmonic fill bridging the cleft, flat projection) and reshaped the cheeks. Renders: `out/variants/build5/`. |
 | `scripts/build7.py` | original | The local chat's last build (v7): a near-circular pucker. |
 | `scripts/build8.py` | **saved v1** (`out/versions/closed_fissure_v1/`) | Squeezed cleft, closed fissure, lips peaking at the edge, cusped wrinkles. Uses the older confocal ring layout. |
 | `scripts/build8_raised.py` | variant | v1 with a ~1 mm raised dome. |
@@ -45,6 +46,8 @@ On Windows `ANATOMY_REF` defaults to the user's path. Each script writes `report
 | `scripts/build8_v5.py` | superseded by v6 | Like v4, but the pads between creases are domes meeting at the creases (`crease()` rewritten). The user still sees grooves. See next steps. |
 | `scripts/build8_v6.py` | **in progress** | v5, plus a crease straight up the middle from the back tip (requested by the user), and the tip tidy and lip-curl taper shrunk to `TIP_R = 0.35` mm so the creases no longer fade out near the tips. |
 | `scripts/build8_v7.py` | **experiment, rejected** | v6 with crease depth capped at `ASPECT` x half the gap to the neighbouring crease, and creases blended into the lip curl. It removed the tip knots and the spikes along the slit, but the creases fade near both tips. The user rejected it. |
+| `scripts/build8_v8.py` | abandoned | Rays from the slit centre; crumpled at the centre. Superseded by build9. |
+| `scripts/build9.py` | **in progress, current** | The user asked to base the work on build5. It is build5's anus (pole, 288 spokes, rings stepping 0.04 to 7.2 mm, build5's `crease()` and `fold_amp` measured from the centre) on v4's surroundings: narrow hole, arc-length layout riding up the cheek walls (`K_LAT = 0.77`), squeezed cleft, membrane relax plus level lift, and `FUNNEL = 0`. The canal opens under the centre (the 0.9 mm ring, tucked 0.08 mm under). Renders: `out/variants/build9/`. |
 
 The renders for each version are in `out/variants/<name>/` and `out/versions/<name>/`.
 
@@ -141,6 +144,23 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
 `scripts/render_close.py` and `scripts/render_wire.py` produce the standard close / below / geometry renders.
 
 ## Current state and next step
+
+- **build9 (latest):** the user asked to use build5 as the base and fix its lump, its separate-disc edge and its
+  cheek deformation.
+  - **Done:** the creases meet in one point, the pigment and rings climb the cheek walls, there is no funnel or lump,
+    there are no non-manifold edges and no degenerate faces.
+  - **Fixed along the way:**
+    - Snapping by distance to the midline folded the dense centre rings. Only the two midline spokes snap now.
+    - With `K_LAT = 0.85` the outer ring came so close to the hole that the joining strip creased (slivers on the
+      cheeks). It is now 0.77.
+  - **Open:**
+    - The anus is closed at a point (build5 style) rather than the earlier 3.6 mm closed slit. Ask whether the slit
+      should come back.
+    - The crease layout is build5's 12 creases at 30 deg (with one straight up and one straight down the cleft), not the
+      v3+ `_FRONT` / `_BACK` layout.
+    - The pads on the steep left cheek wall read as raised lobes in the geometry view.
+
+### Earlier (v5-v8)
 
 - **v4:** saved and committed.
 - **v5 (`build8_v5.py`):** has the domed-pad `crease()`. The last render the user saw still read as grooves, which led
