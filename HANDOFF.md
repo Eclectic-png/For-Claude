@@ -140,16 +140,23 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
 ## Current state and next step
 
 - **v4:** saved and committed.
-- **v5 (`build8_v5.py`):** has the domed-pad `crease()`, but still reads as grooves. The user's last question was how
-  to be sure the creases meet in a line a single point wide.
-- **Proposed fix, not yet started; the user hasn't confirmed:**
-  1. Pass every crease line (from the slit lip outwards along its spoke) as constraint edges to `delaunay_2d_cdt`, so the
-     mesh has a row of vertices exactly on each crease. Lattice points too close to a crease should be skipped.
-  2. Compute relief from each vertex's side of the nearest crease. The pad dome goes from crown to crease, and crease
-     vertices sit exactly at the bottom.
-  3. Don't smooth across crease edges: `RELIEF_SMOOTH` only within pads, or 0.
-  4. Verify with sampled cross-sections perpendicular to each crease. The minimum should be one vertex, and the slope
-     should flip sign there. Report this per crease.
+- **v5 (`build8_v5.py`):** has the domed-pad `crease()`, but the last render the user saw still read as grooves. The
+  user's last question was how to be sure the creases meet in a line a single point wide.
+- **Proposed fix:** force crease edges into the triangulation, then verify that each crease bottom is one vertex wide.
+  The user hasn't confirmed this approach.
+- **These changes are already in `build8_v5.py` (commit ad776fa).** They appeared in the file without being written in
+  this chat, and were committed as found:
+  1. **`crease_rows`:** a row of vertices sits exactly on each crease line, from a lip vertex outwards. The rows are
+     passed as constraint edges:
+     `delaunay_2d_cdt(co2, crease_edges, [outer_poly, lip_poly], 2, 1e-7, True)`.
+  2. **`side_pts`:** rows at ±0.6 and ±1.2 `MESH_H` run parallel to each crease. Lattice points within 1.6 `MESH_H` of
+     a crease are removed.
+  3. **Smoothing:** `RELIEF_SMOOTH = 0`, so nothing smooths across a crease.
+  4. **Verification:** the build writes `crease_bottom_single_vertex` to `report.json`. The latest report says
+     "682 of 682 crease vertices are the strict lowest point across", with `inner_mesh_verts` 23600,
+     `slit_edge_loops` 1 and `canal_opening_points` 84.
+- **Next:** render v5 with `render_close.py` and `tipw.py`, framing the creases. Show the user, then save it as a version
+  if they approve.
 - **Smaller open items:**
   - A thin line runs from the slit's back tip along the cleft; not yet addressed.
   - The saved v1 still has a couple of non-manifold edges.
