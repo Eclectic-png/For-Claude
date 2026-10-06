@@ -140,12 +140,10 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
 ## Current state and next step
 
 - **v4:** saved and committed.
-- **v5 (`build8_v5.py`):** has the domed-pad `crease()`, but the last render the user saw still read as grooves. The
-  user's last question was how to be sure the creases meet in a line a single point wide.
-- **Proposed fix:** force crease edges into the triangulation, then verify that each crease bottom is one vertex wide.
-  The user hasn't confirmed this approach.
-- **These changes are already in `build8_v5.py` (commit ad776fa).** They appeared in the file without being written in
-  this chat, and were committed as found:
+- **v5 (`build8_v5.py`):** has the domed-pad `crease()`. The last render the user saw still read as grooves, which led
+  to the question of how to be sure the creases meet in a line a single point wide.
+- **Answer, implemented in `build8_v5.py` (commit ad776fa):** crease edges are forced into the triangulation, and the
+  build verifies that each crease bottom is one vertex wide:
   1. **`crease_rows`:** a row of vertices sits exactly on each crease line, from a lip vertex outwards. The rows are
      passed as constraint edges:
      `delaunay_2d_cdt(co2, crease_edges, [outer_poly, lip_poly], 2, 1e-7, True)`.
