@@ -293,7 +293,7 @@ _FRONT = [(120, 0.97, 5.5), (140, 0.93, 6.4), (160, 0.92, 6.6), (180, 0.93, 6.5)
 # uneven V of creases instead of one running straight up the cleft, and the sides are not mirror images
 _BACK = [20, 40, 60, 80, 100, -30, -50, -70, -90]
 CREASES = [(math.radians(d) % (2 * math.pi), w, r1) for d, w, r1 in _FRONT]
-CREASES += [(math.radians(d) % (2 * math.pi), _rng.uniform(0.8, 1.0), _rng.uniform(5.4, 7.0)) for d in _BACK]
+CREASES += [(math.radians(d) % (2 * math.pi), _rng.uniform(0.85, 1.0), _rng.uniform(6.2, 7.0)) for d in _BACK]
 CREASES.sort()
 _ang = [c[0] for c in CREASES]
 CREASE_HALF = []                                                             # half the gap to the nearer neighbour
@@ -365,7 +365,7 @@ S_OUT = 18 if len(L) < 27 else (36 if len(L) < 54 else 72)
 report["outer_ring_verts"] = S_OUT
 rings = []; new_faces = []; info = {}
 for r in RINGS:
-    S = 144 if r < 6.0 else (72 if r < 7.0 else (max(S_OUT, 36) if r < 8.4 else S_OUT))
+    S = 144 if r < 7.3 else (max(S_OUT, 72) if r < 8.4 else S_OUT)   # no ring step-down where the creases run
     ring = []
     for k in range(S):
         th = 2 * math.pi * k / S
@@ -406,7 +406,7 @@ bm.normal_update()
 # round the tight floor/wall corner of the squeezed cleft inside the pucker. Normal-only Laplacian steps, so nothing
 # slides along the surface (ring / pigment layout stays where it was laid out); fades out over the outer rings so
 # the rim still sits on the skin.
-N_ROUND = 25
+N_ROUND = 300                    # v3: enough to relax the inner surface into a smooth membrane
 round_w = {v: 1 - ss(len(rings) - 4, len(rings) - 1, i) for i, ring in enumerate(rings) for v in ring}
 round_w.update({v: 1.0 for v in slit_verts})
 for _ in range(N_ROUND):
@@ -442,7 +442,21 @@ _ctr_h = to_local(base_pos[M[H // 2]])[2]
 LIFT = max(0.0, _end_h - _ctr_h)
 report["base_lift_mm"] = round(LIFT * 1000, 2)
 for v, (r, th) in info.items():
-    base_pos[v] = base_pos[v] + bnorm[v] * (LIFT * (1 - ss(RINGS[0], RINGS[-1] - 0.4, max(r, RINGS[0]))))
+    pass
+# v3: the leftover dip is lopsided (deeper towards the back), so a lift that falls off evenly in every direction left
+# a U-shaped ridge around the back half. Lift by the dip's own profile instead: along the cleft, how far the
+# midline sits below the straight line between the pucker's front and back ends; faded out sideways.
+_mid = sorted((ring_xy(r, th)[0], to_local(base_pos[v])[2]) for v, (r, th) in info.items()
+              if abs(ring_xy(r, th)[1]) < 0.25 and r > 0)
+_mx = np.array([m[0] for m in _mid]); _mh = np.array([m[1] for m in _mid]) * 1000
+_ref = np.interp(_mx, [_mx[0], _mx[-1]], [_mh[0], _mh[-1]])
+_def = np.maximum(_ref - _mh, 0.0)
+_def = np.convolve(np.pad(_def, 6, mode="edge"), np.ones(13) / 13, mode="same")[6:-6]   # smooth the profile
+report["base_lift_mm"] = round(float(_def.max()), 2)
+for v, (r, th) in info.items():
+    x_, y_ = ring_xy(max(r, RINGS[0]), th)
+    lift_mm = float(np.interp(x_, _mx, _def)) * (1 - ss(0.0, 4.5, abs(y_))) * (1 - ss(RINGS[-1] - 1.6, RINGS[-1] - 0.4, r))
+    base_pos[v] = base_pos[v] + bnorm[v] * (lift_mm / 1000)
 # relief along the (smooth) base normal: shallow funnel, creases fanning from the slit, closed slit groove
 # Profile across the slit (from your sketch): the skin rises gently towards the slit, peaks right at its lips, then
 # drops into a narrow V - no wide valley. The rise goes straight out of the cleft (along n): on the steep cheek walls
@@ -460,7 +474,7 @@ for v, (r, th) in info.items():
     else:
         _x, _y = ring_xy(r, th)                    # creases converge at the slit tips: calm them there
         _tip = min(math.hypot(_x - SLIT, _y), math.hypot(_x + SLIT, _y))
-        relief = -fold_amp(r) * crease(th, r) * (1 - 0.4 * math.exp(-(_tip / 0.35) ** 2)) - LIP_ROLL * math.exp(-abs(ring_xy(r, th)[1]) / 0.12) * (1 - ss(SLIT - 0.7, SLIT, abs(ring_xy(r, th)[0])))   # curl in real sideways mm, tapering out before the tips
+        relief = -fold_amp(r) * crease(th, r)  - LIP_ROLL * math.exp(-abs(ring_xy(r, th)[1]) / 0.12) * (1 - ss(SLIT - 0.7, SLIT, abs(ring_xy(r, th)[0])))   # curl in real sideways mm, tapering out before the tips
         v[pig_layer] = 1 - ss(5.6, 7.8, pig_r(r, th))
         v[cre_layer] = crease(th, r)
     relief_of[v] = relief / 1000
@@ -589,14 +603,14 @@ bm.verts.ensure_lookup_table(); bm.normal_update()
 # tidy the tips after the weld / zipper removal: smooth a small patch around each end of the fissure
 _tipc = [O + u * (SLIT / 1000), O - u * (SLIT / 1000)]
 _tipv = [v for v in bm.verts if v.is_valid and not v.is_boundary and min((v.co - t_).length for t_ in TIP_CO) < 0.0006]
-for _ in range(10):
+for _ in range(0):                                   # v3: off - its disc edge cut across the creases
     bm.normal_update()
     _new = {v: v.co + v.normal * (0.5 * (sum((e.other_vert(v).co for e in v.link_edges), Vector())
                                           / len(v.link_edges) - v.co).dot(v.normal)) for v in _tipv}
     for v, p_ in _new.items():
         v.co = p_
 _inner = [v for v in _tipv if min((v.co - t_).length for t_ in TIP_CO) < 0.0006]
-for _ in range(6):                                   # full relaxation right at the tips untangles fold-overs
+for _ in range(0):                                   # v3: off (no fold-overs left to untangle)
     _new = {v: v.co.lerp(sum((e.other_vert(v).co for e in v.link_edges), Vector()) / len(v.link_edges), 0.5)
             for v in _inner}
     for v, p_ in _new.items():
