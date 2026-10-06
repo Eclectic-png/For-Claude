@@ -554,13 +554,13 @@ _def = np.convolve(np.pad(_def, 6, mode="edge"), np.ones(13) / 13, mode="same")[
 report["base_lift_mm"] = round(float(_def.max()), 2)
 for v, (r, th) in info.items():
     x_, y_ = ring_xy(max(r, RINGS[0]), th)
-    lift_mm = float(np.interp(x_, _mx, _def)) * (1 - ss(0.0, 2.5, abs(y_))) * (1 - ss(RINGS[-1] - 1.6, RINGS[-1] - 0.4, r))
+    lift_mm = 0.5 * float(np.interp(x_, _mx, _def)) * (1 - ss(0.0, 2.5, abs(y_))) * (1 - ss(RINGS[-1] - 1.6, RINGS[-1] - 0.4, r))
     base_pos[v] = base_pos[v] + bnorm[v] * (lift_mm / 1000)
 # relief along the (smooth) base normal: shallow funnel, creases fanning from the slit, closed slit groove
 # Profile across the slit (from your sketch): the skin rises gently towards the slit, peaks right at its lips, then
 # drops into a narrow V - no wide valley. The rise goes straight out of the cleft (along n): on the steep cheek walls
 # the surface normal points sideways and would pinch the pucker.
-PUFF = 0.35                      # mm, height of the rise at the slit's lips
+PUFF = 0.0                       # mm, height of the rise at the slit's lips
 SLIT_V = 0.7                     # mm, depth of the V below the lips
 LIP_ROLL = 0.9                   # mm the lips curl down into the open fissure
 relief_of = {}; puff_of = {}
