@@ -11,7 +11,7 @@
  "anus_centre_A": [
   0.0,
   0.0569,
-  0.7897
+  0.7896
  ],
  "boundary_edges_total": 84,
  "pucker_outer_lateral_halfwidth_mm": 4.7,
@@ -22,10 +22,10 @@
   "lateral_projected": 8.1,
   "climb_up_cheek_wall": 1.9
  },
- "slit_tip_welded_verts": 264,
- "fissure_open_removed_verts": 56,
- "tip_merged_verts": 100,
- "tip_tidied_verts": 225,
+ "slit_tip_welded_verts": 232,
+ "fissure_open_removed_verts": 57,
+ "tip_merged_verts": 122,
+ "tip_tidied_verts": 77,
  "textures_inpainted": [
   [
    "cf_m_body_MT_CT.png",
@@ -70,9 +70,9 @@
   0.0418,
   0.8096
  ],
- "junction_to_coccyx_tip_mm": 22.4,
- "junction_vs_pubococcygeal_line_mm": -5.5,
- "anus_vs_ischial_tuberosity_height_mm": -3.7,
+ "junction_to_coccyx_tip_mm": 22.3,
+ "junction_vs_pubococcygeal_line_mm": -5.6,
+ "anus_vs_ischial_tuberosity_height_mm": -3.8,
  "coccyx_tip": [
   -0.0007,
   0.0633,

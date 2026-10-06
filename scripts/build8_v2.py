@@ -338,7 +338,7 @@ def crease(theta, r):
         env = (1 - ss(length * 0.7, length, along)) * ss(-0.6, -0.25, along)   # already full depth inside the crease
         if f["r0"] > RINGS[0]:
             env *= ss(f["r0"], f["r0"] + 0.4, r)
-        s_ += f["w"] * env * math.exp(-abs(off) / (0.4 * width))   # abrupt, like the centre crease
+        s_ += f["w"] * env * math.exp(-abs(off) / (0.22 * width))   # abrupt, like the centre crease
     return min(s_, 1.3)
 
 
@@ -481,7 +481,7 @@ for v, (r, th) in info.items():
     else:
         _x, _y = ring_xy(r, th)                    # creases converge at the slit tips: calm them there
         _tip = min(math.hypot(_x - SLIT, _y), math.hypot(_x + SLIT, _y))
-        relief = fold_amp(r) * (RIDGE - crease(th, r)) * (1 - 0.6 * math.exp(-(_tip / 0.5) ** 2)) - LIP_ROLL * math.exp(-abs(ring_xy(r, th)[1]) / 0.12) * (1 - ss(SLIT - 1.2, SLIT, abs(ring_xy(r, th)[0])))   # curl in real sideways mm, tapering out before the tips
+        relief = fold_amp(r) * (RIDGE - crease(th, r)) * (1 - 0.4 * math.exp(-(_tip / 0.35) ** 2)) - LIP_ROLL * math.exp(-abs(ring_xy(r, th)[1]) / 0.12) * (1 - ss(SLIT - 1.2, SLIT, abs(ring_xy(r, th)[0])))   # curl in real sideways mm, tapering out before the tips
         v[pig_layer] = 1 - ss(5.6, 7.8, pig_r(r, th))
         v[cre_layer] = min(1.0, crease(th, r)) * paint_amp(r)
     relief_of[v] = relief / 1000
@@ -575,9 +575,9 @@ report["slit_tip_welded_verts"] = _n0 - len(bm.verts)
 bm.verts.ensure_lookup_table(); bm.normal_update()
 # soften the little pits where creases meet the slit's lips: normal-only smoothing on the skin right around the slit
 _near = [v for v in bm.verts if v.is_valid and (min(abs(to_local(v.co)[0]) - SLIT / 1000, 0) ** 2 + 0) >= 0
-         and abs(to_local(v.co)[0]) < (SLIT + 1.6) / 1000 and abs(to_local(v.co)[1]) < 0.0016 and not v.is_boundary
+         and abs(to_local(v.co)[0]) < (SLIT + 1.6) / 1000 and abs(to_local(v.co)[1]) < 0.0006 and not v.is_boundary
          and not (v in slit_verts) and v not in set(rings[0])]   # the slit line itself stays, so the groove keeps its depth
-for _ in range(8):
+for _ in range(3):                                   # light in v2 (was 8 passes over 1.6 mm): only the pits at the lips
     bm.normal_update()
     _new = {}
     for v in _near:
@@ -611,7 +611,7 @@ bm.verts.ensure_lookup_table(); bm.normal_update()
 report["tip_merged_verts"] = _merged
 # tidy the tips after the weld / zipper removal: smooth a small patch around each end of the fissure
 _tipc = [O + u * (SLIT / 1000), O - u * (SLIT / 1000)]
-_tipv = [v for v in bm.verts if v.is_valid and not v.is_boundary and min((v.co - t_).length for t_ in TIP_CO) < 0.0011]
+_tipv = [v for v in bm.verts if v.is_valid and not v.is_boundary and min((v.co - t_).length for t_ in TIP_CO) < 0.0006]
 for _ in range(10):
     bm.normal_update()
     _new = {v: v.co + v.normal * (0.5 * (sum((e.other_vert(v).co for e in v.link_edges), Vector())
