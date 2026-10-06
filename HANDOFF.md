@@ -149,7 +149,17 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
 
 ## Current state and next step
 
-- **Back-side slope, comparison run (latest, stopped early to save credits):** the user confirmed the problem side is the
+- **Back-side slope, ADOPTED (latest):** the corridor fix is now ON by default in `build5_rise.py`
+  (`ANUS_CORRIDOR=3000`, `ANUS_CORR_ANCHOR=0.03`, `ANUS_CORR_LAT=0.5`; the solver is from the corridor builder). It smooths
+  the cleft-floor profile along the cleft from -10 to +28 mm, with the cheek walls held and the anus relief taken off
+  and put back.
+  - **Bare-surface metrics** (built with `ANUS_CREASE_SCALE=0`): max_slope_back 40.1 -> 21.4 and max_kink_back
+    24.6 -> 9.7. Anus tilt is about the same (it sits on the rising floor).
+  - **Metric caveat:** with creases on, backslope.py's slope and kink include the crease walls, so compare bare-surface
+    builds.
+  - **Renders:** `backslope_corridor_vs_current.png`.
+  - **File for the user:** `out/blend/Hips_build5_rise_corridor.blend`.
+- **Back-side slope, comparison run (stopped early to save credits):** the user confirmed the problem side is the
   back (coccyx, red marker). Both the back half's tilt and the steep floor behind it are involved. Metrics come from
   `scripts/tools/backslope.py`.
   - **Current build:** tilt_front 3.8, tilt_back 15.2, max_slope_back 40, max_kink_back 23.

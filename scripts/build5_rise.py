@@ -406,6 +406,7 @@ for v, (r, th) in info.items():
     rise = RISE * (1 - ss(0, R_FOLD, r)) - DIP * (1 - min(r / R_DIP, 1.0) ** 0.5) ** 2
     v.co = base_pos[v] + v.normal * (relief / 1000) + n * (rise / 1000)
     v[pig_layer] = min(1.0, (1 - ss(3.0, 8.5, r)) * (1 + 0.1 * crease(th, r) * fold_amp(r) / 0.42))
+relief_off = {v: v.co - base_pos[v] for v in info}   # corridor (5b): the relief is kept out of the smoothing
 
 outer = rings[-1]
 outer_edges = [bm.edges.get((outer[k], outer[(k + 1) % len(outer)])) for k in range(len(outer))]
@@ -455,6 +456,251 @@ for _ in range(3):
 for v in bm.verts:                                 # only the midline spokes of the new rings sit on the mirror plane
     if (abs(math.sin(info[v][1])) < 1e-9) if v in info else abs(v.co.x) < 2e-5:   # (by distance, the dense
         v.co.x = 0.0                                   # centre rings would fold)
+
+
+# ======================= 5b. corridor: spread the climb toward the coccyx along the cleft floor =======================
+# build5_rise_corridor: behind the anus the cleft floor climbs steeply (the original rises ~27-30 deg toward the
+# coccyx, and the Taubin pass leaves it ~1.3 mm higher), so the back half of the anus tilted up and met a "cliff".
+# Here the finished mesh (anus + bridge strip + cleft skin) gets one along-cleft smoothing of its heights (along n)
+# over a corridor from CORR_A[0] to CORR_A[1] mm, so the climb spreads over the whole corridor:
+#   * energy: integral of (dh/du_t)^2 over the surface (linear FEM on the real triangles, u_t = the cleft direction in
+#     each triangle's plane): smoothing ALONG the cleft only, independent of the mesh density (the dense anus and the
+#     coarse skin get the same slope per mm);
+#   * + CORR_LAT x integral of (d(change)/d lateral)^2: the change is laterally coherent, so the cross-section of the
+#     cleft (the groove, the walls) keeps its shape and nothing diffuses across the cleft;
+#   * + anchoring by mobility (1 = free, 0 = fixed): full on the floor for |b| < CORR_B[0], none from |b| = CORR_B[1]
+#     (the cheek walls stay put) and fading to zero over CORR_FADE mm at both corridor ends (no seams);
+#   * the anus relief (creases, rise, plunge) is taken off before and put back after, so its look is unchanged.
+# ANUS_CORRIDOR = max solver (PCG) iterations, 0 = off (as build5_rise)
+CORR_ITERS = int(os.environ.get("ANUS_CORRIDOR", "3000"))   # on: the user's "cliff" behind the anus
+CORR_A = [float(x) for x in os.environ.get("ANUS_CORR_A", "-10,28").split(",")]        # mm along the cleft (u)
+CORR_FADE = [float(x) for x in os.environ.get("ANUS_CORR_FADE", "6,8").split(",")]     # mm: front, back end fade
+CORR_B = [float(x) for x in os.environ.get("ANUS_CORR_B", "3,7").split(",")]           # mm |b|: full .. none
+CORR_LAT = float(os.environ.get("ANUS_CORR_LAT", "0.5"))      # lateral coherence of the change
+CORR_ANCHOR = float(os.environ.get("ANUS_CORR_ANCHOR", "0.03"))    # 1/mm^2: anchoring strength scale
+CORR_STIFF = float(os.environ.get("ANUS_CORR_STIFF", "1"))  # along-cleft stiffness of the anus faces (>1: flatter)
+CORR_ALONGP = float(os.environ.get("ANUS_CORR_ALONGP", "0"))   # along term x mobility^p (0: everywhere in the set)
+CORR_HR = [float(x) for x in os.environ.get("ANUS_CORR_HR", "0,0").split(",")]   # mm above the floor: full .. none
+CORR_ALONG_HR = [float(x) for x in os.environ.get("ANUS_CORR_ALONG_HR", "0,0").split(",")]  # along term: floor only
+CORR_MODE = os.environ.get("ANUS_CORR_MODE", "floor")      # "floor" (1D floor profile) or "fem" (2D surface energy)
+CORR_ORDER = int(os.environ.get("ANUS_CORR_ORDER", "2"))   # floor mode: 1 = straight ramp, 2 = least bending
+CORR_FB = [float(x) for x in os.environ.get("ANUS_CORR_FB", "-2,-1,0,1,2").split(",")]   # floor sample lines, mm
+CORR_LATSM = float(os.environ.get("ANUS_CORR_LATSM", "0.75"))   # grid mode: blur of the change across the lines, mm
+
+
+# --- CORRIDOR_SOLVER_BEGIN (pure numpy; also exec'd by the offline tuning script) ---
+def corridor_delta(Pb, tris, tri_anus, fixed_extra, prm):
+    """Pb: (N,3) local coords in mm (a, b, h) of the relief-free surface; tris: (T,3) loop triangles of the whole mesh;
+    tri_anus: (T,) bool; fixed_extra: (N,) bool (boundary verts). Returns (delta_h (N,) mm, info dict)."""
+    import numpy as np
+    def _ss(e0, e1, x):
+        t = np.clip((x - e0) / (e1 - e0), 0.0, 1.0)
+        return t * t * (3 - 2 * t)
+    a0, a1 = prm["A"]; f0, f1 = prm["FADE"]; b0, b1 = prm["B"]
+    Nv = len(Pb); a, b, h = Pb[:, 0], Pb[:, 1], Pb[:, 2]
+    in_set = (a > a0 - 1.5) & (a < a1 + 1.5) & (np.abs(b) < b1 + 1.5) & (h > -12) & (h < 25) & ~fixed_extra
+    mob = _ss(a0, a0 + f0, a) * (1 - _ss(a1 - f1, a1, a)) * (1 - _ss(b0, b1, np.abs(b)))
+    # height above the cleft floor (the floor = lowest point near the midline, per mm of a)
+    mid = in_set & (np.abs(b) < 1.5)
+    bins = np.arange(np.floor(a0) - 2, np.ceil(a1) + 3)
+    fl = np.array([h[mid & (np.abs(a - c) < 0.75)].min() if (mid & (np.abs(a - c) < 0.75)).any() else np.nan
+                   for c in bins])
+    okb = ~np.isnan(fl); fl = np.interp(bins, bins[okb], fl[okb])
+    fl = np.convolve(np.pad(fl, 1, mode='edge'), np.ones(3) / 3, 'valid')
+    hr = h - np.interp(a, bins, fl)
+    if prm.get("HR", [0, 0])[1] > 0:              # also fade out by the height above the cleft floor (the walls)
+        mob = mob * (1 - _ss(prm["HR"][0], prm["HR"][1], hr))
+    mob = np.where(in_set, mob, 0.0)
+    tri_ok = in_set[tris].all(1)
+    T = tris[tri_ok]; ta = tri_anus[tri_ok]
+    # a vertex of the set that touches a triangle outside it is held fixed (keeps the outer edge continuous)
+    touch_out = np.zeros(Nv, bool); np.logical_or.at(touch_out, tris[~tri_ok].ravel(), True)
+    p0, p1, p2 = Pb[T[:, 0]], Pb[T[:, 1]], Pb[T[:, 2]]
+    Nr = np.cross(p1 - p0, p2 - p0); A2 = np.linalg.norm(Nr, axis=1)
+    ok = A2 > 1e-10
+    T, ta, p0, p1, p2, Nr, A2 = T[ok], ta[ok], p0[ok], p1[ok], p2[ok], Nr[ok], A2[ok]
+    Nh = Nr / A2[:, None]
+    G = np.stack([np.cross(Nh, e) / A2[:, None] for e in (p2 - p1, p0 - p2, p1 - p0)], 1)  # (T,3,3) hat gradients
+    ut = np.array([1.0, 0.0, 0.0])[None, :] - Nh * Nh[:, :1]
+    ul = np.linalg.norm(ut, axis=1); good = ul > 0.05
+    ut = ut / np.maximum(ul, 1e-9)[:, None]; vt = np.cross(Nh, ut)
+    gu = np.einsum('tkd,td->tk', G, ut) * good[:, None]
+    gv = np.einsum('tkd,td->tk', G, vt)
+    Ar = A2 / 2; st = np.where(ta, prm["STIFF"], 1.0)
+    if prm.get("ALONGP", 0) > 0:                  # the along-cleft term only where the surface may move (the floor):
+        st = st * mob[T].mean(1) ** prm["ALONGP"]  # the converging cheek walls behind the anus don't drive it
+    if prm.get("ALONG_HR", [0, 0])[1] > 0:        # ... or only on the floor itself (up to ALONG_HR mm above it)
+        ma = _ss(a0, a0 + f0, a) * (1 - _ss(a1 - f1, a1, a))
+        st = st * ((1 - _ss(prm["ALONG_HR"][0], prm["ALONG_HR"][1], hr)) * ma)[T].mean(1)
+    Wa = (Ar * st)[:, None, None] * gu[:, :, None] * gu[:, None, :]
+    Wl = Ar[:, None, None] * (gv[:, :, None] * gv[:, None, :] +
+                              (~good)[:, None, None] * np.einsum('tkd,tjd->tkj', G, G))
+    R = np.repeat(T[:, :, None], 3, 2).ravel(); C = np.repeat(T[:, None, :], 3, 1).ravel()
+    Va = Wa.ravel(); Vk = (Wa + prm["LAT"] * Wl).ravel()
+    M = np.bincount(T.ravel(), weights=np.repeat(Ar / 3, 3), minlength=Nv)
+    used = M > 0
+    fixed = ~in_set | touch_out | ~used | (mob < 1e-3)
+    kap = prm["ANCHOR"] * (1 - mob) / np.maximum(mob, 1e-3)
+    Dg = kap * M + 1e-9 * M
+    def mv(x, vals=Vk):
+        return np.bincount(R, weights=vals * x[C], minlength=Nv)
+    rhs = -mv(h, Va); rhs[fixed] = 0.0
+    diag = np.bincount(R, weights=Vk * (R == C), minlength=Nv) + Dg
+    pre = np.where(fixed, 0.0, 1.0 / np.maximum(diag, 1e-30))
+    x = np.zeros(Nv); r = rhs.copy(); z = pre * r; p = z.copy(); rz = r @ z; r0 = np.sqrt(r @ r) + 1e-30
+    it = 0
+    for it in range(1, prm["ITERS"] + 1):
+        Ap = mv(p) + Dg * p; Ap[fixed] = 0.0
+        al = rz / (p @ Ap); x += al * p; r -= al * Ap
+        if np.sqrt(r @ r) < 1e-9 * r0:
+            break
+        z = pre * r; rz2 = r @ z; p = z + (rz2 / rz) * p; rz = rz2
+    x[fixed] = 0.0
+    return x, {"iters": it, "rel_res": float(np.sqrt(r @ r) / r0), "n_free": int((~fixed).sum()),
+               "n_tris": int(len(T)), "dh_min": float(x.min()), "dh_max": float(x.max())}
+
+
+def corridor_floor_delta(Pb, Fa, Fh, prm):
+    """mode "floor": smooth the cleft floor's height profile Fh(Fa) (mm, sampled on the relief-free surface near the
+    midline) along the cleft over the corridor, then carry the change to every vertex, fading out up the walls.
+    The whole floor moves together at each a, so the cross-section of the cleft (groove, walls) keeps its shape.
+    1D energy: ORDER 1 = slope^2 (straight ramp), ORDER 2 = curvature^2 (no bends), + anchoring by mobility."""
+    import numpy as np
+    def _ss(e0, e1, x):
+        t = np.clip((x - e0) / (e1 - e0), 0.0, 1.0)
+        return t * t * (3 - 2 * t)
+    a0, a1 = prm["A"]; f0, f1 = prm["FADE"]; b0, b1 = prm["B"]
+    dk = 0.25; ak = np.arange(a0 - 4, a1 + 4 + 1e-9, dk); Fk = np.interp(ak, Fa, Fh); K = len(ak)
+    mk = _ss(a0, a0 + f0, ak) * (1 - _ss(a1 - f1, a1, ak))
+    fixed = mk < 1e-3
+    order = int(prm.get("ORDER", 2))
+    kap = prm["ANCHOR"] * (1 - mk) / np.maximum(mk, 1e-3)
+    Dm = np.diff(np.eye(K), order, axis=0) / dk ** order      # finite differences
+    Amat = Dm.T @ Dm * dk + np.diag(kap * dk)
+    rhs = np.diag(kap * dk) @ Fk
+    free = ~fixed
+    x = Fk.copy()
+    x[free] = np.linalg.solve(Amat[np.ix_(free, free)], rhs[free] - Amat[np.ix_(free, fixed)] @ Fk[fixed])
+    dk_ = x - Fk
+    a, b, h = Pb[:, 0], Pb[:, 1], Pb[:, 2]
+    w = (1 - _ss(b0, b1, np.abs(b))) * ((h > -12) & (h < 25))
+    if prm.get("HR", [0, 0])[1] > 0:              # fade by the height above the floor as well (the walls)
+        w = w * (1 - _ss(prm["HR"][0], prm["HR"][1], h - np.interp(a, Fa, Fh)))
+    dh = np.interp(a, ak, dk_, left=0.0, right=0.0) * w
+    return dh, {"dh_min": float(dh.min()), "dh_max": float(dh.max()),
+                "floor_change_mm": [[float(round(q, 1)), float(round(np.interp(q, ak, dk_), 2))]
+                                    for q in range(int(a0), int(a1) + 1, 2)]}
+
+
+def corridor_grid_delta(Ga, Gb, Gh, prm):
+    """mode "grid": the along-cleft smoothing of build5_rise's levelling, done line by line on a regular (a, b) grid
+    of the relief-free surface (Gh[i, j] = height at a = Ga[i], b = Gb[j], NaN = no surface), so it does not depend
+    on the mesh density (dense anus / coarse skin). Each line b: 1D energy (ORDER 1: slope^2 -> straight ramps,
+    ORDER 2: curvature^2 -> least bending) + anchoring sum kappa (h - h0)^2, kappa = ANCHOR (1 - m) / m from the
+    mobility m = (corridor ends fade) x (lateral fade |b|: B) x (fade with the height above the floor: HR, the walls).
+    The change is then blurred across the lines (LATSM mm) so neighbouring lines stay together. Returns dH[i, j]."""
+    import numpy as np
+    def _ss(e0, e1, x):
+        t = np.clip((x - e0) / (e1 - e0), 0.0, 1.0)
+        return t * t * (3 - 2 * t)
+    a0, a1 = prm["A"]; f0, f1 = prm["FADE"]; b0, b1 = prm["B"]
+    da = Ga[1] - Ga[0]; NA = len(Ga)
+    order = int(prm.get("ORDER", 1))
+    Dm = np.diff(np.eye(NA), order, axis=0) / da ** order
+    S = Dm.T @ Dm * da
+    mid = np.abs(Gb) <= 1.5
+    floor = np.nanmin(np.where(mid[None, :], Gh, np.nan), axis=1)
+    ok = ~np.isnan(floor); floor = np.interp(Ga, Ga[ok], floor[ok])
+    ma = _ss(a0, a0 + f0, Ga) * (1 - _ss(a1 - f1, a1, Ga))
+    dH = np.zeros_like(Gh)
+    for j, bj in enumerate(Gb):
+        h0 = Gh[:, j]; have = ~np.isnan(h0)
+        m = ma * (1 - _ss(b0, b1, abs(bj)))
+        if prm.get("HR", [0, 0])[1] > 0:
+            m = m * (1 - _ss(prm["HR"][0], prm["HR"][1], np.where(have, h0 - floor, 1e9)))
+        m = np.where(have, m, 0.0)
+        fixed = m < 1e-3
+        if fixed.all():
+            continue
+        hh = np.where(have, h0, 0.0)
+        kap = prm["ANCHOR"] * (1 - m) / np.maximum(m, 1e-3)
+        Am = S + np.diag(kap * da); rhs = kap * da * hh
+        fr = ~fixed
+        x = hh.copy()
+        x[fr] = np.linalg.solve(Am[np.ix_(fr, fr)], rhs[fr] - Am[np.ix_(fr, fixed)] @ hh[fixed])
+        dH[:, j] = np.where(have, x - hh, 0.0)
+    sig = prm.get("LATSM", 0.75)
+    if sig > 0:                                   # blur across the lines
+        db = Gb[1] - Gb[0]; k = np.arange(-int(3 * sig / db), int(3 * sig / db) + 1) * db
+        g = np.exp(-k * k / (2 * sig * sig)); g /= g.sum()
+        dH = np.apply_along_axis(lambda r: np.convolve(np.pad(r, len(k) // 2, mode='edge'), g, 'valid'), 1, dH)
+    return dH
+
+
+def grid_sample(Ga, Gb, G, a, b):
+    """bilinear interpolation of G (on the Ga x Gb grid) at points (a, b); 0 outside"""
+    import numpy as np
+    fa = (a - Ga[0]) / (Ga[1] - Ga[0]); fb = (b - Gb[0]) / (Gb[1] - Gb[0])
+    inside = (fa >= 0) & (fa <= len(Ga) - 1) & (fb >= 0) & (fb <= len(Gb) - 1)
+    ia = np.clip(np.floor(fa).astype(int), 0, len(Ga) - 2); ib = np.clip(np.floor(fb).astype(int), 0, len(Gb) - 2)
+    ta = np.clip(fa - ia, 0, 1); tb = np.clip(fb - ib, 0, 1)
+    v = (G[ia, ib] * (1 - ta) * (1 - tb) + G[ia + 1, ib] * ta * (1 - tb) + G[ia, ib + 1] * (1 - ta) * tb
+         + G[ia + 1, ib + 1] * ta * tb)
+    return np.where(inside, v, 0.0)
+# --- CORRIDOR_SOLVER_END ---
+
+
+if CORR_ITERS > 0 or os.environ.get("ANUS_CORR_DUMP"):
+    bm.verts.ensure_lookup_table(); bm.verts.index_update()
+    _P = np.array([tuple(v.co - relief_off[v]) if v in relief_off else tuple(v.co) for v in bm.verts]) - np.array(O)
+    _Pb = np.stack([_P @ np.array(u), _P @ np.array(bv), _P @ np.array(n)], 1) * 1000
+    _lt = bm.calc_loop_triangles()
+    _tris = np.array([[l.vert.index for l in tr] for tr in _lt])
+    _nf = set(new_faces)
+    _tan = np.array([tr[0].face in _nf for tr in _lt])
+    _bnd = np.array([v.is_boundary for v in bm.verts])
+    _prm = {"A": CORR_A, "FADE": CORR_FADE, "B": CORR_B, "LAT": CORR_LAT, "ANCHOR": CORR_ANCHOR,
+            "STIFF": CORR_STIFF, "ITERS": CORR_ITERS, "ALONGP": CORR_ALONGP, "HR": CORR_HR,
+            "ALONG_HR": CORR_ALONG_HR, "MODE": CORR_MODE, "ORDER": CORR_ORDER, "FB": CORR_FB,
+            "LATSM": CORR_LATSM}
+    if os.environ.get("ANUS_CORR_DUMP"):          # for offline tuning: the relief-free surface + final positions
+        _F = np.array([tuple(v.co) for v in bm.verts]) - np.array(O)
+        np.savez(os.environ["ANUS_CORR_DUMP"], Pb=_Pb, Pf=np.stack([_F @ np.array(u), _F @ np.array(bv),
+                 _F @ np.array(n)], 1) * 1000, tris=_tris, tri_anus=_tan, bnd=_bnd)
+    if CORR_ITERS > 0 and CORR_MODE == "floor":
+        # floor profile on the relief-free surface: mean height of the lines b = -FB .. FB mm
+        _bt = BVHTree.FromPolygons([Vector(p_) for p_ in _Pb], _tris.tolist())
+        _Fa = np.arange(CORR_A[0] - 6, CORR_A[1] + 6.01, 0.25); _Fh = []
+        for a_ in _Fa:
+            hs = [_bt.ray_cast(Vector((a_, b_, -30.0)), Vector((0.0, 0.0, 1.0)), 60.0)[0] for b_ in CORR_FB]
+            hs = [q.z for q in hs if q is not None]
+            _Fh.append(np.mean(hs) if hs else np.nan)
+        _Fh = np.array(_Fh); _ok = ~np.isnan(_Fh); _Fh = np.interp(_Fa, _Fa[_ok], _Fh[_ok])
+        _dh, _ci = corridor_floor_delta(_Pb, _Fa, _Fh, _prm)
+    elif CORR_ITERS > 0 and CORR_MODE == "grid":
+        _bt = BVHTree.FromPolygons([Vector(p_) for p_ in _Pb], _tris.tolist())
+        _Ga = np.arange(CORR_A[0] - 2, CORR_A[1] + 2.01, 0.25); _Gb = np.arange(-CORR_B[1] - 1, CORR_B[1] + 1.01, 0.25)
+        _Gh = np.full((len(_Ga), len(_Gb)), np.nan)
+        for i_, a_ in enumerate(_Ga):
+            for j_, b_ in enumerate(_Gb):
+                q = _bt.ray_cast(Vector((a_, b_, -30.0)), Vector((0.0, 0.0, 1.0)), 60.0)[0]
+                if q is not None:
+                    _Gh[i_, j_] = q.z
+        _dH = corridor_grid_delta(_Ga, _Gb, _Gh, _prm)
+        # a vertex takes the change of the surface it lies on (the first surface along n: not an overhang behind it)
+        _hs = grid_sample(_Ga, _Gb, np.nan_to_num(_Gh, nan=-99.0), _Pb[:, 0], _Pb[:, 1])
+        _on = np.abs(_hs - _Pb[:, 2]) < 0.6
+        _dh = grid_sample(_Ga, _Gb, _dH, _Pb[:, 0], _Pb[:, 1]) * _on
+        _ci = {"dh_min": float(_dh.min()), "dh_max": float(_dh.max()), "verts_moved": int((np.abs(_dh) > 1e-4).sum()),
+               "off_surface_skipped": int(((~_on) & (np.abs(grid_sample(_Ga, _Gb, _dH, _Pb[:, 0], _Pb[:, 1])) > 1e-3)).sum())}
+    elif CORR_ITERS > 0:
+        _dh, _ci = corridor_delta(_Pb, _tris, _tan, _bnd, _prm)
+    if CORR_ITERS > 0:
+        for v in bm.verts:
+            if _dh[v.index] != 0.0:
+                v.co += n * (_dh[v.index] / 1000)
+        report["corridor"] = {k: (round(x_, 4) if isinstance(x_, float) else x_) for k, x_ in _ci.items()}
+        report["corridor_params"] = _prm
 bm.normal_update()
 ring0 = [v.co.copy() for v in rings[RINGS.index(0.9)]]   # the canal still opens at build5's 0.9 mm ring
 A = sum(ring0, Vector()) / len(ring0)
