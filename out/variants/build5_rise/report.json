@@ -1,18 +1,20 @@
 {
- "deleted_verts": 32,
- "hole_loop": 14,
- "new_verts": 1297,
+ "refined_edges": 1110,
+ "refine_new_verts": 7040,
+ "deleted_verts": 501,
+ "hole_loop": 58,
+ "new_verts": 5113,
  "degenerate_faces": 0,
  "anus_centre_A": [
   0.0,
-  0.0565,
-  0.7901
+  0.0555,
+  0.7918
  ],
  "boundary_edges_total": 84,
- "pucker_outer_lateral_halfwidth_mm": 6.1,
+ "pucker_outer_lateral_halfwidth_mm": 6.0,
  "pucker_surface_span_mm": {
-  "AP": 18.1,
-  "lateral_over_surface": 26.2
+  "AP": 17.7,
+  "lateral_over_surface": 25.3
  },
  "textures_inpainted": [
   [
@@ -39,7 +41,7 @@
  ],
  "rectum_gap_to_bone_below_860mm_mm": 5.0,
  "min_gap_ampulla_to_sacrum_coccyx_mm": 4.9,
- "min_gap_canal_to_coccyx_mm": 14.9,
+ "min_gap_canal_to_coccyx_mm": 14.8,
  "navel": [
   0.0,
   -0.0535,
@@ -47,20 +49,20 @@
  ],
  "canal_axis": [
   -0.0,
-  -0.6033,
-  0.7975
+  -0.6045,
+  0.7966
  ],
  "canal_length_mm": 25.0,
- "canal_angle_from_vertical_deg": 37.1,
- "anorectal_angle_deg": 107.9,
+ "canal_angle_from_vertical_deg": 37.2,
+ "anorectal_angle_deg": 107.8,
  "junction_J": [
   0.0,
-  0.0414,
-  0.81
+  0.0404,
+  0.8117
  ],
- "junction_to_coccyx_tip_mm": 22.7,
- "junction_vs_pubococcygeal_line_mm": -5.1,
- "anus_vs_ischial_tuberosity_height_mm": -3.3,
+ "junction_to_coccyx_tip_mm": 23.2,
+ "junction_vs_pubococcygeal_line_mm": -3.5,
+ "anus_vs_ischial_tuberosity_height_mm": -1.7,
  "coccyx_tip": [
   -0.0007,
   0.0633,
@@ -71,5 +73,5 @@
   -0.0042,
   0.8142
  ],
- "ampulla_len_mm": 20.5
+ "ampulla_len_mm": 19.2
 }
