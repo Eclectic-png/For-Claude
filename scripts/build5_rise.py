@@ -60,7 +60,10 @@ def r_eff(p):
 
 region = [v for v in bm.verts if not v.is_boundary and r_eff(v.co) < 0.035]
 wt = {v: 1.0 - ss(0.022, 0.035, r_eff(v.co)) for v in region}
-for _ in range(20):
+# build5_rise: this pass (from build7) raises the cleft floor behind the anus ~1.3 mm above the original, which
+# left a steep climb ("cliff") at the back edge of the rebuilt anus. ANUS_TAUBIN = number of passes (build5: 20)
+TAUBIN_ITERS = int(os.environ.get("ANUS_TAUBIN", "20"))
+for _ in range(TAUBIN_ITERS):
     for f in (0.5, -0.53):
         new = {}
         for v in region:
@@ -364,6 +367,29 @@ if sum(f.normal.dot(n) for f in new_faces) < 0:
         f.normal_flip()
 bm.normal_update()
 base_pos = {v: v.co.copy() for v in info}
+# level along the cleft (the "cliff" fix): the narrow fill sits low near the original pit and then climbs steeply in a
+# narrow band at the back edge to meet the cleft floor rising toward the coccyx. Smooth the heights ALONG the cleft
+# only (edge weights (da / length)^2, so nothing diffuses across the cleft and the walls keep their shape), on the cleft
+# floor (fading out up the walls), with the outer ring held fixed: the climb spreads over the whole anus.
+# ANUS_LEVEL = smoothing iterations (0 = off)
+LEVEL_ITERS = int(os.environ.get("ANUS_LEVEL", "3000"))
+_lay = {v: (r * math.cos(th), r * math.sin(th) * SQUEEZE * (0.45 + 0.55 * ss(0.9, 5.0, r))) for v, (r, th) in info.items()}
+_vl = list(info); _vi = {v: i for i, v in enumerate(_vl)}
+_E = np.array(sorted({tuple(sorted((_vi[e.verts[0]], _vi[e.verts[1]]))) for f in new_faces for e in f.edges
+                      if e.verts[0] in _vi and e.verts[1] in _vi}))
+_L = np.array([_lay[v] for v in _vl])
+_d = _L[_E[:, 1]] - _L[_E[:, 0]]
+_w = (_d[:, 0] ** 2) / np.maximum((_d ** 2).sum(1), 1e-12)          # 1 for an edge along the cleft, 0 across it
+_h0 = np.array([to_local(base_pos[v])[2] * 1000 for v in _vl]); _h = _h0.copy()
+_mob = np.array([(1 - ss(3.0, 6.0, abs(_lay[v][1]))) * (info[v][0] < 8.6) for v in _vl])
+_W = np.zeros(len(_vl)); np.add.at(_W, _E[:, 0], _w); np.add.at(_W, _E[:, 1], _w)
+for _ in range(LEVEL_ITERS):
+    _acc = np.zeros(len(_vl))
+    np.add.at(_acc, _E[:, 0], _w * (_h[_E[:, 1]] - _h[_E[:, 0]])); np.add.at(_acc, _E[:, 1], _w * (_h[_E[:, 0]] - _h[_E[:, 1]]))
+    _h += 0.5 * _mob * _acc / np.maximum(_W, 1e-9)
+report["level_change_mm"] = [round(float((_h - _h0).min()), 2), round(float((_h - _h0).max()), 2)]
+for v in _vl:
+    base_pos[v] = base_pos[v] + n * ((_h[_vi[v]] - _h0[_vi[v]]) / 1000)
 # relief along the (smooth) base normal: radial creases; the closed centre keeps rising with the surface (no sink at
 # the end). The rise goes straight out of the body (along n): along the surface normal it would push the steep
 # cheek walls sideways into the cleft.
