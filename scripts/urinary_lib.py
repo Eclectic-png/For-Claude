@@ -80,11 +80,13 @@ def umbrella(X, L):
 
 
 # ---------------------------------------------------------------- signed distances
-DIRS = [Vector(d).normalized() for d in ((0.31, 0.52, 0.79), (-0.6, 0.2, -0.77), (0.1, -0.95, 0.3))]
+DIRS = [Vector(d).normalized() for d in ((0.31, 0.52, 0.79), (-0.6, 0.2, -0.77), (0.1, -0.95, 0.3),
+                                         (0.83, -0.29, -0.47), (-0.44, -0.71, 0.55))]
 
 
 def inside(tree, p):
-    """ray-parity inside test (majority of three rays), robust to capped rims and collapsed walls"""
+    """ray-parity inside test (majority of five rays: three can be fooled by a ray grazing an edge), robust to
+    capped rims and collapsed walls"""
     votes = 0
     for d in DIRS:
         c = 0; q = p.copy()
@@ -94,7 +96,7 @@ def inside(tree, p):
                 break
             c += 1; q = h[0] + d * 1e-7
         votes += c % 2
-    return votes >= 2
+    return votes >= 3
 
 
 def signed_dist(tree, P, band=0.006):
@@ -175,7 +177,8 @@ def grow(X, F, mob, V_target, obst, iters=1500, gain=0.25, dmax=6e-4, smooth=0.2
         dn = float(np.clip(gain * (err + integ) * R, -dmax, dmax))
         X += n * (dn * mob)[:, None]
         lap = umbrella(X, L); ln = np.einsum("ij,ij->i", lap, n)[:, None] * n
-        X += ((lap - ln) * smooth + lap * fair) * mob[:, None]
+        X += ((lap - ln) * smooth + lap * fair) * np.sqrt(mob)[:, None]   # (smoothing reaches further into the
+                                                                           # still zone's rim than the pressure)
         if it % check_every == 0 or it > iters - 5:
             X, _ = obst.project(X, movable)
         X[~movable] = ref[~movable]
@@ -573,7 +576,7 @@ def cut_meatus(skin, M, t_ap, e_lat, K, half, lip, reg_u, reg_v, step=0.00022):
 
 # ---------------------------------------------------------------- neighbours that give way
 def make_room(objs, M_to, M_from, expander_trees, pinned, rigid, gap=0.0015, decay=0.9992, iters=700, rounds=6,
-              band=0.06, log=None, expanders=None):
+              band=0.06, log=None, expanders=None, carry_from=None, carry_sigma=0.010, carry_reach=0.015):
     """corrective positions for soft organs `objs` while an organ grows through stages. At each stage, per round:
       - every soft vertex inside (or within `gap` of) the grown shell is pushed just outside it;
       - where the grown shell bulges through the middle of a soft organ's face (coarse faces: no soft vertex is
@@ -641,6 +644,25 @@ def make_room(objs, M_to, M_from, expander_trees, pinned, rigid, gap=0.0015, dec
     base_in = set(inside_other(X, [t_ for t_, _ in organ_trees(X)]))   # contacts that exist at rest (seams, atlas) are not ours
     stages = []; resid = []
     for k, tree in enumerate(expander_trees):
+        if carry_from is not None and expanders is not None:
+            # carried along: soft tissue next to the growing wall moves the way the wall next to it moves (a
+            # weighted average of the wall's motion since the last stage, fading with distance from the wall) -
+            # the bowel rides up with the dome as one piece instead of being pushed every which way
+            prevP = carry_from if k == 0 else expanders[k - 1][0]; curP = expanders[k][0]; dW = curP - prevP
+            kdw = kdtree.KDTree(len(prevP))
+            for i, p in enumerate(prevP):
+                kdw.insert(Vector(p), i)
+            kdw.balance()
+            Dc = np.zeros_like(X)
+            for i in np.nonzero(~pin)[0]:
+                near = kdw.find_range(Vector(X[i]), 2.5 * carry_sigma + carry_reach)
+                if not near:
+                    continue
+                dmin = min(d_ for _, _, d_ in near)
+                w = np.array([math.exp(-((d_ - dmin) / carry_sigma) ** 2) for _, _, d_ in near])
+                Dc[i] = (w[:, None] * dW[[j for _, j, _ in near]]).sum(0) / w.sum() * math.exp(-(dmin / carry_reach) ** 2)
+            X = X + Dc
+            X, _ = rigid.project(X, ~pin)
         for r in range(rounds):
             D = np.zeros_like(X); C = np.zeros(len(X), bool)
             d, q, out = signed_dist(tree, X, band=band)
@@ -663,15 +685,23 @@ def make_room(objs, M_to, M_from, expander_trees, pinned, rigid, gap=0.0015, dec
                                 D[i] = push; C[i] = True
                         n_bulge += 1
             n_soft = 0
-            for i, b in inside_other(X, trees_):
+            for i, b in inside_other(X, trees_):   # both give way, half each
                 if (i, b) in base_in or pin[i]:
                     continue
                 h = trees_[b].find_nearest(Vector(X[i])); dv = np.array(h[0]) - X[i]; ln = np.linalg.norm(dv)
                 if ln < 1e-12:
                     continue
-                push = dv + dv / ln * gap * 0.5
-                if np.dot(push, push) > np.dot(D[i], D[i]):
-                    D[i] = push; C[i] = True; n_soft += 1
+                full = dv + dv / ln * gap * 0.5
+                cand = [(i, full * 0.5)]
+                fb = tf_[b][1]
+                if h[2] < len(fb):
+                    cand += [(j, -full * 0.5) for j in Fo[b][fb[h[2]]]]
+                for j, push in cand:
+                    if pin[j]:
+                        continue
+                    if np.dot(push, push) > np.dot(D[j], D[j]):
+                        D[j] = push; C[j] = True
+                n_soft += 1
             if log is not None:
                 log.append((k, r, int(m.sum()), n_bulge, n_soft))
             if not C.any():
@@ -722,7 +752,7 @@ def drive(kb, ctl, prop, expr):
     return fc
 
 
-def settle(X, faces, fixed, trees, gap=0.0006, decay=0.995, iters=500, rounds=4, band=0.02):
+def settle(X, faces, fixed, trees, gap=0.0006, decay=0.985, iters=300, rounds=8, band=0.02):
     """the grown organ itself gives way where it still presses into its neighbours (an organ trapped against bone
     cannot move further): vertices inside or within `gap` of any shell in `trees` move back out, the correction eases
     out over the organ's surface (fixed vertices stay). Returns (X, worst depth before, after) in metres."""
@@ -745,7 +775,7 @@ def settle(X, faces, fixed, trees, gap=0.0006, decay=0.995, iters=500, rounds=4,
             avg = np.zeros_like(D); np.add.at(avg, rows, D[cols] * w[:, None])
             D[free] = decay * avg[free]
         X = X + D
-    after = 0.0
+    after = 0.0                                  # (movable vertices: the still ones never move)
     for tree in trees:
-        d, _, _ = signed_dist(tree, X, band=band); after = max(after, float(max(0.0, -d.min())))
+        d, _, _ = signed_dist(tree, X, band=band); after = max(after, float(max(0.0, -d[~fixed].min())))
     return X, worst0 or 0.0, after

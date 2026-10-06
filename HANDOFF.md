@@ -1,7 +1,149 @@
 # NEXT SESSION START HERE
 
-**Project goal:** a functioning digestive system from the base of the neck (no mouth / pharynx needed) to the anus,
-in Blender, toon shader. The anus is a real, openable passage from the skin into the canal / rectum.
+**Project goal:** functioning organ systems from the base of the neck down, in Blender, toon shader, female model
+first (`Hips.blend`), a male version later. Done: the digestive system (esophagus -> anus, real openable passage).
+**Current: the urinary system (female) - `scripts/build_urinary.py`, built on build5_passage's output.**
+
+**Urinary system, state (details under "Urinary system" below):**
+1. Kidneys / ureters / adrenals from the atlas, in `Internal_Fit` under `Internal_Fit_Xform`. The atlas ureter already
+   carries the renal pelvis + calyces inside the kidney; the kidney wall is opened where the pelvis leaves it at the
+   hilum (`tract_lib.open_junction(..., sides=(0,))` = pierce).
+2. New bladder `AN_Bladder` (the atlas one was a 226-face blob pressed on the rectum): pressure-grown shell, empty
+   ~70 ml -> full 500 ml in 4 stages, against the pubic bones, sacrum, abdominal wall (skin - 10 mm), a retropubic
+   floor and the anterior vaginal wall plane (room kept for the vagina). Trigone (neck + ureteric orifices) still.
+3. Ureters bend to the trigone corners and open into the bladder (shared loops).
+4. New `AN_Urethra` (38 mm real / 27 mm in the body) from the bladder neck (shared loop) to the external meatus: a
+   3.6 mm sagittal slit cut into the crest of the vestibule's slot (shared loop with the skin). Collapsed at rest
+   (transverse crescent -> sagittal slit), `AN_Urethra_Wall` sleeve (thicker at the external sphincter).
+5. One control object, **`Urinary_Controls`** (custom properties **Fill** 0..1, **Void** 0..1) drives every key:
+   bladder `Fill_1..4` (chained stages) + `Void`; urethra `Void`; skin `Void`; and the neighbours' corrective keys
+   `Bladder_Fill_1..4` (descending/sigmoid colon, rectum, lower ampulla, ureters) - they give way, nothing clips.
+6. Insides lit for every organ / bone material (`tract_lib.light_all`, all three atlas shader families), AO_in
+   baked; also in the atlas tract build (all 122 meshes).
+
+**Builds (outputs gitignored, rebuild locally):**
+```
+cd drive
+ANATOMY_REF=$PWD/anatomy_ref.blend blender -b Hips.blend --python ../scripts/build5_passage.py -- \
+    $PWD/../out/blend/Hips_build5_passage.blend <report dir>          # anus / tract working file, ~25 s
+ANATOMY_REF=$PWD/anatomy_ref.blend blender -b ../out/blend/Hips_build5_passage.blend \
+    --python ../scripts/build_urinary.py -- $PWD/../out/blend/Hips_urinary.blend ../out/urinary   # ~10-15 min
+blender -b anatomy_ref.blend --python ../scripts/build_tract_passage.py -- \
+    $PWD/../out/blend/anatomy_tract_passage.blend <report dir>        # full atlas tract, ~70 s
+```
+Setup: Blender 4.2.3 at /opt (see "Project context"), `apt-get update` before the EEVEE libs, Pillow in Blender's
+Python (`/opt/blender-4.2.3-linux-x64/4.2/python/bin/python3.11 -m pip install pillow`). Drive files via gdown into
+`drive/` (the network policy must allow download.blender.org and Google Drive).
+
+**Open questions for the user / next steps (urinary):**
+- The vulva is rudimentary; the reproductive step rebuilds it. The meatus then needs re-cutting: re-run
+  build_urinary with the new skin (and `URETHRA_MEATUS` / `URETHRA_MEATUS_FROM` if the vestibule moved).
+- The atlas rectum sits where the vagina must go (male atlas): the reproductive step moves it back / compresses it.
+- Male version later: no vaginal plane, prostate round the urethra's first 3 cm, a ~20 cm urethra through the penis.
+- Fill is linear between the stages (70 / 150 / 260 / 380 / 500 ml at Fill 0 / .25 / .5 / .75 / 1); the checks run
+  at those values. In-between values blend two clean states.
+- Remaining contact (see `checks` in report.json, last build): Fill 0 / 0.25 / 0.5 and every Void state are clean
+  (only the intended / atlas overlaps: renal pelvis inside the kidney, sacroiliac joint). At 0.75: colon into rectum
+  1.1 mm (4 vertices); at 1.0: colon into rectum 2.4 mm (15 vertices) and bladder into rectum 2.4 mm (2) - all in the
+  fold where the sigmoid joins the rectum, squeezed against the sacrum. Successive solver tweaks moved these around
+  without clearing them (see "What was tried"); next idea: let the sigmoid fold flatten (a per-wall push with a
+  shorter falloff only there) or let the rectum's lumen compress toward the sacrum.
+- Cosmetic: a swirled crease on the bladder's inner back wall round the still trigone at Fill 0.5-1 (the still
+  patch vs the expanding wall); softened (16 -> 50 mm transition, smoothing reaches further than the pressure),
+  not gone. Could fade the trigone's stillness further or smooth the stage displacements once more.
+- Lighting of the full atlas tract file: every material is now lit inside (122 meshes); `AO_in` of small closed
+  shells (bronchial trees, sphincter) is dark (0.04-0.07), as a fully enclosed inside would be.
+
+## Urinary system (female) - `scripts/build_urinary.py`, `scripts/urinary_lib.py`
+
+Runs on build5_passage's output (`out/blend/Hips_build5_passage.blend`) and writes `out/blend/Hips_urinary.blend` +
+`out/urinary/report.json`. Everything is built in "atlas space" (the frame under `Internal_Fit_Xform`, real-size
+metres): the fit squashes it to the body (0.62 / 0.72 / 0.72), so body-scale lengths are ~0.7x and volumes 0.32x the
+real ones. Objects added / replaced in `Internal_Fit`: AN_Kidney_L/R, AN_Adrenal_L/R, AN_Ureter_L/R, AN_Bladder,
+AN_Urethra, AN_Urethra_Wall; empties `Urinary_Controls` and `Urethra_Meatus_Target` (scene root).
+
+**How to use it (for the user):** select `Urinary_Controls` -> Object properties -> Custom Properties: drag
+**Fill** (0 empty ~70 ml .. 1 full 500 ml, real volumes) and **Void** (0 closed .. 1 voiding). Everything that has to
+move follows through drivers (simple expressions, no Python / auto-run needed). A shape key is a stored version of a
+mesh's shape that can be blended in by a slider; each control blends several of them.
+
+**Steps (numbers from the last build):**
+1. Kidneys: the atlas ureter mesh already includes the renal pelvis and its calyces inside the kidney (top 4-5 cm,
+   up to 9 mm wide). The kidney's wall is opened where the pelvis leaves it at the hilum: `open_junction(K, Ur,
+   sides=(0,))` (new `sides` option: pierce - only A loses the piece inside B). Openings r 7.4 / 10.5 mm.
+2. Bladder, pressure-grown (`urinary_lib.grow`: membrane pushed out along its normals with PI control on the
+   volume, tangential + fairing smoothing, projected out of `Obstacles` every few passes):
+   - neck `BLADDER_NECK` [0, -0.080, 0.776] (atlas): ~19 mm behind the back of the symphysis at its lower border;
+   - limits: hip bones + sacrum (3 mm), inside the skin by `WALL` 10 mm (abdominal wall), a retropubic floor
+     (`FLOOR_DEG` 35, rising forward from the neck), the anterior vaginal wall plane (`VAG_DEG` 35 up and back, 5 mm
+     behind the neck, for `VAG_LEN` 75 mm): room for the vagina between urethra / bladder and rectum;
+   - empty stage (70 ml): seed 10 mm sphere on the neck, lid pressed down to neck + 32 mm (the bowel), the bowel and
+     anal canal solid too; stages 150 / 260 / 380 / 500 ml (`BLADDER_ML`) grow from it with the bowel soft;
+   - the trigone stays still in every stage: within `TRIG_FIX` 16 mm of the neck or of any vertex of the two
+     ureteric openings, free by `TRIG_FREE` 50 mm.
+   - Neck: the icosphere is cut 5 mm round the neck and the hole filled (constrained Delaunay) onto the urethra's
+     first ring (32 vertices, a transverse crescent, lips 0.02 mm).
+3. Ureters: last 60 mm bent (translation blend) so the end sits 3 mm inside the bladder at the planned orifice
+   (22 mm up the base from the neck, 13 mm either side); the atlas' left ureter ran through the sigmoid (44 vertices)
+   and is first eased out of the bowel at rest; then `open_junction` with the bladder. The tubes cross the wall
+   where they meet it (the right one ~2 cm from the planned spot), so the still trigone is built round the actual
+   opening loops, BEFORE the fill stages are grown.
+4. Urethra: a cubic from the neck (leaving straight down the bladder's axis) to the meatus (arriving straight up),
+   38 mm real / 27 mm in the body, 56 rings of 32. Rest: transverse crescent turning (55-95 % of the way) into the
+   meatus' sagittal slit; Void: round 7 mm at the neck -> 5.2 mm. "lining" attribute 0 at the meatus -> 0.62 by 8 mm on
+   a copy of the canal lining material (`AN_Urethra_Lining`). `AN_Urethra_Wall`: a closed sleeve round it (0.4 mm
+   clear of the open lumen, +1 mm over the external sphincter's third), trimmed clear of bladder and skin.
+   - Meatus (`urinary_lib.cut_meatus`): the vestibule here is a 5 mm deep slot whose labial walls meet in a knife
+     edge crest (0.1-0.4 mm apart). `CrestChart` unfolds it: u along the crest, v = arc length down either wall
+     from the crest, through cross-section polylines; the skin round the target is refined (edges split), the
+     crest's unwelded duplicates welded (5 um) and zero-thickness midline flaps removed (they made the crest
+     branch), a (u, v) box is re-triangulated (CDT with a 0.22 mm point grid) round a K=32 slit 3.6 mm long. UVs are
+     sampled on the same side of the midline seam, every existing shape key (Open) keeps Basis there.
+   - Target: `URETHRA_MEATUS="x,y,z"` (body coords, snapped up onto the crest), or `URETHRA_MEATUS_FROM=<previous
+     output .blend>` (its `Urethra_Meatus_Target` empty, move it by hand), or the default (0, 0.0135, crest):
+     ~31 mm behind the clitoral hood, ~13 mm in front of the introitus dimple. Tested at y 0.0110 / 0.0175 and
+     0.5 mm off the midline: all build.
+5. Keys + drivers: bladder `Fill_1..4` (each relative to the one before: driver f*4-(k-1), clamped 0..1 by the key
+   range) + `Void` (neck funnels open, round); urethra `Void`; Hips `Void` (the lips part into a 2 mm lens, fading out
+   over the rebuilt patch). Neighbours (`urinary_lib.make_room`): descending/sigmoid colon, rectum, lower ampulla,
+   ureters (anal canal pinned; ureters pinned 15 mm round their bladder openings and inside the kidney) get
+   `Bladder_Fill_1..4`: per stage, soft vertices inside (or within 2.5 mm of) the grown bladder are pushed out,
+   faces the bladder bulges through are pushed past it, bowel pressed into bowel steps back (both half), the pushes
+   spread as a decaying average over each organ (welded seams move together), bones / skin rigid. Then the bladder
+   settles (`urinary_lib.settle`): where it still presses into bowel trapped against bone it takes a shallow dent.
+   Before the pushes, soft tissue next to the wall is carried along with the wall's own motion (`carry_from`).
+   At full the sigmoid moves up to ~46 mm (real scale) up / back, the rectum ~37 mm, the lower ampulla ~6 mm (body).
+6. Lighting: new organs get the outer "AO"; `tract_lib.light_all` lights every organ / bone material (all three
+   atlas shader families now: organ, skeleton / cartilage, lung) and bakes AO_in where missing (the urethra's with it
+   open); build5_passage's bowel bakes are kept.
+7. Checks in `report.json` -> `checks`, at Fill 0 / 0.25 / 0.5 / 0.75 / 1 x Void 0 / 1: seams (neck, meatus, both
+   ureteric openings), bladder volume, and every pair of organs for vertices inside another (count, deepest mm).
+
+**Gotchas:**
+- Setting a custom property from Python does not re-run drivers: `ctl.update_tag()` then `view_layer.update()`
+  (the UI does this itself).
+- `open_junction` round-trips vertices through body coordinates (~1e-7 m): match old vertices within 2 um.
+- `signed_dist` decides inside by ray parity (the nearest-face normal lies near capped rims and collapsed walls).
+- The bladder stages and the bladder object have different topology (icosphere vs opened / junction-cut mesh): keys
+  are mapped by position; new vertices take their nearest old vertex's motion.
+- The atlas is a male body: its rectum sits where the vagina must go. The reproductive step will need the rectum /
+  ampulla moved back (or compressed) by roughly the vagina's thickness; the vaginal plane already keeps the bladder
+  and urethra in front of it.
+
+**What was tried for the neighbours (so it is not repeated):** pushing soft vertices to the nearest bladder point
+only -> the sigmoid crumpled (its parts pushed every which way) and the bladder bulged through coarse rectum faces;
+adding bulge-through and soft-soft pushes -> better, but the colon slid into the rectum as a whole (a 3 cm falloff
+moves both walls of the tube); shorter falloff -> helps; carrying the bowel along with the wall's own motion
+(`carry_from`) -> the big improvement (no crumpling); the bladder settling against what is trapped -> clears most of
+the rest. 3-ray inside tests gave false answers near grazing edges: 5 rays now.
+
+**Tools:** `scripts/tools/sagittal.py` (any objects, any axis-aligned plane; `SAG_KEYS="Fill=1,Void=0"`),
+`scripts/tools/urinary_views.py` (overview, midline cut-aways at Fill 0 / 0.5 / 1, meatus closed / voiding, EEVEE
+cut-away of the full bladder's lit inside). Renders in `out/urinary/`.
+
+---
+
+# Digestive system (previous task) - state when the urinary work started
 
 **State: all five handoff items are DONE** (details further down, under "Progress, item N"):
 1. Real passage: skin slit edge loop = canal mouth (288 points, 0 mm seam). `scripts/build5_passage.py`.

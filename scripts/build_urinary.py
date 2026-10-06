@@ -226,7 +226,7 @@ _bb.free()
 done("ureters")
 # the still trigone round the ACTUAL openings (the ureters cross the wall where their tubes meet it, which can be a
 # couple of cm from the planned orifice): the neck and every vertex of both ureteric opening loops
-TRIG_FIX, TRIG_FREE = 0.016, 0.034
+TRIG_FIX, TRIG_FREE = 0.016, 0.050
 trig_pts = np.array([tuple(NECK)] + [p for s in "LR" for p in ure_loop[s]])
 def dist_trigone(P):
     P = np.atleast_2d(P); out_ = np.empty(len(P))
@@ -464,7 +464,10 @@ def pinned(name, P):
         near_k = np.array([kid_trees["LR".index(s)].find_nearest(Vector(p))[3] < 0.006 for p in P])
         return near_b | near_k
     return np.zeros(len(P), bool)
-rigid_soft = U.Obstacles([(t_, 0.0008) for t_, _ in bone_trees], [(skin_tree, 0.003)], [])
+# rigid for them: bones, the inside of the skin, and the organs that stay (kidneys, adrenals)
+rigid_soft = U.Obstacles([(t_, 0.0008) for t_, _ in bone_trees] +
+                         [(U.tree_in(O[n_], Mi), 0.0005) for n_ in ("AN_Kidney_L", "AN_Kidney_R", "AN_Adrenal_L", "AN_Adrenal_R")],
+                         [(skin_tree, 0.003)], [])
 stage_trees = []; stage_pts = []
 for k in range(1, NS + 1):
     me_ = bpy.data.meshes.new("_st"); me_.from_pydata([tuple(bladder.data.shape_keys.key_blocks[names_fill[k - 1]].data[j].co) for j in range(len(Pb))], [], [tuple(p.vertices) for p in bladder.data.polygons])
@@ -473,7 +476,8 @@ for k in range(1, NS + 1):
     me_.update(); stage_pts.append((np.array([tuple(v.co) for v in me_.vertices]), np.array([tuple(v.normal) for v in me_.vertices])))
     O.remove(tmp); bpy.data.meshes.remove(me_)
 mr_log = []
-room, resid = U.make_room([O[n_] for n_ in SOFT_N], Mi, Mw, stage_trees, pinned, rigid_soft, gap=0.0025, log=mr_log, rounds=10,
+room, resid = U.make_room([O[n_] for n_ in SOFT_N], Mi, Mw, stage_trees, pinned, rigid_soft, gap=0.0025, log=mr_log, rounds=10, decay=0.996, iters=400,
+                         carry_from=np.array([tuple(v.co) for v in bladder.data.vertices]),
                          expanders=stage_pts)
 report["make_room"] = {"organs": SOFT_N, "residual_inside_mm": resid, "log": mr_log}
 print("MAKE_ROOM", resid, mr_log[-6:])
