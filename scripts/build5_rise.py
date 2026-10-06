@@ -221,6 +221,10 @@ report["deleted_verts"] = len(D); report["hole_loop"] = len(L)
 
 # ======================= 4/5. new pucker draped on the base: squeezed by the cheeks, creases, AP slit =======================
 RINGS = [0.9, 1.4, 2.0, 2.7, 3.5, 4.4, 5.4, 6.5, 7.6, 8.6]          # mm (AP); lateral is squeezed
+# rings inside the entrance, so the dip into the centre can curve smoothly (build5 had only the pole there, which can
+# only make a straight cone); the creases don't reach inside 0.9 mm, so they are unaffected
+RINGS = sorted([0.06, 0.15, 0.3, 0.45, 0.6, 0.75] + RINGS + [1.15, 1.65, 2.35])   # + finer steps over the shoulder,
+# which otherwise bent only at build5's 0.9 / 1.4 / 2.0 mm rings and showed corners
 SQUEEZE = 0.75
 FOLD_W = [1.2, 0.8, 1.0, 0.75, 1.05, 0.85, 1.2, 0.85, 1.05, 0.75, 1.0, 0.8]
 SIG = 0.09; R_FOLD = 7.2
@@ -230,6 +234,11 @@ RISE = float(os.environ.get("ANUS_RISE", "0.2"))   # mm (0.5 and up read as an u
 CREASE_SCALE = float(os.environ.get("ANUS_CREASE_SCALE", "2.0"))   # x build5's crease depth (user's pick; 1x read too faint
                                  # once the anus follows the curved cleft and cheek walls)
 ENTRANCE_DIP = 0.0               # mm the pole drops below the rise (build5: 0.6 - on a rise it read as an abrupt sink)
+# the user's sketch: gentle shoulders rising towards the centre that roll over and curve down into a narrow plunge.
+# D * (1 - sqrt(r / R_DIP))^2 starts with zero slope at R_DIP (no corner), steepens inwards and is near vertical at
+# the centre
+DIP = float(os.environ.get("ANUS_DIP", "1.2"))      # mm at the centre
+R_DIP = 2.5                      # mm where the roll-over begins
 
 
 def crease(theta):
@@ -287,7 +296,7 @@ for v, (r, th) in info.items():
     relief = CREASE_SCALE * fold_amp(r) * (0.15 - crease(th))
     if v is pole:
         relief = -ENTRANCE_DIP
-    rise = RISE * (1 - ss(0, R_FOLD, r))
+    rise = RISE * (1 - ss(0, R_FOLD, r)) - DIP * (1 - min(r / R_DIP, 1.0) ** 0.5) ** 2
     v.co = base_pos[v] + v.normal * (relief / 1000) + n * (rise / 1000)
     v[pig_layer] = min(1.0, (1 - ss(3.0, 8.5, r)) * (1 + 0.1 * crease(th) * fold_amp(r) / 0.42))
 
@@ -340,7 +349,7 @@ for v in bm.verts:
     if abs(v.co.x) < 2e-5:
         v.co.x = 0.0
 bm.normal_update()
-ring0 = [v.co.copy() for v in rings[0]]
+ring0 = [v.co.copy() for v in rings[RINGS.index(0.9)]]   # the canal still opens at build5's 0.9 mm ring
 A = sum(ring0, Vector()) / len(ring0)
 widths = [abs(v.co.x) for v in rings[-1]]
 report["new_verts"] = len(info); report["degenerate_faces"] = sum(1 for f in bm.faces if f.calc_area() < 1e-12)

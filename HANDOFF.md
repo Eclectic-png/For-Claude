@@ -149,6 +149,14 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
 
 ## Current state and next step
 
+- **build5_rise, plunge (latest):** the user's sketch shows shoulders rising toward the centre that roll over smoothly into
+  a narrow plunge. That plunge is `DIP * (1 - sqrt(r / R_DIP))^2` with `R_DIP` 2.5 mm, along n; set it with the
+  `ANUS_DIP` env var (default 1.2). The build adds rings inside 0.9 mm and at 1.15 / 1.65 / 2.35 mm so it curves
+  smoothly, and the canal still opens at the 0.9 mm ring. 0.8 and 1.5 were rendered, with cross-section plots
+  (`profiles_plunge_0.8_1.5.png`) and 1600 px shaded renders (`scripts/tools/hq.py`).
+  - **Render quality:** the softness came from my downscaled contact sheets and the 1024 px textures. The jagged crease
+    edges in the shaded view come from build5's 72 spokes, which make each crease only ~2 vertices wide under the
+    toon cut. More spokes would fix it but would slightly change the build5 look, so ask first.
 - **build5_rise, crease depth:** `ANUS_CREASE_SCALE` (default 2.0, the user's pick of 1x / 1.5x / 2x) multiplies build5's crease relief. The creases were
   measured as deep as build5's, but they read faint once the anus follows the curved cleft (toon two-tone cut). The
   rise default is now 0.2 mm with no pole sink (`ENTRANCE_DIP = 0`). 1x, 1.5x and 2x were rendered at a 0.2 mm rise
