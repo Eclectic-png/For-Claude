@@ -35,6 +35,7 @@ On Windows `ANATOMY_REF` defaults to the user's path. Each script writes `report
 | Script | Status | What it is |
 |---|---|---|
 | `scripts/build5.py` | original (user's local chat) | Pole-closed anus with 12 radial creases of fixed angular width whose depth grows from the centre (`sin(pi t)^0.8`), so they all narrow into one point. The user likes its lines. It stood up like a lump (biharmonic fill bridging the cleft, flat projection) and reshaped the cheeks. Renders: `out/variants/build5/`. |
+| `scripts/build5_adapted.py` | **current** | The user's build5 itself, with only three changes (each marked `adapted:`): the rebuilt region is cut narrow in surface coordinates (`surf_coords`, `D_AP` / `D_LAT`), the rings are cast on a Phong-curved base, and the lateral offsets are arc length over the skin (`surf_point`). There is also a portability fix (env var, report path, texture lookup). The cross-section (`xs2.py`) shows the centre at +2.3 mm (lump) in build5 and -0.1 mm here, with the cheek walls ~3 mm further out in build5. Renders: `out/variants/build5_adapted/`. |
 | `scripts/build7.py` | original | The local chat's last build (v7): a near-circular pucker. |
 | `scripts/build8.py` | **saved v1** (`out/versions/closed_fissure_v1/`) | Squeezed cleft, closed fissure, lips peaking at the edge, cusped wrinkles. Uses the older confocal ring layout. |
 | `scripts/build8_raised.py` | variant | v1 with a ~1 mm raised dome. |
@@ -145,6 +146,13 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
 `scripts/render_close.py` and `scripts/render_wire.py` produce the standard close / below / geometry renders.
 
 ## Current state and next step
+
+- **build5_adapted (latest):** the user rejected build9 and build10 as rebuilds rather than build5. They asked to go back
+  to build5 and only fix its problems: the lump, the edges not riding up the cheeks, and the deformed cheeks.
+  - **Changed:** only those fixes. Everything else (72 spokes, pole, `crease()`, `fold_amp`, `FUNNEL`, pigment, canal)
+    is build5 verbatim.
+  - **Open:** none of the later additions are in it (`SQ` cleft squeeze, cleft refinement, normal-map fade, crease
+    shading node). With the narrow cut, the hole loop is only 14 coarse vertices bridged to the 36-vertex outer ring.
 
 - **build10 (latest):** the user wanted build5's dive toward the centre and its "pinched together" look.
   - **Tried and rejected:** build5's numbers literally. The creases stopped at 0.9 mm and a cone pit sat inside, which
