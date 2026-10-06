@@ -7,11 +7,11 @@
  "outer_ring_verts": 72,
  "base_lift_mm": 2.1,
  "new_verts": 2087,
- "degenerate_faces": 1,
+ "degenerate_faces": 0,
  "anus_centre_A": [
   0.0,
   0.057,
-  0.7896
+  0.7895
  ],
  "boundary_edges_total": 84,
  "pucker_outer_lateral_halfwidth_mm": 4.6,
@@ -22,10 +22,11 @@
   "lateral_projected": 8.0,
   "climb_up_cheek_wall": 1.6
  },
- "slit_tip_welded_verts": 208,
- "fissure_open_removed_verts": 50,
- "tip_merged_verts": 155,
- "tip_tidied_verts": 105,
+ "tip_seam_pairs": 28,
+ "fissure_open_removed_verts": 99,
+ "tip_tidied_verts": 357,
+ "canal_opening_points": 88,
+ "slit_edge_loops": 1,
  "textures_inpainted": [
   [
    "cf_m_body_MT_CT.png",
@@ -72,7 +73,7 @@
  ],
  "junction_to_coccyx_tip_mm": 22.3,
  "junction_vs_pubococcygeal_line_mm": -5.7,
- "anus_vs_ischial_tuberosity_height_mm": -3.8,
+ "anus_vs_ischial_tuberosity_height_mm": -3.9,
  "coccyx_tip": [
   -0.0007,
   0.0633,

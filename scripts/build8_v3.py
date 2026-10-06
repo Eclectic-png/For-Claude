@@ -286,16 +286,14 @@ RINGS = [1.82, 1.9, 2.0, 2.1, 2.25, 2.5, 2.9, 3.4, 3.9, 4.4, 5.0, 5.7, 6.4, 7.2,
 CREASE_SEED = 11
 _rng = random.Random(CREASE_SEED)
 STEP = 2 * math.pi / 36
-N_PER_SIDE = 6
-CREASES = [(0.0, _rng.uniform(0.75, 0.95), _rng.uniform(6.0, 7.0)),          # one along the cleft from each tip
-           (math.pi, _rng.uniform(0.75, 0.95), _rng.uniform(6.0, 7.0))]
-for side in (1, -1):
-    cand = list(range(2, 17)); _rng.shuffle(cand); chosen = []
-    for j in cand:
-        if len(chosen) < N_PER_SIDE and all(abs(j - c) >= 2 for c in chosen):
-            chosen.append(j)
-    for j in chosen:
-        CREASES.append(((side * j * STEP) % (2 * math.pi), _rng.uniform(0.8, 1.0), _rng.uniform(5.4, 7.0)))
+# front (perineum) half, approved as is: a crease every 20 deg fanning from the front tip (deg, depth, runs to r)
+_FRONT = [(120, 0.97, 5.5), (140, 0.93, 6.4), (160, 0.92, 6.6), (180, 0.93, 6.5),
+          (-160, 0.91, 5.6), (-140, 0.85, 6.6), (-120, 0.88, 6.3)]
+# back half and sides at the same 20 deg density; the two sides are offset by 10 deg, so the back tip gets an
+# uneven V of creases instead of one running straight up the cleft, and the sides are not mirror images
+_BACK = [10, 30, 50, 70, 90, -20, -40, -60, -80, -100]
+CREASES = [(math.radians(d) % (2 * math.pi), w, r1) for d, w, r1 in _FRONT]
+CREASES += [(math.radians(d) % (2 * math.pi), _rng.uniform(0.8, 1.0), _rng.uniform(5.4, 7.0)) for d in _BACK]
 CREASES.sort()
 _ang = [c[0] for c in CREASES]
 CREASE_HALF = []                                                             # half the gap to the nearer neighbour
@@ -318,7 +316,8 @@ def crease(theta, r):
         d = abs((theta - t0 + math.pi) % (2 * math.pi) - math.pi)
         if d < hg:
             best = max(best, w * (1 - d / hg) ** 4 * (1 - ss(r1 - 1.2, r1, r)))
-    return best
+    # the lip edge itself stays level so both lips meet (closed); full depth is reached 0.08 mm out, at the next ring
+    return best * ss(RINGS[0], RINGS[1], r)
 
 
 def fold_amp(r):                 # full depth from the lip outwards; each crease's own length fades it
@@ -549,9 +548,8 @@ report["pigment_outline_mm"] = {
 # normals spike. Weld pucker vertices closer than 0.06 mm there.
 TIP_CO = [R0[0].co.copy(), R0[H].co.copy()]          # the slit's real tip positions
 _tips = [v for v in info if v.is_valid and (v.co - R0[0].co).length < 0.0006 or (v.co - R0[H].co).length < 0.0006]
-_n0 = len(bm.verts)
-bmesh.ops.remove_doubles(bm, verts=_tips, dist=0.00006)
-report["slit_tip_welded_verts"] = _n0 - len(bm.verts)
+_n0 = len(bm.verts)                                  # (v3: no proximity weld - the lips are ~0.02 mm apart along
+                                                     # the whole slit, so it collapsed both lips into tangled fans)
 bm.verts.ensure_lookup_table(); bm.normal_update()
 # soften the little pits where creases meet the slit's lips: normal-only smoothing on the skin right around the slit
 _near = [v for v in bm.verts if v.is_valid and (min(abs(to_local(v.co)[0]) - SLIT / 1000, 0) ** 2 + 0) >= 0
@@ -571,24 +569,23 @@ ring0 = [_skin_tree.find_nearest(p_)[0] for p_ in ring0]
 # open the fissure: drop the skin that zipped the slit shut, so it leads straight into the anal canal (the canal's
 # bottom ring sits exactly on the lips)
 _n0 = len(bm.verts)
-bmesh.ops.delete(bm, geom=[v for v in slit_verts if v.is_valid and v not in rings[0]], context='VERTS')
-_lipset = {v for v in rings[0] if v.is_valid}       # zipper remnants left by the tip weld
-bmesh.ops.delete(bm, geom=[f for f in bm.faces if all(v in _lipset for v in f.verts)], context='FACES_ONLY')
+OPEN_MARGIN = 0.35                                   # mm at each end of the slit that stays zipped shut, so the
+bmesh.ops.delete(bm, geom=[v for v in slit_verts if v.is_valid], context='VERTS')    # lips joined pairwise below
+_tmap = {}
+for k in range(1, H):                                # lip vertex k and its partner N0-k on the other lip
+    if abs(RINGS[0] * math.cos(2 * math.pi * k / N0)) >= SLIT - OPEN_MARGIN:
+        a_, b_ = R0[k], R0[N0 - k]
+        a_.co = (a_.co + b_.co) / 2
+        _tmap[b_] = a_
+bmesh.ops.weld_verts(bm, targetmap=_tmap)            # a clean seam: every seam edge has one face on each side
+report["tip_seam_pairs"] = len(_tmap)
 report["fissure_open_removed_verts"] = _n0 - len(bm.verts)
 bmesh.ops.dissolve_degenerate(bm, dist=0.00002, edges=bm.edges[:])
 bm.normal_update()
 # the lips are pressed almost together, so at each tip several rings bunch into one spot and fold over: merge
 # everything within 0.4 mm of the tip into a single point (the smoothing pass below rounds the patch)
-_merged = 0
-for sg in (1, -1):
-    _tp = TIP_CO[0 if sg > 0 else 1]
-    _cl = [v for v in bm.verts if v.is_valid and (v.co - _tp).length < 0.0004]
-    if len(_cl) > 1:
-        _c = sum((v.co for v in _cl), Vector()) / len(_cl)
-        bmesh.ops.pointmerge(bm, verts=_cl, merge_co=_c); _merged += len(_cl) - 1
-bmesh.ops.dissolve_degenerate(bm, dist=0.00002, edges=bm.edges[:])
+# (v3: no tip merge - it made non-manifold fans; the tips stay zipped instead)
 bm.verts.ensure_lookup_table(); bm.normal_update()
-report["tip_merged_verts"] = _merged
 # tidy the tips after the weld / zipper removal: smooth a small patch around each end of the fissure
 _tipc = [O + u * (SLIT / 1000), O - u * (SLIT / 1000)]
 _tipv = [v for v in bm.verts if v.is_valid and not v.is_boundary and min((v.co - t_).length for t_ in TIP_CO) < 0.0006]
@@ -607,6 +604,31 @@ for _ in range(6):                                   # full relaxation right at 
 bm.normal_update()
 report["tip_tidied_verts"] = len(_tipv)
 bm.verts.ensure_lookup_table(); bm.normal_update()
+_skin_tree = BVHTree.FromBMesh(bm)                    # canal opening follows the FINAL skin (after the tip merge),
+ring0 = [_skin_tree.find_nearest(p_)[0] - n * 0.00008 for p_ in ring0]   # tucked 0.08 mm under it so none shows
+# the canal's opening IS the skin's final slit edge (after the tip merge): same points, so nothing shows between them
+_slit_edges = {e for e in bm.edges if e.is_boundary and all((v.co - A).length < 0.006 for v in e.verts)}
+_loops, _seen = [], set()
+for e0 in _slit_edges:
+    if e0 in _seen:
+        continue
+    comp, st = [], [e0]
+    while st:
+        e = st.pop()
+        if e in _seen:
+            continue
+        _seen.add(e); comp.append(e)
+        st += [g for v in e.verts for g in v.link_edges if g in _slit_edges and g not in _seen]
+    _loops.append(comp)
+_loop = max(_loops, key=len); _lv = {v for e in _loop for v in e.verts}
+_start = next(iter(_lv)); _order = [_start]; _prev = None; _cur = _start
+while True:
+    _nx = [e.other_vert(_cur) for e in _cur.link_edges if e in _loop and e.other_vert(_cur) is not _prev]
+    if not _nx or _nx[0] is _start:
+        break
+    _prev, _cur = _cur, _nx[0]; _order.append(_cur)
+ring0 = [v.co.copy() for v in _order]
+report["canal_opening_points"] = len(ring0); report["slit_edge_loops"] = len(_loops)
 refined_ids = None
 bm.verts.ensure_lookup_table()
 refined_ids = [v.index for v in bm.verts if in_refine(v.co)]
@@ -901,7 +923,7 @@ NS = 36
 
 def canal_r(th, t):   # collapsed canal: slit at the verge, ~3.2 mm with anal columns higher up, 4 mm at the junction
     rc = (3.2 + 0.8 * ss(0.5, 1.0, t)) * (1 + 0.15 * ss(0.4, 0.8, t) * math.cos(8 * th)) / 1000
-    return f_bot(th) * (1 - ss(0, 0.3, t)) + rc * ss(0, 0.3, t)
+    return f_bot(th) * (1 - ss(0.08, 0.35, t)) + rc * ss(0.08, 0.35, t)   # collapsed (slit-thin) for the first ~2 mm
 
 
 def build_tube(name, ring_pts_list, exact_bot, exact_top):
