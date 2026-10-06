@@ -560,12 +560,12 @@ for v, (r, th) in info.items():
 # Profile across the slit (from your sketch): the skin rises gently towards the slit, peaks right at its lips, then
 # drops into a narrow V - no wide valley. The rise goes straight out of the cleft (along n): on the steep cheek walls
 # the surface normal points sideways and would pinch the pucker.
-PUFF = 0.5                       # mm, height of the rise at the slit's lips
+PUFF = 0.7                       # mm, height of the rise at the slit's lips
 SLIT_V = 0.7                     # mm, depth of the V below the lips
 LIP_ROLL = 0.9                   # mm the lips curl down into the open fissure
 relief_of = {}; puff_of = {}
 for v, (r, th) in info.items():
-    puff_of[v] = n * (PUFF / 1000 * (1 - ss(RINGS[0] + 0.8, RINGS[-1] - 0.4, max(r, RINGS[0]))))
+    puff_of[v] = n * (PUFF / 1000 * (1 - ss(RINGS[0], RINGS[0] + 2.8, max(r, RINGS[0]))))   # gentle climb over the last ~2.8 mm, peak at the lips
     if v in slit_verts:
         sw = math.sin(th)
         relief = -SLIT_V * sw ** 0.6
