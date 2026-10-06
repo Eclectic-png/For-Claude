@@ -227,6 +227,8 @@ SIG = 0.09; R_FOLD = 7.2
 # rise: build5's 2 mm funnel profile turned upside down - the surface climbs towards the centre and fades to nothing
 # at the outer ring
 RISE = float(os.environ.get("ANUS_RISE", "0.2"))   # mm (0.5 and up read as an unnatural dome)
+CREASE_SCALE = float(os.environ.get("ANUS_CREASE_SCALE", "1.5"))   # x build5's crease depth (they read too faint
+                                 # once the anus follows the curved cleft and cheek walls)
 ENTRANCE_DIP = 0.0               # mm the pole drops below the rise (build5: 0.6 - on a rise it read as an abrupt sink)
 
 
@@ -282,7 +284,7 @@ base_pos = {v: v.co.copy() for v in info}
 # the end). The rise goes straight out of the body (along n): along the surface normal it would push the steep
 # cheek walls sideways into the cleft.
 for v, (r, th) in info.items():
-    relief = fold_amp(r) * (0.15 - crease(th))
+    relief = CREASE_SCALE * fold_amp(r) * (0.15 - crease(th))
     if v is pole:
         relief = -ENTRANCE_DIP
     rise = RISE * (1 - ss(0, R_FOLD, r))
