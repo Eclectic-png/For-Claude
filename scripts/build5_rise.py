@@ -60,6 +60,12 @@ def r_eff(p):
 
 region = [v for v in bm.verts if not v.is_boundary and r_eff(v.co) < 0.035]
 wt = {v: 1.0 - ss(0.022, 0.035, r_eff(v.co)) for v in region}
+# build5_rise: behind the anus this pass only raised the cleft floor (~1.3 mm), which tilted the back half of the anus
+# up ~19 deg; it is needed in front (perineum side), where it hides the original's low-poly facets and crease. Fade it
+# out behind the anus between TAUBIN_BACK[0] and [1] mm (ANUS_TAUBIN_BACK="a0,a1"; "0,0" = off: as build5)
+TAUBIN_BACK = [float(x) for x in os.environ.get("ANUS_TAUBIN_BACK", "0,0").split(",")]   # off: faded, the original's facets show behind the anus
+if TAUBIN_BACK[1] > 0:
+    wt = {v: w_ * (1 - ss(TAUBIN_BACK[0], TAUBIN_BACK[1], to_local(v.co)[0] * 1000)) for v, w_ in wt.items()}
 # build5_rise: this pass (from build7) raises the cleft floor behind the anus ~1.3 mm above the original, which
 # left a steep climb ("cliff") at the back edge of the rebuilt anus. ANUS_TAUBIN = number of passes (build5: 20)
 TAUBIN_ITERS = int(os.environ.get("ANUS_TAUBIN", "20"))
