@@ -74,6 +74,67 @@ for v in bm.verts:                                # keep the mesh exactly mirror
         v.co.x = 0.0
 bm.normal_update()
 
+# (build5_rise: ported from build8 - the low-poly cheek walls made the toon light/shadow cut zigzag)
+# ======================= 2c. refine the cleft =======================
+# The body is a low-poly game mesh: across its big triangles the toon shader's hard light/shadow cut comes out as a
+# zigzag along the cheek walls, and the strip joining the dense pucker to it gets long thin triangles (white slivers).
+# Split every cleft edge into 4 and put the new vertices on the Phong surface of the original triangles (curved by the
+# vertex normals): old vertices stay put, so the silhouette is unchanged.
+from mathutils.bvhtree import BVHTree
+from mathutils.interpolate import poly_3d_calc
+REFINE_CUTS = 3
+A_FRONT, A_BACK = 45, 80         # mm along the cleft: towards the perineum / up towards the coccyx
+
+# the cleft floor curves away from the local frame further up (19 mm off at 45 mm, 56 mm at 75 mm), so the region
+# follows a sampled midline floor profile instead of a fixed height band
+_t = BVHTree.FromBMesh(bm); _fa, _fh = [], []
+for a_mm in range(-A_FRONT - 10, A_BACK + 11, 5):
+    P = O + u * (a_mm / 1000)
+    hit = _t.ray_cast(P - n * 0.08, n, 0.2)[0]
+    if hit is not None:
+        _fa.append(a_mm); _fh.append((hit - O).dot(n) * 1000)
+
+
+def cleft_floor_h(a_mm):
+    return float(np.interp(a_mm, _fa, _fh))
+
+
+def cleft_coords(p):
+    a, b, h = (x * 1000 for x in to_local(p))
+    return a, b, h - cleft_floor_h(a)
+
+
+def in_refine(p):
+    a, b, hr = cleft_coords(p)
+    return -A_FRONT < a < A_BACK and abs(b) < 28 and -15 < hr < 30
+
+
+old = bm.copy(); bmesh.ops.triangulate(old, faces=old.faces[:]); old.faces.ensure_lookup_table(); old.normal_update()
+old_tree = BVHTree.FromBMesh(old)
+
+
+def phong_old(p, alpha=0.75):
+    loc, _, fi, _ = old_tree.find_nearest(p)
+    vs = [l.vert for l in old.faces[fi].loops]
+    ws = poly_3d_calc([v.co for v in vs], loc)
+    q = Vector()
+    for w_, v in zip(ws, vs):
+        q += (loc - v.normal * (loc - v.co).dot(v.normal)) * w_
+    return loc.lerp(q, alpha)
+
+
+before = set(bm.verts)
+ref_edges = [e for e in bm.edges if not e.is_boundary and all(in_refine(v.co) for v in e.verts)]
+bmesh.ops.subdivide_edges(bm, edges=ref_edges, cuts=REFINE_CUTS, use_grid_fill=True)
+refined_new = [v for v in bm.verts if v not in before]
+for v in refined_new:
+    v.co = phong_old(v.co)
+    if abs(v.co.x) < 2e-5:
+        v.co.x = 0.0
+old.free()
+bm.verts.ensure_lookup_table(); bm.faces.ensure_lookup_table(); bm.normal_update()
+report["refined_edges"] = len(ref_edges); report["refine_new_verts"] = len(refined_new)
+
 # ======================= 3. region to rebuild + smooth base surface (old pucker faired away) =======================
 from mathutils.bvhtree import BVHTree
 from mathutils.interpolate import poly_3d_calc
@@ -373,7 +434,28 @@ report["pucker_surface_span_mm"] = {
     "AP": round((rings[-1][0].co - rings[-1][len(rings[-1]) // 2].co).length * 1000, 1),
     "lateral_over_surface": round(sum((rings[-1][k].co - rings[-1][k + 1].co).length
                                       for k in range(len(rings[-1]) // 4, 3 * len(rings[-1]) // 4)) * 1000, 1)}
+bm.verts.ensure_lookup_table()
+refined_ids = [v.index for v in bm.verts if in_refine(v.co)]
 bm.to_mesh(me); me.update(); bm.free(); base.free()
+# (build5_rise: ported from build8) the body's custom split normals don't fit the refined / rebuilt cleft: automatic
+# normals there
+if me.has_custom_normals:
+    keep = [tuple(c.vector) for c in me.corner_normals]
+    reg = set(refined_ids)
+    me.normals_split_custom_set([(0.0, 0.0, 0.0) if l.vertex_index in reg else keep[i] for i, l in enumerate(me.loops)])
+    me.update()
+
+
+def cleft_nm_off(p):             # 1 over the refined cleft, fading to 0 before the edge of the refined region
+    a, b, hr = cleft_coords(p)
+    fa = 1 - (ss(A_BACK - 18, A_BACK - 3, a) if a > 0 else ss(A_FRONT - 17, A_FRONT - 3, -a))
+    return fa * (1 - ss(16, 26, abs(b))) * ss(-14, -8, hr) * (1 - ss(22, 29, hr))
+
+
+if "cleft_nm_off" in me.attributes:
+    me.attributes.remove(me.attributes["cleft_nm_off"])
+_nm = me.attributes.new("cleft_nm_off", 'FLOAT', 'POINT')
+_nm.data.foreach_set("value", [cleft_nm_off(v.co) for v in me.vertices])
 
 # ======================= 6. remove the old pigment dot from the textures =======================
 SPOT = (0.1566, 0.5109); RUV = 0.0098
@@ -437,6 +519,29 @@ for i, (sock, (lab, rgb)) in enumerate(cols.items()):
     col.location = (x0, y0 - 220 * i); mix.location = (x0 + 220, y0 - 220 * i)
     col.parent = frame; mix.parent = frame
 attr.location = (x0 - 420, y0); stren.location = (x0 - 210, y0); attr.parent = frame; stren.parent = frame
+
+# (build5_rise: ported from build8; diagnosed on this build - with the map off the spiky shadow edge and the
+# streaky crease ends both disappear)
+# body normal map off over the rebuilt cleft: the 1024 px map is magnified ~15x here and still carries the old
+# cleft/anus shape, so under the toon cut it draws texel-sized spikes (sawtooth pigment edge, white sliver above the
+# anus). The refined geometry (2c) carries the shape instead. Drives RawShade's own "Use Normals?" input.
+for nd in [x for x in nt.nodes if x.name.startswith("CleftNM")]:
+    nt.nodes.remove(nd)
+rs = nt.nodes["RawShade"]; use_nm = rs.inputs["Use Normals?"]
+nframe = nt.nodes.new("NodeFrame"); nframe.name = "CleftNM_Frame"; nframe.label = "Body normal map off in the cleft"
+nma = nt.nodes.new("ShaderNodeAttribute"); nma.name = "CleftNM_Mask"; nma.attribute_name = "cleft_nm_off"
+nma.attribute_type = 'GEOMETRY'
+nms = nt.nodes.new("ShaderNodeMath"); nms.name = "CleftNM_Strength"; nms.label = "Strength (1 = normal map fully off)"
+nms.operation = 'MULTIPLY'; nms.inputs[1].default_value = 1.0; nms.use_clamp = True
+nmi = nt.nodes.new("ShaderNodeMath"); nmi.name = "CleftNM_UseNormals"; nmi.label = "Use Normals?"
+nmi.operation = 'MULTIPLY_ADD'; nmi.inputs[1].default_value = -float(use_nm.default_value)
+nmi.inputs[2].default_value = float(use_nm.default_value)          # = original * (1 - mask)
+nt.links.new(nma.outputs["Fac"], nms.inputs[0]); nt.links.new(nms.outputs[0], nmi.inputs[0])
+nt.links.new(nmi.outputs[0], use_nm)
+nma.location = (rs.location.x - 640, rs.location.y - 260); nms.location = (rs.location.x - 430, rs.location.y - 260)
+nmi.location = (rs.location.x - 220, rs.location.y - 260)
+for nd in (nma, nms, nmi):
+    nd.parent = nframe
 
 # ======================= 8. internals: raise fit 1 cm, re-seat sphincter =======================
 E = bpy.data.objects["Internal_Fit_Xform"]

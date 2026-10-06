@@ -149,7 +149,15 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
 
 ## Current state and next step
 
-- **build5_rise, crease width (latest):** the user felt the grooves took about as much area as the pads. They want the
+- **build5_rise, glitch check (latest):** the user picked `ANUS_SIG` 0.06 (now the default, no taper) and asked for a
+  check of textures and shadows.
+  - **Diagnosis** (renders with one change each): turning the body normal map off removed both glitches, the spiky
+    shadow edge on the left cheek wall and the crease ends splitting into streaks. Resetting custom normals changed
+    nothing.
+  - **Fix:** ported build8's three cleft fixes: 2c refinement, custom normals reset over the refined region, and the
+    `cleft_nm_off` attribute driving RawShade "Use Normals?".
+  - `ANUS_RING_STEP` (extra outer rings) was a wrong guess for the streaks. It is kept as an option, off by default.
+- **build5_rise, crease width:** the user felt the grooves took about as much area as the pads. They want the
   creases to keep widening with distance from the centre, just less.
   - **The user's way:** a smaller `ANUS_SIG` (build5: 0.09; tried 0.06 and 0.045).
   - **Alternative:** `ANUS_CREASE_TAPER` K shrinks the angular width as `(R_W / r)^K` past `R_W` = 1.5 mm (tried 0.4).
