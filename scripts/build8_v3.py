@@ -1,4 +1,4 @@
-"""v2: straight cusp wrinkles that run into the centre crease (saved v1: out/versions/closed_fissure_v1).
+"""v3: clean star of creases on straight grid lines, converging into a short closed slit; flush, no mound.
 Detail pass on the anus of Hips.blend (v8: squeezed pucker, randomised 3D creases):
 skin crease smoothing, cleft walls pressed in around the anus, high-detail pucker rebuilt as an AP slit with
 creases fanning out of it, laid out by arc length over the skin so it rides up the cheek walls,
@@ -276,37 +276,33 @@ report["deleted_verts"] = len(D); report["hole_loop"] = len(L)
 # (a, s) surface coordinates: a = distance along the cleft (u), s = arc length over the base surface across the cleft,
 # measured in the cross-section plane at that a. Laying the rings out in arc length lets the lateral sides climb the
 # cheek walls instead of being projected onto the cleft floor.
-SLIT = 3.0                       # mm, half-length of the closed AP slit
+SLIT = 1.8                       # mm, half-length of the closed slit (short, so the creases converge like a star)
 K_LAT = 0.85                     # lateral (arc length) / AP for the confocal rings -> AP-elongated
-RINGS = [3.06, 3.12, 3.2, 3.3, 3.42, 3.6, 3.9, 4.4, 5.0, 5.7, 6.4, 7.2, 8.0, 8.8]     # AP semi-axis of each ring, mm
-# Creases are modelled (relief), not painted. Each lip gets its own randomly drawn set - no mirroring - with its own
-# angle, depth, width, length, a gentle bend and a slight wobble; each fold tapers from the slit outwards, and a few
-# short shallow wrinkles sit between the main ones. Seeded: a rebuild gives the same pattern, change CREASE_SEED for
-# another.
+RINGS = [1.82, 1.9, 2.0, 2.1, 2.25, 2.5, 2.9, 3.4, 3.9, 4.4, 5.0, 5.7, 6.4, 7.2, 8.0, 8.8]     # AP semi-axis of each ring, mm
+# Creases: each one sits exactly on a straight radial grid line (a "spoke"), so it is one clean line of constant
+# width running from the slit's lip outwards, and it ends in the centre crease. Spokes every 10 deg exist in every
+# ring out to the 36-vertex rings, so no crease breaks at a ring step. Randomness = which spokes carry a crease
+# (picked separately for each side, never mirrored), how long each runs and how deep it is. No wobble, no smoothing.
 CREASE_SEED = 11
 _rng = random.Random(CREASE_SEED)
-
-
-def _fold(th0, w, sig, r0, r1):
-    return dict(th0=th0, w=w, sig=sig, r0=r0, r1=r1, bend=_rng.uniform(-0.15, 0.15),
-                wob=_rng.uniform(0.0, 0.04), wf=_rng.uniform(0.6, 1.6), wp=_rng.uniform(0, 2 * math.pi))
-
-
-FOLDS = []
-for end in (0.0, math.pi):                                           # one fold along the cleft at each slit end
-    FOLDS.append(_fold(end + _rng.uniform(-0.07, 0.07), _rng.uniform(0.6, 0.85), _rng.uniform(0.09, 0.12),
-                       RINGS[0], _rng.uniform(5.8, 6.8)))
-for lip in (0.0, math.pi):                                           # lip with s > 0, then s < 0
-    n_main = _rng.choice((6, 7, 7, 8)); sp = math.pi / (n_main + 1)
-    for i in range(1, n_main + 1):
-        FOLDS.append(_fold(lip + i * sp + _rng.uniform(-0.28, 0.28) * sp, _rng.uniform(0.65, 1.15),
-                           _rng.uniform(0.085, 0.13), RINGS[0] + _rng.choice((0.0, 0.0, _rng.uniform(0.1, 0.5))),
-                           _rng.uniform(5.4, 7.0)))
-    for _ in range(_rng.randint(2, 4)):                              # short shallow secondary wrinkles
-        r0 = _rng.uniform(3.4, 4.6)
-        FOLDS.append(_fold(lip + _rng.uniform(0.15, math.pi - 0.15), _rng.uniform(0.3, 0.5),
-                           _rng.uniform(0.065, 0.085), r0, r0 + _rng.uniform(1.2, 2.2)))
-FUNNEL = 0.3; R_FOLD = 7.4; FOLD_DEPTH = 0.65; SLIT_DEPTH = 0.5; RIDGE = 0.3
+STEP = 2 * math.pi / 36
+N_PER_SIDE = 6
+CREASES = [(0.0, _rng.uniform(0.75, 0.95), _rng.uniform(6.0, 7.0)),          # one along the cleft from each tip
+           (math.pi, _rng.uniform(0.75, 0.95), _rng.uniform(6.0, 7.0))]
+for side in (1, -1):
+    cand = list(range(2, 17)); _rng.shuffle(cand); chosen = []
+    for j in cand:
+        if len(chosen) < N_PER_SIDE and all(abs(j - c) >= 2 for c in chosen):
+            chosen.append(j)
+    for j in chosen:
+        CREASES.append(((side * j * STEP) % (2 * math.pi), _rng.uniform(0.8, 1.0), _rng.uniform(5.4, 7.0)))
+CREASES.sort()
+_ang = [c[0] for c in CREASES]
+CREASE_HALF = []                                                             # half the gap to the nearer neighbour
+for i, t0 in enumerate(_ang):
+    g = min((t0 - _ang[i - 1]) % (2 * math.pi), (_ang[(i + 1) % len(_ang)] - t0) % (2 * math.pi))
+    CREASE_HALF.append(min(max(g / 2, math.radians(5)), math.radians(14)))
+FUNNEL = 0.3; R_FOLD = 7.4; FOLD_DEPTH = 0.45; SLIT_DEPTH = 0.5; RIDGE = 0.0
 # pigment outline: a few low harmonics with random phases (+-~4 %) so it isn't a perfect, mirrored oval
 PIG_WOBBLE = [(k, _rng.uniform(0.008, 0.016), _rng.uniform(0, 2 * math.pi)) for k in (2, 3, 5)]
 
@@ -316,35 +312,17 @@ def pig_r(r, th):
 
 
 def crease(theta, r):
-    """groove strength at layout point (r, theta). Each wrinkle is a straight line starting at its own point on the
-    slit and running outwards (fanning at the tips), slightly bent - not a line of the curved layout grid, which
-    bowed the end wrinkles towards the cleft. Profile is a cusp: sharp narrow groove between broad pads."""
-    x, y = ring_xy(r, theta)
-    s_ = 0.0
-    for f in FOLDS:
-        th0 = f["th0"]; side = 1.0 if math.sin(th0) >= 0 else -1.0
-        px = SLIT * math.cos(th0)                                    # where the wrinkle leaves the slit
-        dx_, dy_ = math.cos(th0), K_LAT * abs(math.sin(th0)) * side
-        ang = math.atan2(dy_, dx_) + f["bend"] * 0.5
-        ux, uy = math.cos(ang), math.sin(ang)
-        qx, qy = x - px, y
-        along = qx * ux + qy * uy
-        if along < -0.6:
-            continue
-        length = (f["r1"] - RINGS[0]) * 1.5
-        t = min(max(along / length, 0.0), 1.0)
-        off = -qx * uy + qy * ux + f["wob"] * 4.0 * math.sin(2 * math.pi * f["wf"] * t + f["wp"]) * t
-        width = max(f["sig"] * 4.5 * (0.5 + 0.6 * t), 0.12)     # narrowest at the slit, where they converge
-        env = (1 - ss(length * 0.7, length, along)) * ss(-0.6, -0.25, along)   # already full depth inside the crease
-        if f["r0"] > RINGS[0]:
-            env *= ss(f["r0"], f["r0"] + 0.4, r)
-        s_ = max(s_, min(f["w"], 1.0) * env * math.exp(-abs(off) / max(0.22 * width, 0.11)))   # max: converging grooves stay distinct;
-        # the groove base is never narrower than the mesh spacing (~0.1 mm) or the vertices skip the groove bottoms
-    return s_
+    """0..1 groove at grid point (r, theta): a narrow V centred on each crease's spoke, flat pad elsewhere"""
+    best = 0.0
+    for (t0, w, r1), hg in zip(CREASES, CREASE_HALF):
+        d = abs((theta - t0 + math.pi) % (2 * math.pi) - math.pi)
+        if d < hg:
+            best = max(best, w * (1 - d / hg) ** 4 * (1 - ss(r1 - 1.2, r1, r)))
+    return best
 
 
-def fold_amp(r):                 # wrinkles are deepest just outside the slit and die out before the cheek walls
-    return FOLD_DEPTH * (1 - ss(4.8, 7.0, r))   # run into the centre crease
+def fold_amp(r):                 # full depth from the lip outwards; each crease's own length fades it
+    return FOLD_DEPTH
 
 
 def paint_amp(r):                # painted crease lines run a little further than the relief
@@ -374,13 +352,14 @@ def surf_point(a_mm, s_mm):
         assert phi < math.radians(150), (a_mm, s_mm)
 
 
-LIP_GAP = 0.03                   # the open fissure's lips sit this close (fraction of the innermost ring's width)
+K_SPOKE = 0.97                   # lateral growth per mm of AP growth (outer ring ~8.8 x 6.8 mm)
 
 
 def ring_xy(r, th):
-    """confocal ellipse with foci at the slit ends; r = AP semi-axis"""
-    k = K_LAT * (LIP_GAP + (1 - LIP_GAP) * ss(RINGS[0], RINGS[0] + 1.6, r))   # inner rings pressed against the slit
-    return r * math.cos(th), k * math.sqrt(max(r * r - SLIT * SLIT, 0.0)) * math.sin(th)
+    """ring of AP semi-axis r around the slit. Lateral offset grows linearly with r, so every grid spoke (constant
+    th) is a straight line from its point on the slit outwards - the creases sit on these lines. The innermost ring
+    is ~0.06 mm from the slit: the lips touch (closed passage)."""
+    return r * math.cos(th), K_SPOKE * (r - SLIT) * math.sin(th)
 
 
 S_OUT = 18 if len(L) < 27 else (36 if len(L) < 54 else 72)
@@ -482,9 +461,9 @@ for v, (r, th) in info.items():
     else:
         _x, _y = ring_xy(r, th)                    # creases converge at the slit tips: calm them there
         _tip = min(math.hypot(_x - SLIT, _y), math.hypot(_x + SLIT, _y))
-        relief = fold_amp(r) * (RIDGE - crease(th, r)) * (1 - 0.4 * math.exp(-(_tip / 0.35) ** 2)) - LIP_ROLL * math.exp(-abs(ring_xy(r, th)[1]) / 0.12) * (1 - ss(SLIT - 1.2, SLIT, abs(ring_xy(r, th)[0])))   # curl in real sideways mm, tapering out before the tips
+        relief = -fold_amp(r) * crease(th, r) * (1 - 0.4 * math.exp(-(_tip / 0.35) ** 2)) - LIP_ROLL * math.exp(-abs(ring_xy(r, th)[1]) / 0.12) * (1 - ss(SLIT - 0.7, SLIT, abs(ring_xy(r, th)[0])))   # curl in real sideways mm, tapering out before the tips
         v[pig_layer] = 1 - ss(5.6, 7.8, pig_r(r, th))
-        v[cre_layer] = min(1.0, crease(th, r)) * paint_amp(r)
+        v[cre_layer] = crease(th, r)
     relief_of[v] = relief / 1000
 # round off the creases: near the slit (and at its ends) a crease's angular width covers very little skin, so the
 # raw relief makes knife-edge grooves there. A few averaging passes over the grid give every groove a natural
@@ -563,7 +542,7 @@ pr = rings[RINGS.index(8.0)]; q = len(pr) // 4         # ring where the pigment 
 floor_h = to_local(base_pos[M[18]])[2]
 report["pigment_outline_mm"] = {
     "AP": round((pr[0].co - pr[2 * q].co).length * 1000, 1),
-    "lateral_over_surface": round(2 * K_LAT * math.sqrt(8.0 ** 2 - SLIT ** 2), 1),
+    "lateral_over_surface": round(2 * K_SPOKE * (8.0 - SLIT), 1),
     "lateral_projected": round((pr[q].co.x - pr[3 * q].co.x) * 1000, 1),
     "climb_up_cheek_wall": round((to_local(pr[q].co)[2] - floor_h) * 1000, 1)}
 # The slit's lips bunch up at its two tips (elliptic spacing), leaving near-zero-width triangles whose shading
