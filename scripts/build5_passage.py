@@ -1205,6 +1205,7 @@ amp = build_tube("AN_Rectum_LowerAmpulla", amp_rings, J_ring, rect_ring)
 # junction, which widens by AMP_OPEN; the anal columns show as low ridges (COL_OPEN of the radius) where the
 # tissue between the resting star's arms was; the ampulla eases open, fading out towards the rectum.
 AMP_OPEN = 1.35; COL_OPEN = 0.05
+J_RM = sum((p_ - J).length for p_ in J_ring) / len(J_ring)   # open, the junction is round (no 8-fold ripple)
 e1, e2 = frame_at(d)                             # (the ampulla loop above reused these names)
 H_o = sum(mouth_open, Vector()) / len(mouth_open)
 
@@ -1214,7 +1215,7 @@ def canal_ring_open(s_mm, N):
     col = COL_OPEN * ss(6.0, 10.0, s_mm) * (1 - ss(18.0, 22.0, s_mm))
     for kk in range(N_SPOKE):
         th = -math.pi + 2 * math.pi * kk / N_SPOKE
-        Rr = (OPEN_R - WALL_IN) / 1000 * (1 - ss(0.0, 1.0, t)) + canal_rc(th, 1.0) * AMP_OPEN * ss(0.0, 1.0, t)
+        Rr = (OPEN_R - WALL_IN) / 1000 * (1 - ss(0.0, 1.0, t)) + J_RM * AMP_OPEN * ss(0.0, 1.0, t)
         Rr *= 1 - col * max(0.0, math.cos(N_ARM * (th + math.pi) - math.pi)) ** 4   # ridges between the arms
         p_ = ctr + (e1 * math.cos(th) + e2 * math.sin(th)) * Rr
         if w_ex > 0:
@@ -1242,10 +1243,11 @@ def add_open_key(ob, pos):
 add_open_key(canal, {i: p_ for i, p_ in enumerate(q_ for lp in canal_open for q_ in lp)})
 _amp_all = [J_ring] + amp_rings + [rect_ring]; _amp_open = {}; _i = 0
 for ri, rg in enumerate(_amp_all):
-    f_ = 1 + (AMP_OPEN - 1) * (1 - ss(0.0, 1.0, ri / (len(_amp_all) - 1)))
-    c_ = sum(rg, Vector()) / len(rg)
-    for p_ in rg:
-        _amp_open[_i] = c_ + (p_ - c_) * f_; _i += 1
+    tt = ri / (len(_amp_all) - 1); f_ = 1 + (AMP_OPEN - 1) * (1 - ss(0.0, 1.0, tt))
+    c_ = sum(rg, Vector()) / len(rg); rm_ = sum((p_ - c_).length for p_ in rg) / len(rg)
+    for p_ in rg:                                # the junction's ripple fades in again up the ampulla
+        q_ = p_ - c_; rr_ = rm_ + (q_.length - rm_) * ss(0.0, 1.0, tt)
+        _amp_open[_i] = c_ + q_.normalized() * rr_ * f_; _i += 1
 assert len(amp.data.vertices) == len(_amp_open)
 add_open_key(amp, _amp_open)
 add_open_key(hips, open_hips)
@@ -1307,6 +1309,121 @@ report.update({
     "anus_vs_ischial_tuberosity_height_mm": round((A.z - tub[2]) * 1000, 1),
     "coccyx_tip": r4(coccyx), "symphysis_low": r4(symph_low), "ampulla_len_mm": round(L2 * 1000, 1),
 })
+# ======================= 9c. insides lit + canal lining (item 4) =======================
+# build5_passage: the organ shader (emission toon) painted every backface one flat brown, and the generated canal /
+# ampulla had no baked "AO", so the inside of the opened canal read as a blank disc. Now:
+#  - backfaces are lit like front faces (normal flipped) and darken with "AO_in", a per-vertex ambient occlusion baked
+#    on the INNER side (the outer "AO" was the atlas' "smooth lighting" bake); AO_in is baked with the anus open;
+#  - the canal gets its own lining material: base colour from skin at the opening, through pale anoderm, to the
+#    rectum's mucosa red past the dentate line ("lining" attribute = height up the canal, 0..1).
+AO_DIST = 0.008                                  # m, how far occluders count (open ends bright, deep / folded dark)
+AO_RAYS = 32
+
+
+def light_insides(mat):
+    nt = mat.node_tree; N = nt.nodes; Lk = nt.links
+    if mat.get("insides_lit"):
+        return
+    geo = N["Geometry"]; vt = N["Vector Transform"]
+    sg = N.new("ShaderNodeMath"); sg.operation = "MULTIPLY_ADD"; sg.inputs[1].default_value = -2.0
+    sg.inputs[2].default_value = 1.0; Lk.new(geo.outputs["Backfacing"], sg.inputs[0])
+    fl = N.new("ShaderNodeVectorMath"); fl.operation = "SCALE"
+    Lk.new(geo.outputs["Normal"], fl.inputs[0]); Lk.new(sg.outputs[0], fl.inputs["Scale"])
+    Lk.new(fl.outputs["Vector"], vt.inputs["Vector"])
+    ao = N["Color Attribute"]; ai = N.new("ShaderNodeVertexColor"); ai.layer_name = "AO_in"
+    mx = N.new("ShaderNodeMix"); mx.data_type = "RGBA"
+    Lk.new(geo.outputs["Backfacing"], mx.inputs["Factor"]); Lk.new(ao.outputs["Color"], mx.inputs[6])
+    Lk.new(ai.outputs["Color"], mx.inputs[7])
+    tgt = [l_.to_socket for l_ in ao.outputs["Color"].links if l_.to_node is not mx]
+    for t_ in tgt:
+        Lk.new(mx.outputs[2], t_)
+    Lk.new(N["Mix.002"].outputs[2], N["Emission"].inputs["Color"])     # the flat backface colour is bypassed
+    mat["insides_lit"] = True
+
+
+def fib_hemi(nr):
+    out = []
+    for i in range(nr):                            # cosine-weighted Fibonacci hemisphere (z up)
+        u = (i + 0.5) / nr; r_ = math.sqrt(u); ph = i * math.pi * (3 - math.sqrt(5))
+        out.append(Vector((r_ * math.cos(ph), r_ * math.sin(ph), math.sqrt(1 - u))))
+    return out
+
+
+_HEMI = fib_hemi(AO_RAYS)
+
+
+def set_open(v_):
+    for o_ in bpy.data.objects:
+        if o_.type == 'MESH' and o_.data.shape_keys and "Open" in o_.data.shape_keys.key_blocks:
+            o_.data.shape_keys.key_blocks["Open"].value = v_
+    bpy.context.view_layer.update()
+
+
+def scene_bvh():
+    dg = bpy.context.evaluated_depsgraph_get(); bb = bmesh.new()
+    for o_ in bpy.data.objects:
+        if o_.type == 'MESH' and not o_.hide_render:
+            t_ = bmesh.new(); t_.from_object(o_, dg); t_.transform(o_.matrix_world)
+            me_ = bpy.data.meshes.new("_tmp"); t_.to_mesh(me_); t_.free(); bb.from_mesh(me_); bpy.data.meshes.remove(me_)
+    tr = BVHTree.FromBMesh(bb); bb.free(); return tr
+
+
+def bake_ao(ob, name, inner, tree):
+    dg = bpy.context.evaluated_depsgraph_get(); t_ = bmesh.new(); t_.from_object(ob, dg)
+    t_.transform(ob.matrix_world); t_.normal_update(); vals = []
+    for v in t_.verts:
+        nrm = -v.normal if inner else v.normal
+        q = nrm.to_track_quat('Z', 'Y'); o_ = v.co + nrm * 2e-5; acc = 0
+        for dd in _HEMI:
+            if tree.ray_cast(o_, q @ dd, AO_DIST)[0] is None:
+                acc += 1
+        vals.append(acc / AO_RAYS)
+    t_.free()
+    ca = ob.data.color_attributes.get(name) or ob.data.color_attributes.new(name, 'FLOAT_COLOR', 'POINT')
+    for i, a_ in enumerate(vals):
+        ca.data[i].color = (a_, a_, a_, 1.0)
+    return round(float(np.mean(vals)), 3)
+
+
+_tract = [o_ for o_ in bpy.data.objects if o_.type == 'MESH' and o_.data.materials
+          and o_.data.materials[0] and o_.data.materials[0].name in ("AN_Rectum", "AN_Colon_Descending")]
+for m_ in {o_.data.materials[0] for o_ in _tract}:
+    light_insides(m_)
+lin = rect.data.materials[0].copy(); lin.name = "AN_AnalCanal_Lining"
+_Nl = lin.node_tree.nodes; _Ll = lin.node_tree.links
+_la = _Nl.new("ShaderNodeAttribute"); _la.attribute_name = "lining"
+
+
+def _ramp(stops):
+    cr = _Nl.new("ShaderNodeValToRGB"); el = cr.color_ramp.elements
+    el[0].position, el[0].color = stops[0][0], (*stops[0][1], 1.0)
+    el[1].position, el[1].color = stops[-1][0], (*stops[-1][1], 1.0)
+    for pos, col in stops[1:-1]:
+        e_ = el.new(pos); e_.color = (*col, 1.0)
+    _Ll.new(_la.outputs["Fac"], cr.inputs["Fac"]); return cr
+
+
+SKIN_LIN = (1.0, 0.46, 0.56); ANODERM = (1.0, 0.5, 0.5); MUCOSA = (0.751, 0.226, 0.166)
+_base = _ramp([(0.0, SKIN_LIN), (0.08, SKIN_LIN), (0.22, ANODERM), (0.46, ANODERM), (0.62, MUCOSA)])
+_rim = _ramp([(0.0, (0.6, 0.3, 0.35)), (0.08, (0.6, 0.3, 0.35)), (0.46, (0.62, 0.22, 0.22)), (0.62, (0.658, 0.038, 0.043))])
+_Ll.new(_base.outputs["Color"], _Nl["Mix"].inputs[7]); _Ll.new(_rim.outputs["Color"], _Nl["Mix.001"].inputs[7])
+_ring_s = [0.0] + CANAL_S + [0.9 * _Lmm, 0.95 * _Lmm, _Lmm]
+_canal_lin = [s_ / _Lmm for s_, lp in zip(_ring_s, canal_loops) for _ in lp]
+for o_, vals_ in ((canal, _canal_lin), (amp, [1.0] * len(amp.data.vertices))):
+    o_.data.materials.clear(); o_.data.materials.append(lin)
+    at_ = o_.data.attributes.new("lining", 'FLOAT', 'POINT')
+    assert len(vals_) == len(o_.data.vertices)
+    for i_, x_ in enumerate(vals_):
+        at_.data[i_].value = x_
+_ao = {}
+set_open(0.0); _tr = scene_bvh()
+for o_ in (canal, amp):
+    _ao[o_.name + ".AO"] = bake_ao(o_, "AO", False, _tr)
+set_open(1.0); _tr = scene_bvh()
+for o_ in [canal, amp] + [t_ for t_ in _tract if t_ not in (canal, amp)]:
+    _ao[o_.name + ".AO_in"] = bake_ao(o_, "AO_in", True, _tr)
+set_open(0.0)
+report["ao_mean"] = _ao
 print("REPORT", json.dumps(report))
 json.dump(report, open(os.path.join(OUT, "report.json"), "w"), indent=1)
 if SAVE_AS == "INPLACE":

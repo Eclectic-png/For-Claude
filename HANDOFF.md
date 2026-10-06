@@ -51,6 +51,19 @@ Gotcha: the ampulla loop reassigns `e1, e2`; 9b resets them. `hq.py`, `star.py`,
 (`star.py` also `ANUS_STAR_ALL=1`). Renders: `open_states_0.03.png` (shaded), `geo_open_states.png` (geometry).
 Next: item 4 (lining material: the open canal shows as a flat brown disc in the toon shader).
 
+**Progress, item 4 DONE + insides lit (section 9c):** the organ shader (emission toon, AN_Rectum and
+AN_Colon_Descending) painted every backface one flat brown (`Mix.003`, colour 0.527/0.159/0.118), and the generated
+canal / ampulla had no baked `AO`. `light_insides()` now lights backfaces with the flipped normal and switches the AO
+input to a new `AO_in` attribute on backfaces (the flat colour is bypassed). AO is baked by ray casting (32 cosine
+rays, 8 mm reach, all meshes): `AO` (outside, rest state) for canal + ampulla, `AO_in` (inside, OPEN state) for
+canal, ampulla, rectum, descending colon. The user asked for this ("smooth lighting" like Minecraft / Surgeon
+Simulator also on the insides). New material `AN_AnalCanal_Lining` (canal + ampulla) = the lit organ shader with base
+and rim colours from ramps on a `lining` attribute (height up the canal 0..1; ampulla 1): skin (calibrated against
+the rendered rim skin) to 2 mm, pale anoderm 5-11 mm, red mucosa (the rectum's colour) past ~15 mm (dentate line).
+The open junction is round (the 8-fold ripple fades back in up the ampulla). The closed slit's hairline is now
+dark instead of brown. Renders: `lining_open_states.png`, `lin_open1_close.png`, `hairline_before_after.png`.
+Next: item 5 (mouth-to-anus continuity check).
+
 **What is missing (the next task, in order):**
 1. **Real passage.** The skin is closed at a point (the pole) and the canal (`AN_AnalCanal`) starts 0.08 mm under the
    0.9 mm ring, so they are separate surfaces.
