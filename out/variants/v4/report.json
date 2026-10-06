@@ -12,21 +12,21 @@
  "degenerate_faces": 0,
  "anus_centre_A": [
   0.0,
-  0.0561,
+  0.0559,
   0.7909
  ],
  "boundary_edges_total": 84,
  "pucker_outer_lateral_halfwidth_mm": 4.6,
- "slit_length_mm": 3.5,
+ "slit_length_mm": 3.6,
  "pigment_outline_mm": {
   "AP": 16.4,
   "lateral_over_surface": 12.0,
   "lateral_projected": 8.1,
-  "climb_up_cheek_wall": 2.7
+  "climb_up_cheek_wall": 2.8
  },
  "tip_seam_pairs": 10,
  "fissure_open_removed_verts": 61,
- "tip_tidied_verts": 558,
+ "tip_tidied_verts": 506,
  "canal_opening_points": 84,
  "slit_edge_loops": 1,
  "textures_inpainted": [
@@ -54,7 +54,7 @@
  ],
  "rectum_gap_to_bone_below_860mm_mm": 5.0,
  "min_gap_ampulla_to_sacrum_coccyx_mm": 4.9,
- "min_gap_canal_to_coccyx_mm": 14.8,
+ "min_gap_canal_to_coccyx_mm": 14.9,
  "navel": [
   0.0,
   -0.0535,
@@ -62,18 +62,18 @@
  ],
  "canal_axis": [
   0.0,
-  -0.6041,
-  0.7969
+  -0.6036,
+  0.7973
  ],
  "canal_length_mm": 25.0,
- "canal_angle_from_vertical_deg": 37.2,
- "anorectal_angle_deg": 107.8,
+ "canal_angle_from_vertical_deg": 37.1,
+ "anorectal_angle_deg": 107.9,
  "junction_J": [
   0.0,
-  0.041,
+  0.0409,
   0.8108
  ],
- "junction_to_coccyx_tip_mm": 22.9,
+ "junction_to_coccyx_tip_mm": 23.0,
  "junction_vs_pubococcygeal_line_mm": -4.3,
  "anus_vs_ischial_tuberosity_height_mm": -2.5,
  "coccyx_tip": [
@@ -86,5 +86,5 @@
   -0.0042,
   0.8142
  ],
- "ampulla_len_mm": 19.8
+ "ampulla_len_mm": 19.9
 }

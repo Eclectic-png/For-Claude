@@ -552,10 +552,18 @@ _ref = np.interp(_mx, [_mx[0], _mx[-1]], [_mh[0], _mh[-1]])
 _def = np.maximum(_ref - _mh, 0.0)
 _def = np.convolve(np.pad(_def, 6, mode="edge"), np.ones(13) / 13, mode="same")[6:-6]   # smooth the profile
 report["base_lift_mm"] = round(float(_def.max()), 2)
+_lift = np.zeros(len(_vl))
 for v, (r, th) in info.items():
     x_, y_ = ring_xy(max(r, RINGS[0]), th)
-    lift_mm = 0.5 * float(np.interp(x_, _mx, _def)) * (1 - ss(0.0, 2.5, abs(y_))) * (1 - ss(RINGS[-1] - 1.6, RINGS[-1] - 0.4, r))
-    base_pos[v] = base_pos[v] + bnorm[v] * (lift_mm / 1000)
+    _lift[_vi[v]] = 0.5 * float(np.interp(x_, _mx, _def)) * (1 - ss(0.0, 2.5, abs(y_))) * (1 - ss(RINGS[-1] - 1.6, RINGS[-1] - 0.4, r))
+# smooth the lift over neighbouring vertices before applying it (computed point by point it left thin jagged lines on
+# the fine mesh beyond the back tip), and apply it in one consistent direction
+for _ in range(80):
+    _acc = np.zeros_like(_lift)
+    np.add.at(_acc, E_[:, 0], _lift[E_[:, 1]]); np.add.at(_acc, E_[:, 1], _lift[E_[:, 0]])
+    _lift = 0.5 * _lift + 0.5 * _acc / np.maximum(deg, 1)
+for v in info:
+    base_pos[v] = base_pos[v] + n * (_lift[_vi[v]] / 1000)
 # relief along the (smooth) base normal: shallow funnel, creases fanning from the slit, closed slit groove
 # Profile across the slit (from your sketch): the skin rises gently towards the slit, peaks right at its lips, then
 # drops into a narrow V - no wide valley. The rise goes straight out of the cleft (along n): on the steep cheek walls
@@ -702,10 +710,13 @@ bm.verts.ensure_lookup_table(); bm.normal_update()
 # tidy the tips after the weld / zipper removal: smooth a small patch around each end of the fissure
 _tipc = [O + u * (SLIT / 1000), O - u * (SLIT / 1000)]
 _tipv = [v for v in bm.verts if v.is_valid and not v.is_boundary and min((v.co - t_).length for t_ in TIP_CO) < 0.0006]
-for _ in range(0):                                   # v3: off - its disc edge cut across the creases
+# v4: tidy the small perturbations right at the tips; the weight fades out smoothly (no disc edge)
+_tw = {v: 1 - ss(0.4, 1.2, min((v.co - t_).length for t_ in TIP_CO) * 1000) for v in bm.verts
+       if v.is_valid and not v.is_boundary and min((v.co - t_).length for t_ in TIP_CO) < 0.0012}
+for _ in range(40):
     bm.normal_update()
-    _new = {v: v.co + v.normal * (0.5 * (sum((e.other_vert(v).co for e in v.link_edges), Vector())
-                                          / len(v.link_edges) - v.co).dot(v.normal)) for v in _tipv}
+    _new = {v: v.co + v.normal * (0.5 * w_ * (sum((e.other_vert(v).co for e in v.link_edges), Vector())
+                                               / len(v.link_edges) - v.co).dot(v.normal)) for v, w_ in _tw.items()}
     for v, p_ in _new.items():
         v.co = p_
 _inner = [v for v in _tipv if min((v.co - t_).length for t_ in TIP_CO) < 0.0006]
