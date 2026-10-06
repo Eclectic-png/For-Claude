@@ -149,7 +149,7 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
 
 ## Current state and next step
 
-- **build5_rise, crease depth:** `ANUS_CREASE_SCALE` (default 1.5) multiplies build5's crease relief. The creases were
+- **build5_rise, crease depth:** `ANUS_CREASE_SCALE` (default 2.0, the user's pick of 1x / 1.5x / 2x) multiplies build5's crease relief. The creases were
   measured as deep as build5's, but they read faint once the anus follows the curved cleft (toon two-tone cut). The
   rise default is now 0.2 mm with no pole sink (`ENTRANCE_DIP = 0`). 1x, 1.5x and 2x were rendered at a 0.2 mm rise
   (`crease_depth_1x_1.5x_2x_rise0.2.png`).
