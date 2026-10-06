@@ -134,6 +134,7 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
 | `gd.py` | Groove depth at various distances from the slit. |
 | `hole.py` | Width of the slit hole along its length. |
 | `inside.py` | Nearest-normal inside test. Unreliable at sharp edges. |
+| `star.py` | Skin-only Workbench view of the whole crease star, looking along the outward normal. Args: `-- <outdir> <prefix> <distance_m> <wire 0/1>`. 0.022 frames the star, 0.014 with wire shows the crease rows, 0.007 frames the slit edge. In this view the image top is the back (coccyx) end. |
 
 `scripts/render_close.py` and `scripts/render_wire.py` produce the standard close / below / geometry renders.
 
@@ -153,8 +154,18 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
   4. **Verification:** the build writes `crease_bottom_single_vertex` to `report.json`. The latest report says
      "682 of 682 crease vertices are the strict lowest point across", with `inner_mesh_verts` 23600,
      `slit_edge_loops` 1 and `canal_opening_points` 84.
-- **Next:** render v5 with `render_close.py` and `tipw.py`, framing the creases. Show the user, then save it as a version
-  if they approve.
+- **v5 rendered** (`out/variants/v5/`: `star_geo`, `star_wire`, `slit_geo`, `v5_close_*`, `v5_below_*`, `v5_zoom`).
+  A rebuild reproduced `report.json` exactly, and `hole.py` reads 0.000 mm along the whole slit.
+  - **Good:** in `star_wire` every crease is a straight single row of vertices. In `star_geo` the pads are domes meeting
+    in a sharp cusp, as in the user's sketch.
+  - **Defect 1, spikes at the slit (`slit_geo`):** each crease ends at the slit in a small spike that juts into the slit.
+    The crease row starts on a lip vertex, so that lip vertex gets pulled down while the pads either side stay up.
+  - **Defect 2, abrupt outer ends (`star_geo`, left side):** some creases stop at their outer end with a step, because
+    the pad on one side stands higher than the other.
+  - **Defect 3, crowded tips:** where the creases converge at both slit tips, the triangles are small and irregular, and
+    the surface looks lumpy.
+- **Next:** show the user these renders and ask whether to fix the three defects in a new `build8_v6.py`, leaving v5
+  untouched. Save a version only once they approve.
 - **Smaller open items:**
   - A thin line runs from the slit's back tip along the cleft; not yet addressed.
   - The saved v1 still has a couple of non-manifold edges.
