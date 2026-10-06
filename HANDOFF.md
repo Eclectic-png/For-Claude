@@ -13,6 +13,23 @@ the exterior skin to the canal / rectum as a real passage that can open. It is n
 The user approved the look. Alignment checks pass: the canal bottom ring sits on the skin (0.00 mm gap) and is
 centred within 1.3 mm. Canal 37 deg from vertical, anorectal angle 108 deg, clearances unchanged.
 
+**Progress, item 1 DONE (`scripts/build5_passage.py`, file `out/blend/Hips_build5_passage.blend`):**
+- The pole and the rings inside `ANUS_HOLE` (0.3 mm) are gone. The 0.3 mm ring (288 points) is the skin's edge loop.
+  Inside `ANUS_COLL` (0.75 mm) the rings collapse sideways, so the edge loop is a closed slit 0.6 mm long with the
+  lips 0.020 mm apart, at the bottom of the plunge.
+- `AN_AnalCanal` starts ON that loop: the same 288 points (seam gap 0.0000 mm, in `report.json` -> `passage`). It
+  carries the slit straight up for `ANUS_CANAL_COLL` (2 mm), opens to build5_rise's section by 7.5 mm, and steps 2:1
+  down to the 36-point junction ring. Still two objects (skin / canal) sharing the seam, not one joined mesh.
+- Gotcha fixed: the cleft levelling (Jacobi, 3000 passes) had relied on the pole; without it the middle of each lip
+  lagged ~1 mm below the slit tips. It now runs on build5_rise's closed layout with the removed rings + pole as
+  virtual points.
+- The corridor no longer holds the mouth loop fixed (it is a boundary now).
+- Checks: skin within 0.05 mm of build5_rise beyond 2 mm from the centre, 0 non-manifold, 0 degenerate faces, canal
+  angle / anorectal angle / clearances unchanged. Renders: `out/variants/build5_passage/` (`cmp_*` shaded,
+  `section_cmp_*` midline cut-away via the new `scripts/tools/section.py`).
+- Open: the canal balloons from the slit to 3.2 mm radius between 2 and 7.5 mm (an "onion" in section); item 3
+  replaces this with a collapsed canal. A brownish hairline shows in the slit (canal material) - item 4.
+
 **What is missing (the next task, in order):**
 1. **Real passage.** The skin is closed at a point (the pole) and the canal (`AN_AnalCanal`) starts 0.08 mm under the
    0.9 mm ring, so they are separate surfaces.
