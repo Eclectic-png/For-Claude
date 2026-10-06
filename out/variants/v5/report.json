@@ -5,10 +5,11 @@
  "deleted_verts": 572,
  "hole_loop": 56,
  "outer_ring_verts": 72,
- "inner_mesh_verts": 27452,
- "inner_mesh_faces": 55584,
- "base_lift_mm": 1.98,
- "new_verts": 28687,
+ "inner_mesh_verts": 23600,
+ "inner_mesh_faces": 58172,
+ "base_lift_mm": 1.99,
+ "crease_bottom_single_vertex": "682 of 682 crease vertices are the strict lowest point across",
+ "new_verts": 29981,
  "degenerate_faces": 0,
  "anus_centre_A": [
   0.0,
@@ -26,7 +27,7 @@
  },
  "tip_seam_pairs": 10,
  "fissure_open_removed_verts": 61,
- "tip_tidied_verts": 504,
+ "tip_tidied_verts": 551,
  "canal_opening_points": 84,
  "slit_edge_loops": 1,
  "textures_inpainted": [
@@ -71,7 +72,7 @@
  "junction_J": [
   0.0,
   0.0408,
-  0.8108
+  0.8109
  ],
  "junction_to_coccyx_tip_mm": 23.0,
  "junction_vs_pubococcygeal_line_mm": -4.3,
@@ -86,5 +87,5 @@
   -0.0042,
   0.8142
  ],
- "ampulla_len_mm": 19.9
+ "ampulla_len_mm": 19.8
 }

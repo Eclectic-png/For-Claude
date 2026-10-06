@@ -455,6 +455,55 @@ for i in range(-int(9.0 / dx), int(9.0 / dx) + 1):
         if r_ < RINGS[0] + 0.6 * MESH_H:                       # keep clear of the lips
             continue
         cols.setdefault(x, []).append((y, r_, th_))
+# --- every crease is a row of vertices exactly on its line, from the lip outwards (forced into the triangulation as
+# edges), so its bottom is a single vertex wide and both pads slope straight up from it
+crease_rows = []
+for ci, (t0, w, r1) in enumerate(CREASES):
+    p0 = Vector((*ring_xy(RINGS[0] + 0.02, t0), 0)); p1 = Vector((*ring_xy(r1, t0), 0))
+    start = min(R0, key=lambda v: (Vector((*layout[v], 0)) - p0).length)      # begins on a lip vertex
+    sx, sy = layout[start]
+    nseg = max(2, int(math.ceil((p1 - Vector((sx, sy, 0))).length / MESH_H)))
+    row = [start]
+    for k in range(1, nseg + 1):
+        t_ = k / nseg
+        x, y = sx + (p1.x - sx) * t_, sy + (p1.y - sy) * t_
+        v = bm.verts.new(surf_point(x, y)); r_, th_ = layout_rt(x, y)
+        info[v] = (r_, t0); layout[v] = (x, y); row.append(v)
+    crease_rows.append((ci, row, (sx, sy), (p1.x, p1.y)))
+crease_verts = {v: ci for ci, row, _, _ in crease_rows for v in row[1:]}
+
+
+def _seg_dist(px, py, a_, b_):
+    ax, ay = a_; bx, by = b_; vx, vy = bx - ax, by - ay
+    t_ = max(0.0, min(1.0, ((px - ax) * vx + (py - ay) * vy) / (vx * vx + vy * vy)))
+    return math.hypot(px - ax - t_ * vx, py - ay - t_ * vy)
+
+
+# two straight rows of vertices parallel to each crease on both sides (regular spacing, so the V's sides are drawn
+# evenly - leftover lattice points at uneven distances made the crease edges look serrated)
+side_pts = []
+for ci, row, a_, b_ in crease_rows:
+    ax, ay = a_; bx, by = b_; L_ = math.hypot(bx - ax, by - ay); ux_, uy_ = (bx - ax) / L_, (by - ay) / L_
+    for off in (-1.2, -0.6, 0.6, 1.2):
+        ox, oy = -uy_ * off * MESH_H, ux_ * off * MESH_H
+        for k in range(1, int(L_ / MESH_H) + 1):
+            x, y = ax + ux_ * k * MESH_H + ox, ay + uy_ * k * MESH_H + oy
+            r_, th_ = layout_rt(x, y)
+            if not (RINGS[0] + 0.6 * MESH_H < r_ < RINGS[1] - 0.6 * MESH_H):
+                continue
+            if any(_seg_dist(x, y, c_, d_) < 0.45 * MESH_H for cj, _, c_, d_ in crease_rows if cj != ci):
+                continue
+            side_pts.append((x, y, r_, th_))
+_sp_keep = []
+for q in side_pts:                                   # drop side points that crowd each other where creases converge
+    if all(math.hypot(q[0] - o[0], q[1] - o[1]) > 0.45 * MESH_H for o in _sp_keep[-60:]):
+        _sp_keep.append(q)
+side_verts = []
+for x, y, r_, th_ in _sp_keep:
+    v = bm.verts.new(surf_point(x, y)); info[v] = (r_, th_); layout[v] = (x, y); side_verts.append(v)
+for x in list(cols):
+    cols[x] = [p_ for p_ in cols[x]
+               if all(_seg_dist(x, p_[0], a_, b_) > 1.6 * MESH_H for _, _, a_, b_ in crease_rows)]
 lat = []
 for x, pts in cols.items():
     sp = surf_column(x, [p_[0] for p_ in pts])
@@ -464,11 +513,12 @@ report["inner_mesh_verts"] = len(lat)
 # --- triangulate the ring band between the lips and the 7.2 mm ring (constrained Delaunay, lips = hole)
 from mathutils.geometry import delaunay_2d_cdt
 from mathutils import Vector as _V2
-band = R0 + rings[1] + lat
+band = R0 + rings[1] + lat + side_verts + [v for _, row, _, _ in crease_rows for v in row[1:]]
 idx = {v: i for i, v in enumerate(band)}
+crease_edges = [(idx[row[k]], idx[row[k + 1]]) for _, row, _, _ in crease_rows for k in range(len(row) - 1)]
 co2 = [_V2(layout[v]) for v in band]
 outer_poly = [idx[v] for v in rings[1]]; lip_poly = [idx[v] for v in R0]
-cdt = delaunay_2d_cdt(co2, [], [outer_poly, lip_poly], 2, 1e-7, True)
+cdt = delaunay_2d_cdt(co2, crease_edges, [outer_poly, lip_poly], 2, 1e-7, True)
 vo, eo, fo, orig_v = cdt[0], cdt[1], cdt[2], cdt[3]
 assert len(vo) == len(band), ("cdt added vertices", len(vo), len(band))
 omap = [band[ov[0]] for ov in orig_v]
@@ -597,7 +647,16 @@ for v, (r, th) in info.items():
 # round off the creases: near the slit (and at its ends) a crease's angular width covers very little skin, so the
 # raw relief makes knife-edge grooves there. A few averaging passes over the grid give every groove a natural
 # minimum width without moving the pattern.
-RELIEF_SMOOTH = 2                # v4: on the fine mesh this only rounds the groove bottoms (~0.1 mm)
+RELIEF_SMOOTH = 0                # v4: on the fine mesh this only rounds the groove bottoms (~0.1 mm)
+_mins = _tot = 0
+for v, ci in crease_verts.items():
+    r_ = info[v][0]
+    if not (RINGS[0] + 0.3 < r_ < CREASES[ci][2] - 1.3):             # skip the lip end and the fading tail
+        continue
+    nb = [e.other_vert(v) for e in v.link_edges if e.other_vert(v) in relief_of and e.other_vert(v) not in crease_verts]
+    if nb:
+        _tot += 1; _mins += relief_of[v] < min(relief_of[w_] for w_ in nb)
+report["crease_bottom_single_vertex"] = "%d of %d crease vertices are the strict lowest point across" % (_mins, _tot)
 _lips = set()
 for _ in range(RELIEF_SMOOTH):
     relief_of = {v: d if (v in slit_verts or v in _lips) else           # the closed slit keeps its groove
