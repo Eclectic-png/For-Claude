@@ -64,6 +64,22 @@ The open junction is round (the 8-fold ripple fades back in up the ampulla). The
 dark instead of brown. Renders: `lining_open_states.png`, `lin_open1_close.png`, `hairline_before_after.png`.
 Next: item 5 (mouth-to-anus continuity check).
 
+**Item 5, checked (`scripts/tools/tract.py`, results in `out/tract/`):**
+- The atlas has no mouth / pharynx (it starts at the neck, C5) and no sigmoid colon (the descending colon runs down
+  to the rectum). Chain: Esophagus, Stomach, Duodenum, Jejunum, Ileum, Cecum (+ Appendix), Colon Asc / Trans / Desc,
+  Rectum, then (Hips.blend) LowerAmpulla, AnalCanal, skin.
+- Surfaces: every consecutive pair touches (closest gap 0.00-0.07 mm, overlapping faces at each junction), except the
+  APPENDIX, 4.1 mm (atlas units) clear of the cecum. Hips.blend: Desc colon - rectum 0.02 mm; rectum - ampulla -
+  canal - skin share exact loops (0.00 mm).
+- Lumens: the atlas organs are separate shells (many with dozens of small holes: Jejunum 76 boundary loops, Ileum 85),
+  overlapping at the junctions; open ends face each other only at ileum -> cecum (shared loop, 0 mm) and roughly at
+  duodenum -> jejunum (1.6 mm). The stomach is closed (no inlet / outlet opening), the esophagus does not open into
+  it, and jejunum->ileum, cecum->ascending, asc->trans, trans->desc, desc->rectum have no facing openings (7-50 mm off).
+  So the tract is visually continuous, but a hollow passage only from the rectum down (and ileum->cecum).
+- Internal_Fit_Xform scales the atlas by (0.62, 0.72, 0.72), so atlas mm are ~0.7x in the fitted body.
+- Waiting on the user: (a) move the appendix onto the cecum; (b) whether to make the whole tract a real hollow
+  passage (open + stitch each junction like the anus); (c) where the mouth / pharynx come from (head model?).
+
 **What is missing (the next task, in order):**
 1. **Real passage.** The skin is closed at a point (the pole) and the canal (`AN_AnalCanal`) starts 0.08 mm under the
    0.9 mm ring, so they are separate surfaces.
