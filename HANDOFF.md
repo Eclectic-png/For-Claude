@@ -39,6 +39,18 @@ Checks: 0 self-intersections (new `scripts/tools/selfx.py`), every canal point b
 Blender's Python), `star_section_cmp.png`. Next: item 2, the Open shape key (proposed ~12 mm across at the skin,
 subtle columns, unless the user says otherwise).
 
+**Progress, item 2 DONE (same script):** an "Open" shape key (0..1) on Hips, AN_AnalCanal, AN_Rectum_LowerAmpulla and
+AN_AnalSphincter. Skin: each ring follows a profile (flat from the 8.6 mm ring, a rounded rim of 1 mm, then a wall
+2.7 mm down into the canal), old rings spread along it by arc length, so the old plunge becomes the opening's wall;
+the opening is round, `ANUS_OPEN_D` (12 mm) across; creases flatten to 35 %; the rim rolls out 0.4 mm. Canal: a round
+tube from the skin's opened mouth (same points: seam 0.0000 mm) to the junction, which widens x1.35 with the ampulla
+easing (fades to 1 at the rectum rim; junction gap 0.0001 mm); anal columns as 5 % ridges. Sphincter pushed out
+uniformly (0.64 mm) to clear the open canal by 0.4 mm. Checks at open 0 / 0.5 / 1: canal 0 self-intersections, skin
+none within 30 mm of the anus (the 157 elsewhere are in the original too), no internal object inside the open canal.
+Gotcha: the ampulla loop reassigns `e1, e2`; 9b resets them. `hq.py`, `star.py`, `selfx.py` take `ANUS_OPEN`
+(`star.py` also `ANUS_STAR_ALL=1`). Renders: `open_states_0.03.png` (shaded), `geo_open_states.png` (geometry).
+Next: item 4 (lining material: the open canal shows as a flat brown disc in the toon shader).
+
 **What is missing (the next task, in order):**
 1. **Real passage.** The skin is closed at a point (the pole) and the canal (`AN_AnalCanal`) starts 0.08 mm under the
    0.9 mm ring, so they are separate surfaces.

@@ -387,6 +387,7 @@ if sum(f.normal.dot(n) for f in new_faces) < 0:
         f.normal_flip()
 bm.normal_update()
 base_pos = {v: v.co.copy() for v in info}
+_pos0 = dict(base_pos)                           # build5_passage: the layout on the base (Open key)
 # level along the cleft (the "cliff" fix): the narrow fill sits low near the original pit and then climbs steeply in a
 # narrow band at the back edge to meet the cleft floor rising toward the coccyx. Smooth the heights ALONG the cleft
 # only (edge weights (da / length)^2, so nothing diffuses across the cleft and the walls keep their shape), on the cleft
@@ -440,10 +441,12 @@ for v in _vl:
 # relief along the (smooth) base normal: radial creases; the closed centre keeps rising with the surface (no sink at
 # the end). The rise goes straight out of the body (along n): along the surface normal it would push the steep
 # cheek walls sideways into the cleft.
+_relief_vec = {}
 for v, (r, th) in info.items():
     relief = CREASE_SCALE * fold_amp(r) * (0.15 - crease(th, r))
     rise = RISE * (1 - ss(0, R_FOLD, r)) - DIP * (1 - min(r / R_DIP, 1.0) ** 0.5) ** 2
     v.co = base_pos[v] + v.normal * (relief / 1000) + n * (rise / 1000)
+    _relief_vec[v] = v.normal * (relief / 1000)
     v[pig_layer] = min(1.0, (1 - ss(3.0, 8.5, r)) * (1 + 0.1 * crease(th, r) * fold_amp(r) / 0.42))
 relief_off = {v: v.co - base_pos[v] for v in info}   # corridor (5b): the relief is kept out of the smoothing
 
@@ -741,6 +744,43 @@ if CORR_ITERS > 0 or os.environ.get("ANUS_CORR_DUMP"):
                 v.co += n * (_dh[v.index] / 1000)
         report["corridor"] = {k: (round(x_, 4) if isinstance(x_, float) else x_) for k, x_ in _ci.items()}
         report["corridor_params"] = _prm
+# ======================= 5c. "Open" shape key (skin part) =======================
+# build5_passage: the opened anus, as positions for a shape key. Each ring keeps its spokes but follows a profile in
+# (radius R in the layout, height z along n): flat from the outer ring (8.6 mm, unchanged) in to OPEN_R + ROLL_RHO,
+# a rounded rim (quarter circle of ROLL_RHO), then the wall down into the canal; the old rings are spread along that
+# profile by arc length, so the inner skin (the old plunge) becomes the wall of the opening. Lateral offsets lose
+# the cleft squeeze towards the rim (the opening is round, OPEN_D across), the creases flatten to CREASE_OPEN of
+# their depth, the rim rolls ROLL_UP mm outwards, and the cleft levelling / corridor offsets ride along unchanged.
+OPEN_D = float(os.environ.get("ANUS_OPEN_D", "12.0"))   # mm across at the rim
+OPEN_R = OPEN_D / 2; ROLL_RHO = 1.0; WALL = 2.7; WALL_IN = 0.3; ROLL_UP = 0.4; CREASE_OPEN = 0.35
+R_OUT = RINGS[-1]
+_prof = [(R_OUT, 0.0), (OPEN_R + ROLL_RHO, 0.0)]
+_prof += [(OPEN_R + ROLL_RHO - ROLL_RHO * math.sin(a_), -ROLL_RHO + ROLL_RHO * math.cos(a_))
+          for a_ in np.linspace(0, math.pi / 2, 24)[1:]]
+_prof += [(OPEN_R - WALL_IN, -ROLL_RHO - WALL)]
+_prof = np.array(_prof); _pcum = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(_prof, axis=0), axis=1))])
+_u_rim = R_OUT - (OPEN_R + ROLL_RHO) + ROLL_RHO * math.pi / 4
+
+
+def open_profile(r):
+    u = (R_OUT - r) / (R_OUT - R_HOLE) * _pcum[-1]
+    R_ = float(np.interp(u, _pcum, _prof[:, 0])); z = float(np.interp(u, _pcum, _prof[:, 1]))
+    return R_, z + ROLL_UP * math.exp(-((u - _u_rim) / 0.8) ** 2) * ss(0.0, 1.0, u)
+
+
+def lat_open(R_, th):
+    return R_ * math.sin(th) * (1 - (1 - SQUEEZE) * ss(OPEN_R + 0.5, R_OUT, R_))
+
+
+open_co = {}
+for v, (r, th) in info.items():
+    if r >= R_OUT - 1e-9:
+        continue
+    R_, z = open_profile(r)
+    rise = RISE * (1 - ss(0, R_FOLD, r)) - DIP * (1 - min(r / R_DIP, 1.0) ** 0.5) ** 2
+    open_co[v] = (v.co + (surf_point(R_ * math.cos(th), lat_open(R_, th)) - _pos0[v]) + n * ((z - rise) / 1000)
+                  - _relief_vec[v] * (1 - CREASE_OPEN))
+mouth_open = [open_co[v].copy() for v in mouth]
 bm.normal_update()
 ring0 = [v.co.copy() for v in rings[RINGS.index(0.9)]]   # A (and so the canal axis, J) as before: the 0.9 mm ring
 A = sum(ring0, Vector()) / len(ring0)
@@ -754,7 +794,9 @@ report["pucker_surface_span_mm"] = {
     "AP": round((rings[-1][0].co - rings[-1][len(rings[-1]) // 2].co).length * 1000, 1),
     "lateral_over_surface": round(sum((rings[-1][k].co - rings[-1][k + 1].co).length
                                       for k in range(len(rings[-1]) // 4, 3 * len(rings[-1]) // 4)) * 1000, 1)}
-bm.verts.ensure_lookup_table()
+bm.verts.ensure_lookup_table(); bm.verts.index_update()
+open_hips = {v.index: p_ for v, p_ in open_co.items()}
+mouth_idx = [v.index for v in mouth]
 refined_ids = [v.index for v in bm.verts if in_refine(v.co)]
 bm.to_mesh(me); me.update(); bm.free(); base.free()
 # (build5_rise: ported from build8) the body's custom split normals don't fit the refined / rebuilt cleft: automatic
@@ -1158,6 +1200,61 @@ for _ in range(3):
                  for i, (ring_, s) in enumerate(zip(amp_rings, need))]
 amp = build_tube("AN_Rectum_LowerAmpulla", amp_rings, J_ring, rect_ring)
 
+# ======================= 9b. "Open" shape key (canal, ampulla) =======================
+# build5_passage: the canal opens to a round tube from the skin's opened mouth (exactly: same points) up to the
+# junction, which widens by AMP_OPEN; the anal columns show as low ridges (COL_OPEN of the radius) where the
+# tissue between the resting star's arms was; the ampulla eases open, fading out towards the rectum.
+AMP_OPEN = 1.35; COL_OPEN = 0.05
+e1, e2 = frame_at(d)                             # (the ampulla loop above reused these names)
+H_o = sum(mouth_open, Vector()) / len(mouth_open)
+
+
+def canal_ring_open(s_mm, N):
+    t = s_mm / _Lmm; ctr = H_o.lerp(J, t); w_ex = 1 - ss(0.0, 3.0, s_mm); pts = []
+    col = COL_OPEN * ss(6.0, 10.0, s_mm) * (1 - ss(18.0, 22.0, s_mm))
+    for kk in range(N_SPOKE):
+        th = -math.pi + 2 * math.pi * kk / N_SPOKE
+        Rr = (OPEN_R - WALL_IN) / 1000 * (1 - ss(0.0, 1.0, t)) + canal_rc(th, 1.0) * AMP_OPEN * ss(0.0, 1.0, t)
+        Rr *= 1 - col * max(0.0, math.cos(N_ARM * (th + math.pi) - math.pi)) ** 4   # ridges between the arms
+        p_ = ctr + (e1 * math.cos(th) + e2 * math.sin(th)) * Rr
+        if w_ex > 0:
+            p_ = (mouth_open[_spoke[kk]] + (ctr - H_o)) * w_ex + p_ * (1 - w_ex)
+        pts.append(p_)
+    return pts[::N_SPOKE // N]
+
+
+canal_open = [[mouth_open[_spoke[kk]] for kk in range(N_SPOKE)]]
+canal_open += [canal_ring_open(s_mm, N_SPOKE) for s_mm in CANAL_S]
+canal_open += [canal_ring_open(f_ * _Lmm, N) for f_, N in [(0.90, N_SPOKE // 2), (0.95, N_SPOKE // 4)]]
+canal_open.append(canal_ring_open(_Lmm, NS))
+
+
+def add_open_key(ob, pos):
+    """Basis + "Open" on ob; pos: {vertex index: world position} (others stay)"""
+    ob.shape_key_add(name="Basis", from_mix=False); k = ob.shape_key_add(name="Open", from_mix=False)
+    Mi = ob.matrix_world.inverted()
+    for i, p_ in pos.items():
+        k.data[i].co = Mi @ p_
+    k.slider_min = 0.0; k.slider_max = 1.0; k.value = 0.0
+    return k
+
+
+add_open_key(canal, {i: p_ for i, p_ in enumerate(q_ for lp in canal_open for q_ in lp)})
+_amp_all = [J_ring] + amp_rings + [rect_ring]; _amp_open = {}; _i = 0
+for ri, rg in enumerate(_amp_all):
+    f_ = 1 + (AMP_OPEN - 1) * (1 - ss(0.0, 1.0, ri / (len(_amp_all) - 1)))
+    c_ = sum(rg, Vector()) / len(rg)
+    for p_ in rg:
+        _amp_open[_i] = c_ + (p_ - c_) * f_; _i += 1
+assert len(amp.data.vertices) == len(_amp_open)
+add_open_key(amp, _amp_open)
+add_open_key(hips, open_hips)
+_oseam = max((canal_open[0][kk] - open_hips[mouth_idx[_spoke[kk]]]).length for kk in range(N_SPOKE))
+_oj = max((canal_open[-1][kk] - _amp_open[kk]).length for kk in range(NS))
+report["open_key"] = {"open_d_mm": OPEN_D, "rim_width_mm": round((mouth_open[N_SPOKE // 4] - mouth_open[3 * N_SPOKE // 4]).length * 1000, 2),
+                      "rim_length_mm": round((mouth_open[0] - mouth_open[N_SPOKE // 2]).length * 1000, 2),
+                      "seam_gap_mm": round(_oseam * 1000, 4), "junction_gap_mm": round(_oj * 1000, 4)}
+
 # sphincter (external anal sphincter ring) around the lower canal
 Ps = np.array([tuple(sph.matrix_world @ v.co) for v in sph.data.vertices]); sc_ = Vector(Ps.mean(0))
 _, Vs = np.linalg.eigh((Ps - Ps.mean(0)).T @ (Ps - Ps.mean(0))); sax = Vector(Vs[:, 0])
@@ -1166,6 +1263,25 @@ rot = sax.rotation_difference(d).to_matrix().to_4x4()
 tgt = A + d * (0.4 * L_CANAL)
 Mnew = Matrix.Translation(tgt) @ rot @ Matrix.Translation(-sc_) @ sph.matrix_world
 sph.data.transform(sph.matrix_world.inverted() @ Mnew); sph.data.update()
+
+# the external sphincter dilates with it: its ring is pushed out from the open canal's axis, all by the same amount,
+# so its inner face clears the open canal by SPH_CLEAR
+SPH_CLEAR = 0.4                                  # mm
+_oc = [sum(lp, Vector()) / len(lp) for lp in canal_open]
+_orad = [sum((q_ - c_).length for q_ in lp) / len(lp) for lp, c_ in zip(canal_open, _oc)]
+_od = (_oc[-1] - _oc[0]).normalized(); _os = [(c_ - _oc[0]).dot(_od) for c_ in _oc]
+_Ms = sph.matrix_world; _sph_w = [_Ms @ v.co for v in sph.data.vertices]; _push = 0.0
+for p_ in _sph_w:
+    s_ = (p_ - _oc[0]).dot(_od)
+    if 0.0 <= s_ <= _os[-1]:
+        q_ = p_ - _oc[0] - _od * s_
+        _push = max(_push, float(np.interp(s_, _os, _orad)) + SPH_CLEAR / 1000 - q_.length)
+_sph_open = {}
+for i, p_ in enumerate(_sph_w):
+    q_ = p_ - _oc[0] - _od * (p_ - _oc[0]).dot(_od)
+    _sph_open[i] = p_ + q_.normalized() * _push
+add_open_key(sph, _sph_open)
+report["open_key_sphincter_push_mm"] = round(_push * 1000, 2)
 
 # ======================= 10. anatomical checks =======================
 sac = bpy.data.objects["AN_Sacrum"]
