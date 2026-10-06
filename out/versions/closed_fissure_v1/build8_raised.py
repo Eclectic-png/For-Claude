@@ -558,6 +558,7 @@ report["pigment_outline_mm"] = {
     "climb_up_cheek_wall": round((to_local(pr[q].co)[2] - floor_h) * 1000, 1)}
 # The slit's lips bunch up at its two tips (elliptic spacing), leaving near-zero-width triangles whose shading
 # normals spike. Weld pucker vertices closer than 0.06 mm there.
+TIP_CO = [R0[0].co.copy(), R0[H].co.copy()]          # the slit's real tip positions
 _tips = [v for v in info if v.is_valid and (v.co - R0[0].co).length < 0.0006 or (v.co - R0[H].co).length < 0.0006]
 _n0 = len(bm.verts)
 bmesh.ops.remove_doubles(bm, verts=_tips, dist=0.00006)
@@ -585,10 +586,23 @@ bmesh.ops.delete(bm, geom=[v for v in slit_verts if v.is_valid and v not in ring
 _lipset = {v for v in rings[0] if v.is_valid}       # zipper remnants left by the tip weld
 bmesh.ops.delete(bm, geom=[f for f in bm.faces if all(v in _lipset for v in f.verts)], context='FACES_ONLY')
 report["fissure_open_removed_verts"] = _n0 - len(bm.verts)
+bmesh.ops.dissolve_degenerate(bm, dist=0.00002, edges=bm.edges[:])
+bm.normal_update()
+# the lips are pressed almost together, so at each tip several rings bunch into one spot and fold over: merge
+# everything within 0.4 mm of the tip into a single point (the smoothing pass below rounds the patch)
+_merged = 0
+for sg in (1, -1):
+    _tp = TIP_CO[0 if sg > 0 else 1]
+    _cl = [v for v in bm.verts if v.is_valid and (v.co - _tp).length < 0.0004]
+    if len(_cl) > 1:
+        _c = sum((v.co for v in _cl), Vector()) / len(_cl)
+        bmesh.ops.pointmerge(bm, verts=_cl, merge_co=_c); _merged += len(_cl) - 1
+bmesh.ops.dissolve_degenerate(bm, dist=0.00002, edges=bm.edges[:])
+bm.verts.ensure_lookup_table(); bm.normal_update()
+report["tip_merged_verts"] = _merged
 # tidy the tips after the weld / zipper removal: smooth a small patch around each end of the fissure
 _tipc = [O + u * (SLIT / 1000), O - u * (SLIT / 1000)]
-_tipv = [v for v in bm.verts if v.is_valid and not v.is_boundary and min(
-    math.hypot(to_local(v.co)[0] - sg * SLIT / 1000, to_local(v.co)[1]) for sg in (1, -1)) < 0.0011]
+_tipv = [v for v in bm.verts if v.is_valid and not v.is_boundary and min((v.co - t_).length for t_ in TIP_CO) < 0.0011]
 for _ in range(10):
     bm.normal_update()
     _new = {v: v.co + v.normal * (0.5 * (sum((e.other_vert(v).co for e in v.link_edges), Vector())

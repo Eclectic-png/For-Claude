@@ -24,7 +24,8 @@
  },
  "slit_tip_welded_verts": 280,
  "fissure_open_removed_verts": 61,
- "tip_tidied_verts": 364,
+ "tip_merged_verts": 102,
+ "tip_tidied_verts": 252,
  "textures_inpainted": [
   [
    "cf_m_body_MT_CT.png",
