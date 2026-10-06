@@ -290,9 +290,11 @@ N_SPOKE = 288
 # build5's creases: twelve at 30 deg (one runs straight up the cleft from the centre), each with its own depth
 FOLD_W = [1.2, 0.8, 1.0, 0.75, 1.05, 0.85, 1.2, 0.85, 1.05, 0.75, 1.0, 0.8]
 SIG = 0.09                       # rad, angular half-width of a crease (fixed, so the real width shrinks to the centre)
-FUNNEL = float(os.environ.get("ANUS_FUNNEL", "1.0"))   # mm the surface dives towards the centre (build5: 2.0)
-PIT = 0.6                        # mm, build5's extra dip of the entrance inside R_PIT
+FUNNEL = float(os.environ.get("ANUS_FUNNEL", "2.0"))   # mm the surface dives towards the centre (build5: 2.0)
+PIT = 0.6                        # mm, build5's extra dip of the entrance (a smooth dip, no rim)
 R_PIT = 0.9
+PINCH = float(os.environ.get("ANUS_PINCH", "0.3"))   # sideways squeeze at the centre (build5: 0.45)
+R_PINCH = 5.5                    # mm over which it eases back to full width
 R_FOLD = 7.2
 CREASE_SEED = 11
 _rng = random.Random(CREASE_SEED)
@@ -311,8 +313,8 @@ def crease(theta):
     return s
 
 
-def fold_amp(r):                 # build5's profile: the creases start at the entrance (0.9 mm)
-    t = min(max((r - R_PIT) / (R_FOLD - R_PIT), 0.0), 1.0)
+def fold_amp(r):                 # build5's profile, measured from the centre so the creases run into the entrance
+    t = min(max(r / R_FOLD, 0.0), 1.0)
     return 0.42 * math.sin(math.pi * t) ** 0.8
 
 
@@ -342,7 +344,7 @@ def surf_point(a_mm, s_mm):
 def ring_xy(r, th):
     # build5: near the centre the rings are squeezed sideways to 45 %, so the entrance is a short vertical slit and
     # every crease bends towards vertical as it runs in (the up/down creases flow straight into the entrance)
-    return r * math.cos(th), K_LAT * r * math.sin(th) * (0.45 + 0.55 * ss(R_PIT, 5.0, r))
+    return r * math.cos(th), K_LAT * r * math.sin(th) * (PINCH + (1 - PINCH) * ss(0.0, R_PINCH, r))
 
 
 # ring radii: radial step ~ the spacing between spokes (even quads), from 0.04 mm out to R_IN
@@ -435,8 +437,11 @@ for v in info:
     base_pos[v] = base_pos[v] + n * (_lift[_vi[v]] / 1000)
 # relief (build5): funnel, radial creases with pads a touch proud of the base, conical entrance pit
 for v, (r, th) in info.items():
-    relief = -FUNNEL * (1 - ss(0, R_FOLD, r)) + fold_amp(r) * (0.15 - crease(th)) - PIT * max(0.0, 1 - r / R_PIT)
-    v.co = base_pos[v] + bnorm[v] * (relief / 1000)
+    relief = fold_amp(r) * (0.15 - crease(th))
+    dive = FUNNEL * (1 - ss(0, R_FOLD, r)) + PIT * (1 - ss(0.0, 1.5, r))
+    # the dive goes straight into the body (along -n): along the surface normal it pushed sideways into the steep
+    # cheek wall and dug a pocket there
+    v.co = base_pos[v] + bnorm[v] * (relief / 1000) - n * (dive / 1000)
     v[pig_layer] = 1 - ss(5.6, 7.8, pig_r(r, th))
     v[cre_layer] = min(1.0, crease(th)) * fold_amp(r) / 0.42
     v[fs_layer] = 1 - ss(6.5, 8.6, r)              # where the fold shading acts (0 at the outer ring)

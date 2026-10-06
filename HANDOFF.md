@@ -48,6 +48,7 @@ On Windows `ANATOMY_REF` defaults to the user's path. Each script writes `report
 | `scripts/build8_v7.py` | **experiment, rejected** | v6 with crease depth capped at `ASPECT` x half the gap to the neighbouring crease, and creases blended into the lip curl. It removed the tip knots and the spikes along the slit, but the creases fade near both tips. The user rejected it. |
 | `scripts/build8_v8.py` | abandoned | Rays from the slit centre; crumpled at the centre. Superseded by build9. |
 | `scripts/build9.py` | **in progress, current** | The user asked to base the work on build5. It is build5's anus (pole, 288 spokes, rings stepping 0.04 to 7.2 mm, build5's `crease()` and `fold_amp` measured from the centre) on v4's surroundings: narrow hole, arc-length layout riding up the cheek walls (`K_LAT = 0.77`), squeezed cleft, membrane relax plus level lift, and `FUNNEL = 0`. The canal opens under the centre (the 0.9 mm ring, tucked 0.08 mm under). Renders: `out/variants/build9/`. |
+| `scripts/build10.py` | **in progress, current** | build9 plus build5's centre: `FUNNEL` 2 mm and a smooth `PIT` of 0.6 mm, both applied along -n (along the surface normal they dug a pocket into the steep left cheek wall). The rings are squeezed sideways near the centre (`PINCH` 0.3, easing out by `R_PINCH` 5.5 mm) for build5's pinched, gathered look. Creases run from the centre. Renders: `out/variants/build10/`. |
 
 The renders for each version are in `out/variants/<name>/` and `out/versions/<name>/`.
 
@@ -144,6 +145,12 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
 `scripts/render_close.py` and `scripts/render_wire.py` produce the standard close / below / geometry renders.
 
 ## Current state and next step
+
+- **build10 (latest):** the user wanted build5's dive toward the centre and its "pinched together" look.
+  - **Tried and rejected:** build5's numbers literally. The creases stopped at 0.9 mm and a cone pit sat inside, which
+    on the dense mesh became a hard-rimmed oval crater.
+  - **Now:** creases from the centre, a smooth pit, a stronger pinch, and the dive along the cleft axis.
+  - **Open:** a small dark notch remains just left of the centre, and the user hasn't reviewed it yet.
 
 - **build9 (latest):** the user asked to use build5 as the base and fix its lump, its separate-disc edge and its
   cheek deformation.
