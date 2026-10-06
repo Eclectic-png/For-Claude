@@ -291,7 +291,7 @@ _FRONT = [(120, 0.97, 5.5), (140, 0.93, 6.4), (160, 0.92, 6.6), (180, 0.93, 6.5)
           (-160, 0.91, 5.6), (-140, 0.85, 6.6), (-120, 0.88, 6.3)]
 # back half and sides at the same 20 deg density; the two sides are offset by 10 deg, so the back tip gets an
 # uneven V of creases instead of one running straight up the cleft, and the sides are not mirror images
-_BACK = [10, 30, 50, 70, 90, -20, -40, -60, -80, -100]
+_BACK = [20, 40, 60, 80, 100, -30, -50, -70, -90]
 CREASES = [(math.radians(d) % (2 * math.pi), w, r1) for d, w, r1 in _FRONT]
 CREASES += [(math.radians(d) % (2 * math.pi), _rng.uniform(0.8, 1.0), _rng.uniform(5.4, 7.0)) for d in _BACK]
 CREASES.sort()
