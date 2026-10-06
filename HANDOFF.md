@@ -149,7 +149,17 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
 
 ## Current state and next step
 
-- **Cheek distortion check (latest):** `scripts/tools/distort.py` measures, for each of the original's 1,580 skin
+- **Cliff behind the anus (latest):** the user saw a steep climb just behind (toward the back of) the anus.
+  - **Measured** (`cliff_profiles.png`): the narrow fill sat low near the original pit, then climbed ~4 mm within
+    2.5 mm at the back edge to meet the cleft floor. The smoothing pass also leaves that floor ~1.3 mm above the
+    original.
+  - **Fix:** `ANUS_LEVEL` (3000 iterations) smooths heights along the cleft only: edge weight (da / length)^2, mobility
+    fading up the walls from 3 to 6 mm lateral, and the outer ring fixed.
+  - **Tried and dropped:** a straight-line lift (left ridges at the 7.6 mm ring), and turning the smoothing pass off
+    (`ANUS_TAUBIN=0`). Without that pass the original's low-poly facets and a hard crease show in front of the anus,
+    so it stays on (default 20).
+  - **Renders:** `cliff_lowview_*`.
+- **Cheek distortion check:** `scripts/tools/distort.py` measures, for each of the original's 1,580 skin
   vertices, its distance to a version's final skin. The plot is `cheek_distortion_map.png`.
   - **Mean / max movement in mm:** at 12-20 mm from the anus, current 0.88 / 2.31, build7 1.13 / 2.73, build5 1.13 /
     2.80, build8 1.22 / 3.60. At 20-30 mm, every version is ~0.25-0.32 / 1.5-2.05.
