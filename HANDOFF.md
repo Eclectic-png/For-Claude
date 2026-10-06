@@ -1,3 +1,37 @@
+# NEXT SESSION START HERE: make the anus a real, openable passage
+
+**Project goal (restated by the user):** a functioning digestive system from mouth to anus. The anus must connect
+the exterior skin to the canal / rectum as a real passage that can open. It is not just a closed surface detail.
+
+**Current best build:** `scripts/build5_rise.py` (all defaults). The built file is
+`out/blend/Hips_build5_rise_corridor.blend` (gitignored; rebuild with the command under "How to build"). It has:
+- build5's radial creases: `ANUS_SIG` 0.06 and 2x depth;
+- a 0.2 mm rise, then a smooth 1.5 mm plunge into the centre;
+- levelled along the cleft, with the corridor fix for the slope behind the anus;
+- the normal map faded over the cleft, and the cleft mesh refined.
+
+The user approved the look. Alignment checks pass: the canal bottom ring sits on the skin (0.00 mm gap) and is
+centred within 1.3 mm. Canal 37 deg from vertical, anorectal angle 108 deg, clearances unchanged.
+
+**What is missing (the next task, in order):**
+1. **Real passage.** The skin is closed at a point (the pole) and the canal (`AN_AnalCanal`) starts 0.08 mm under the
+   0.9 mm ring, so they are separate surfaces.
+   - Open the skin at the centre (remove the pole and the inner rings below ~0.3-0.9 mm) and weld its edge loop to the
+     canal's bottom ring, like the earlier slit versions (build8_v5/v6: "canal opening = skin slit edge loop").
+   - Keep it visually closed at rest: lips touching, no visible hole.
+2. **Opening shape key** (e.g. "Open") on Hips + AN_AnalCanal:
+   - the creases flatten and spread, and the rim widens and rolls outward;
+   - the canal dilates (and the lower ampulla eases); a 0..1 slider.
+3. **Resting canal as a collapsed slit with anal columns**, not a round tube. Currently it is only lightly flattened.
+4. **Lining colour:** the material should go from skin to mucosa inside the opening.
+5. **Bigger picture:** check the rest of the tract from mouth to anus is continuous, without gaps between organ meshes
+   in `anatomy_ref.blend` / the Internal_Fit collection.
+
+**Don't redo:** the long history below covers the crease and slope experiments and their results. Key tools:
+`backslope.py`, `distort.py`, `grazing.py` (TOP = front), `hq.py`, `tipcam.py`, `chk.py`, `canalout.py`.
+
+---
+
 # Session handoff: anus detail on `Hips.blend`
 
 Branch: `claude/optimistic-gates-jorged`. Pull request: https://github.com/Eclectic-png/For-Claude/pull/1
