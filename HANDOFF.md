@@ -1,7 +1,52 @@
-# NEXT SESSION START HERE: make the anus a real, openable passage
+# NEXT SESSION START HERE
 
-**Project goal (restated by the user):** a functioning digestive system from mouth to anus. The anus must connect
-the exterior skin to the canal / rectum as a real passage that can open. It is not just a closed surface detail.
+**Project goal:** a functioning digestive system from the base of the neck (no mouth / pharynx needed) to the anus,
+in Blender, toon shader. The anus is a real, openable passage from the skin into the canal / rectum.
+
+**State: all five handoff items are DONE** (details further down, under "Progress, item N"):
+1. Real passage: skin slit edge loop = canal mouth (288 points, 0 mm seam). `scripts/build5_passage.py`.
+2. "Open" shape key (0..1) on Hips, AN_AnalCanal, AN_Rectum_LowerAmpulla, AN_AnalSphincter (12 mm, `ANUS_OPEN_D`).
+3. Collapsed resting canal: slit, then a closed 8-armed star (anal columns).
+4. Lining: skin -> anoderm -> mucosa ramp (`AN_AnalCanal_Lining`); organ insides lit via `AO_in` bakes.
+5. Whole tract connected: `scripts/build_tract_passage.py` + `scripts/tract_lib.py` open all 9 junctions
+   (esophagus -> rectum) with exact shared openings; Hips build also opens descending colon -> rectum.
+
+**Builds (both outputs gitignored, rebuild locally):**
+```
+cd drive
+ANATOMY_REF=$PWD/anatomy_ref.blend blender -b Hips.blend --python ../scripts/build5_passage.py -- \
+    $PWD/../out/blend/Hips_build5_passage.blend <report dir>          # working file, ~20 s
+blender -b anatomy_ref.blend --python ../scripts/build_tract_passage.py -- \
+    $PWD/../out/blend/anatomy_tract_passage.blend <report dir>        # full tract, a few minutes
+```
+Setup: Blender 4.2.3 at /opt (see "Project context"), `apt-get update` before the EEVEE libs, Pillow in Blender's
+Python for `canalxs.py` (`/opt/blender-4.2.3-linux-x64/4.2/python/bin/python3.11 -m pip install pillow`). Drive files
+via gdown into `drive/` (the network policy must allow download.blender.org and Google Drive).
+
+**Open questions for the user / possible next steps:**
+- Appendix was moved 21.9 mm to attach to the cecum >= 15 mm from the ileal entrance (not opened: dead end). The
+  user may want a smaller move (e.g. `APPX_CLEAR` 12 mm) or a different attachment spot.
+- Canal: it opens from the star over the top 40 % (from ~15 mm); anatomically it could stay closed over the
+  sphincter's full height and open more sharply at the anorectal junction (offered, not done).
+- Lining colour at the canal mouth renders a little greyer than the rim skin (~180,141,142 vs 204,162,170); user
+  hasn't asked to change it.
+- Only tract organs have lit insides; other atlas organs keep the flat backface colour.
+- Where the full-tract file should live in the user's real project (they have the full atlas on Windows at
+  `C:\Users\Parker\Anatomy Project\`) - the atlas-derived file is a new file, anatomy_ref.blend is untouched.
+
+**Tools added this session (`scripts/tools/`):** `section.py` (midline cut-away), `selfx.py` (self-intersections,
+`ANUS_OPEN`), `canalxs.py` (canal cross-sections), `tract.py`, `overlaps.py`, `tract_seams.py` (every open loop must
+be matched by a neighbour), `xsect.py`, `cutaway.py`, `opening_view.py`, `holes_view.py`. `hq.py` / `star.py` take
+`ANUS_OPEN`.
+
+**Gotchas:** atlas "holes" are unwelded shading seams (weld at 1e-7 m to test); the ampulla loop in build5_passage
+reassigns `e1, e2`; `mesh.transform` does not move shape keys (key the sphincter after re-seating it); inside tests
+need closed shells taken BEFORE junctions are opened (`trees=`); neighbours split from one source mesh share
+coincident walls (open_junction's inflate / deflate retry).
+
+---
+
+# Earlier state (history)
 
 **Current best build:** `scripts/build5_rise.py` (all defaults). The built file is
 `out/blend/Hips_build5_rise_corridor.blend` (gitignored; rebuild with the command under "How to build"). It has:
