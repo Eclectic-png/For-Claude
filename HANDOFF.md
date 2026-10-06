@@ -44,6 +44,7 @@ On Windows `ANATOMY_REF` defaults to the user's path. Each script writes `report
 | `scripts/build8_v4.py` | **saved v4** (`out/versions/even_mesh_v4/`) | **Current best.** The inner pucker is an even ~0.07 mm triangle mesh made by constrained Delaunay (`mathutils.geometry.delaunay_2d_cdt`). The lip ring plus four outer rings keep the join to the skin. The surface is a full membrane relax, plus a shaped lift that is smoothed and limited to 2.5 mm of the midline. `PUFF = 0`, creases on 20° spokes. The user approved its overall shape. |
 | `scripts/build8_v5.py` | superseded by v6 | Like v4, but the pads between creases are domes meeting at the creases (`crease()` rewritten). The user still sees grooves. See next steps. |
 | `scripts/build8_v6.py` | **in progress** | v5, plus a crease straight up the middle from the back tip (requested by the user), and the tip tidy and lip-curl taper shrunk to `TIP_R = 0.35` mm so the creases no longer fade out near the tips. |
+| `scripts/build8_v7.py` | **experiment, rejected** | v6 with crease depth capped at `ASPECT` x half the gap to the neighbouring crease, and creases blended into the lip curl. It removed the tip knots and the spikes along the slit, but the creases fade near both tips. The user rejected it. |
 
 The renders for each version are in `out/variants/<name>/` and `out/versions/<name>/`.
 
@@ -175,7 +176,16 @@ Run each as `blender -b <file.blend> --python scripts/tools/X.py [-- args]`.
     single-vertex crease bottoms, `slit_edge_loops` 1, hole 0.000 mm, and no non-manifold edges.
   - **Still open:** a small knot at each tip where the creases converge (`TIP_R = 0.5` was tried and was lumpier).
     The spikes where creases meet the slit (defect 1) and the steps at outer ends (defect 2) are not yet addressed.
-- **Next:** show the user v6 and ask about the tip knots and defects 1 and 2. Save a version only once they approve.
+- **Tip problem (open):** at each tip, three to five creases meet the slit within ~0.1-0.3 mm of one point. At full
+  depth, the pads between them become thinner than the mesh (`MESH_H` ~0.07 mm) and collapse into a knot (v6). With
+  the depth reduced, the creases visibly fade (v7). Turning off the tip tidy and raising `ASPECT` to 3 helped but did not
+  fix it; the user confirmed that none of these is right.
+- **Next:** the user is choosing between three options:
+  1. (Recommended.) Spread where the tip creases meet the slit, at least ~0.3 mm apart, so only the 0/180 deg creases
+     enter at the very tips.
+  2. Join converging creases in Y-junctions before the tip.
+  3. Refine the mesh at the tips. This risks reading as a pit.
+- **Tool:** `scripts/tools/tipcam.py` renders a skin-only close-up at a point along the slit.
 - **Smaller open items:**
   - A thin line runs from the slit's back tip along the cleft; not yet addressed.
   - The saved v1 still has a couple of non-manifold edges.
