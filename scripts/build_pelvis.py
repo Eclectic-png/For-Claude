@@ -614,7 +614,7 @@ mob_f = U.ss(TRIG_FIX, TRIG_FREE, dist_trigone(Xe))
 # each stage: grown freely, the uterus tilts back on its cervix to clear it (the least turn, stopped by bone or 8 mm
 # into the rectum, at most 40 deg), then the stage is grown again with the tilted uterus solid - the bladder takes
 # its volume elsewhere (the dome rising along the abdominal wall) instead of being dented by a third
-UT_FILL_MAX_DEG = int(os.environ.get("UT_FILL_MAX_DEG", "25"))   # deeper tilts trap the bowel against the uterus
+UT_FILL_MAX_DEG = int(os.environ.get("UT_FILL_MAX_DEG", "22"))   # deeper tilts trap the bowel against the uterus
 rect_rest_tree = U.union_tree([O["AN_Rectum"], O["AN_Rectum_LowerAmpulla"]], Mi)
 _blk = [(t_, 0.002) for t_, _ in bone_trees] + [(rect_rest_tree, -0.008)]   # the rectum gives way up to 8 mm
 stages = [Xe]; th_grow = []; obst_st = []
