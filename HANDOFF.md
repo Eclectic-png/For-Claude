@@ -155,11 +155,14 @@ behind the vestibule to the anus in an S: gentle, then an incline at 36-50 deg (
 (a mound) to the opening at y ~56-57 - from the vulva it read as a drop-off. Now: the anus (the skin within 5 mm of
 the canal's opening) turns `ANUS_TILT_DEG` 15 (0 = off) about a transverse axis through the back (higher) end of its
 opening - a point ON the skin 5 mm behind the opening along the midline; its front end drops, nothing behind the pivot
-moves (identical to 0.01 mm). The mound and incline in front are not carried along: their height becomes an even ramp
-from y 36 mm into the turned anus' front edge (~18 deg, bending to ~32 deg over the last 3 mm into the anus' face).
-Front / back motion is the turn's own smooth field (fading over 3 mm round the anus), the ramp sets heights only, and
-each crease's relief (height above the smoothed surface) rides on it, so the creases stay whole; front and sides
-blend by the angle round the anus. The canal and sphincter bend (the opening turns with the skin, the top stays).
+moves (identical to 0.01 mm). Default now 5 deg (the user: 15 too much). The mound and incline in front are not carried along: their height becomes an even ramp
+from y 36 mm into the turned anus' front edge (midline ~21 deg, steepening smoothly over the last 3 mm into it).
+Front / back motion is the turn's own smooth field (fading over 3 mm round the anus), the ramp sets heights only and
+is smooth (the old mound's relief goes with it); each strip aims at the smoothed rim (turned), and the rim's crease
+height along that strip (a groove floor on the midline, ridges beside it) fades in over the last 3 mm (`rim_fade`) so
+the ramp meets the rim exactly - aiming at one rim vertex, or at the smoothed surface alone, left a 0.7-1.2 mm jag
+(the rim is a sharp knee the smoothing rounds down, and the midline runs along a crease's groove floor). Inside the
+anus every crease is untouched (rigid); front and sides blend by the angle round the anus. The canal and sphincter bend (the opening turns with the skin, the top stays).
 Every shape key gets the same treatment. Tried and dropped (so not repeated): pivoting at the canal's top (the
 opening only slid toward the vagina); turning the anus and dragging the skin in front with it (just moved the mound);
 a pivot off the skin + a fade behind it (a dip behind the anus); matching the ramp's end to the anus' face (a sag then

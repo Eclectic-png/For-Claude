@@ -1044,7 +1044,7 @@ def carry_cords(cords, movers):
 
 # ---------------------------------------------------------------- the anus tilted, the approach in front made a ramp
 def anus_tilt_ramp(skin, canal, others, phi, r_open=0.005, back=0.005, y_a=0.036, x_in=0.004, x_out=0.008,
-                   fillet=0.003, fade=0.003, step=0.00025):
+                   fillet=0.003, fade=0.003, step=0.00025, rim_fade=0.003):
     """turn the anus (the skin within r_open of the canal's opening, in front of the pivot) about a transverse axis
     through the back (higher) end of its opening - a point ON the skin, `back` up-back from the opening's centre along
     the midline: its front end drops by phi (rad), nothing behind the pivot moves. In front of it, the mound + incline
@@ -1085,26 +1085,7 @@ def anus_tilt_ramp(skin, canal, others, phi, r_open=0.005, back=0.005, y_a=0.036
     disc = (d_c < r_open) & (beh <= 0)
     ang = np.where(disc, phi, phi * (1 - ss(r_open, r_open + fade, d_c)))
     ang[beh > 0] = 0.0
-    t1 = tree_of(rot(Hb, ang), skin)              # the surface with the anus turned (sides faded)
-    Hd0 = Hb[disc]; Hd = rot(Hd0, phi)
     xs = np.arange(-x_out, x_out + step / 2, step); ys = np.arange(y_a - 0.002, cen[1] + 0.001, step)
-    strip = []
-    for x in xs:
-        if abs(x) < r_open * 0.95:                # the anus' front edge on this strip, before / after the turn
-            m = np.abs(Hd0[:, 0] - x) < 0.0004; j = np.nonzero(m)[0][np.argmin(Hd0[m, 1])]
-            ye0, ze0, yb, zb = Hd0[j, 1], Hd0[j, 2], Hd[j, 1], Hd[j, 2]
-            mf = (zs(t1, x, yb + 0.001) - zb) / 0.001
-        else:
-            ye0 = yb = cen[1]; zb = zs(t1, x, yb); ze0 = zs(t0, x, yb); mf = (zb - zs(t1, x, yb - 0.0006)) / 0.0006
-        za = zs(t0, x, y_a); ma = (za - zs(t0, x, y_a - 0.001)) / 0.001
-        if np.isnan(mf):
-            mf = (zb - za) / (yb - y_a)
-        strip.append((ye0, ze0, yb, zb, za, ma, mf))
-    def curve(st, s):
-        ye0, ze0, yb, zb, za, ma, mf = st; L_ = yb - y_a; mc = (zb - za) / L_
-        z = za + (zb - za) * s + (mf - mc) * L_ * s ** max(2.0, L_ / fillet) * (s - 1) \
-            + (ma - mc) * L_ * s * (1 - s) ** max(2.0, L_ / 0.004)
-        return y_a + s * L_, z
     Z0 = np.array([[zs(t0, x, y) for y in ys] for x in xs])
     for r in Z0:                                  # (the opening: no surface - filled along the strip)
         m = np.isnan(r)
@@ -1113,6 +1094,36 @@ def anus_tilt_ramp(skin, canal, others, phi, r_open=0.005, back=0.005, y_a=0.036
     k = np.exp(-0.5 * (np.arange(-6, 7) / 3.0) ** 2); k /= k.sum()
     conv = lambda r: np.convolve(np.pad(r, 6, mode='edge'), k, 'valid')
     Z0s = np.apply_along_axis(conv, 0, np.apply_along_axis(conv, 1, Z0))          # the creases smoothed away
+    def ang_at(P):                                # the turn's angle field at points (n, 3)
+        d = np.linalg.norm(P - cen, axis=1); bh = (P - piv) @ up
+        a = np.where(d < r_open, phi, phi * (1 - ss(r_open, r_open + fade, d))); a[bh > 0] = 0.0; return a
+    # each strip's end: where its SMOOTHED surface meets the anus (or, beside it, comes closest to the opening),
+    # turned with the anus - both sides of the joint then share one height (a single vertex there can sit in a
+    # crease's groove)
+    strip = []
+    for i, x in enumerate(xs):
+        Ps = np.stack([np.full(len(ys), x), ys, Z0s[i]], axis=1); dd = np.linalg.norm(Ps - cen, axis=1)
+        inn = np.nonzero(dd < r_open)[0]
+        je = int(inn[0]) if len(inn) else int(np.argmin(dd))
+        je = min(je, len(ys) - 5)
+        # the rim: the ramp aims at the smoothed surface there (turned with the anus); the creases' height along this
+        # strip's own line (a groove floor on one strip, a ridge on the next) is added only over the last RIM_FADE
+        # before the rim - the creases fade out just in front of it and the ramp meets the rim exactly
+        pe = np.stack([np.full(5, x), ys[je:je + 5], Z0s[i, je:je + 5]], axis=1); pr = rot(pe, ang_at(pe))
+        pq = np.array([[x, ys[je], Z0[i, je]]]); qr = rot(pq, ang_at(pq))
+        dz_rim = float(qr[0, 2] - pr[0, 2])
+        ye0, ze0 = ys[je], Z0[i, je]; yb, zb = pr[0, 1], pr[0, 2]
+        mf = (pr[4, 2] - pr[0, 2]) / max(pr[4, 1] - pr[0, 1], 1e-6)
+        za = Z0s[i, int(np.argmin(np.abs(ys - y_a)))]
+        j0 = int(np.argmin(np.abs(ys - y_a))); ma = (Z0s[i, j0] - Z0s[i, max(j0 - 4, 0)]) / (ys[j0] - ys[max(j0 - 4, 0)])
+        strip.append((ye0, ze0, yb, zb, za, ma, mf, dz_rim))
+    def curve(st, s):
+        ye0, ze0, yb, zb, za, ma, mf, dz_rim = st; L_ = yb - y_a; mc = (zb - za) / L_
+        z = za + (zb - za) * s + (mf - mc) * L_ * s ** max(2.0, L_ / fillet) * (s - 1) \
+            + (ma - mc) * L_ * s * (1 - s) ** max(2.0, L_ / 0.004)
+        s0 = 1 - rim_fade / L_
+        z = z + dz_rim * float(np.clip((s - s0) / (1 - s0), 0, 1)) ** 2
+        return y_a + s * L_, z
     # heights only: front / back motion is the turn's own (one smooth field, so the creases' plan stays whole); the
     # ramp gives the height along each strip as a function of y, the creases' relief (z - smoothed z) rides on it
     lat = 1 - ss(x_in, x_out, np.abs(xs))
@@ -1130,11 +1141,19 @@ def anus_tilt_ramp(skin, canal, others, phi, r_open=0.005, back=0.005, y_a=0.036
     Zs_v = Z0s[ix, iy] * (1 - a_) * (1 - b_) + Z0s[ix + 1, iy] * a_ * (1 - b_) + Z0s[ix, iy + 1] * (1 - a_) * b_ + Z0s[ix + 1, iy + 1] * a_ * b_
     w_r *= lat[ix] * (1 - a_) + lat[ix + 1] * a_
     act = np.nonzero(w_r > 0)[0]
+    if os.environ.get("ANUS_DEBUG"):
+        i0 = int(np.argmin(np.abs(xs))); print("DBG strip0", [round(float(v) * 1000, 2) for v in strip[i0]])
+        for yy in np.arange(0.046, 0.054, 0.0005):
+            print("DBG y", round(yy * 1000, 1), "ramp", round(float(z_ramp(i0, yy)) * 1000 - 780, 2),
+                  "Z0s", round(float(np.interp(yy, ys, Z0s[i0])) * 1000 - 780, 2), "Z0", round(float(np.interp(yy, ys, Z0[i0])) * 1000 - 780, 2))
+        mv = np.nonzero((np.abs(Hb[:, 0]) < 0.0004) & (Hb[:, 1] > 0.048) & (Hb[:, 1] < 0.0535) & (np.abs(Hb[:, 2] - 0.787) < 0.004))[0]
+        for v in mv[np.argsort(Hb[mv, 1])]:
+            print("DBG v", round(Hb[v, 1] * 1000, 2), round(Hb[v, 2] * 1000 - 780, 2), "w", round(float(w_r[v]), 2), "disc", bool(disc[v]), "d", round(float(d_c[v]) * 1000, 2))
     def skin_fn(Pk):
         P_turn = rot(Pk, ang); out = P_turn.copy()
         for v in act:
             yv = P_turn[v, 1]
-            zr = z_ramp(ix[v], yv) * (1 - a_[v]) + z_ramp(ix[v] + 1, yv) * a_[v] + (Pk[v, 2] - Zs_v[v])
+            zr = z_ramp(ix[v], yv) * (1 - a_[v]) + z_ramp(ix[v] + 1, yv) * a_[v]      # (the mound's relief goes too)
             out[v, 2] = P_turn[v, 2] * (1 - w_r[v]) + zr * w_r[v]
         return out
     each_key(skin, skin_fn)
