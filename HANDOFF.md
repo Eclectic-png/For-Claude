@@ -49,16 +49,16 @@ Python (`/opt/blender-4.2.3-linux-x64/4.2/python/bin/python3.11 -m pip install p
 - Pelvis: done (female reshaping, step 0b). Rectum filling and both full: done (5d, 5e). The bones were reshaped
   only in the Hips working file; the full-atlas tract file (anatomy_tract_passage) still has the male pelvis.
 - Male version later: no vaginal plane, prostate round the urethra's first 3 cm, a ~20 cm urethra through the penis.
-- Fill is linear between the stages: 70 / 149 / 257 / 361 / 471 ml at Bladder_Fill 0 / .25 / .5 / .75 / 1 (real ml;
-  grown to 150 / 260 / 380 / 500 targets, ~5 % lost to the crease smoothing, the polish and the room the tilted
-  uterus takes - 470 ml still is a normal full bladder). Rectum 109 -> 176 / 243 / 308 ml. Both full: bladder 470 ml.
-  The checks run at those values; in-between values blend two clean states.
-- Remaining contact (`checks` -> `clipping` in report.json, 14 states; only contacts new or > 0.3 mm deeper than at
-  rest, intended overlaps excluded): rest and Void states clean; bladder-only and rectum-only states <= 0.8 mm except
-  one colon / rectum vertex against the uterus at Bladder_Fill 0.5 (2.4-2.7 mm); both full <= 0.2 mm. The half-way
-  mixes are the worst: bladder 0.5 + rectum 1 has the uterus 1.8 mm into the rectum (370 vertices) and the same single
-  vertices at 2.4-2.9 mm. Tubes / ovaries touch the hip bone by <= 0.6 mm in some states. Seams (neck, meatus,
-  ureteric openings) <= 0.0005 mm everywhere.
+- Fill is linear between the stages: 70 / 149 / 258 / 360 / 467 ml at Bladder_Fill 0 / .25 / .5 / .75 / 1 (real ml;
+  grown to 150 / 260 / 380 / 500 targets round the tilted uterus; the crease smoothing, the polish and the room the
+  uterus takes cost ~7 % - 467 ml still is a normal full bladder). Rectum 109 -> 176 / 243 / 308 ml. Both full: bladder
+  467 ml. The uterus tilts back 22 deg as the bladder fills (`UT_FILL_MAX_DEG`; 25-30 trapped the rectosigmoid
+  junction against it). The checks run at those values; in-between values blend two clean states.
+- Remaining contact (`checks` -> `clipping`, 14 states; only contacts new or > 0.3 mm deeper than at rest, intended
+  overlaps excluded): rest and Void states clean; the rest <= 1.8 mm, except isolated spots of 1-8 vertices at 3-4 mm
+  where the held rectosigmoid seam (rectum / colon rims stay welded) is pressed into the uterus at Bladder_Fill
+  0.25 - 1. Tubes / ovaries touch the hip bone by <= 0.8 mm in some states. Seams (neck, meatus, ureteric openings)
+  <= 0.0005 mm everywhere.
 - Crease round the still trigone: smoothed (Taubin passes in the 16-46 mm band, then a short regrow to put the
   volume back); see `eevee_cut_inside.png`.
 - Lighting of the full atlas tract file: every material is now lit inside (122 meshes); `AO_in` of small closed
