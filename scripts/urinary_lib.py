@@ -659,9 +659,8 @@ def make_room(objs, M_to, M_from, expander_trees, pinned, rigid, gap=0.0015, dec
     for k, tree in enumerate(expander_trees):
         handled = np.zeros(len(X), bool)
         if pre_stage is not None:
-            Xp, handled = pre_stage(k, X, own_n, own_i)
-            X = np.where(pin[:, None], X, Xp); handled &= ~pin
-            X, _ = rigid.project(X, ~pin)
+            X, handled = pre_stage(k, X, own_n, own_i)     # (held vertices too: a held organ can still be carried
+            X, _ = rigid.project(X, ~pin)                   # rigidly - the uterus on its cervix)
         if carry_from is not None and expanders is not None:
             # carried along: soft tissue next to the growing wall moves the way the wall next to it moves (a
             # weighted average of the wall's motion since the last stage, fading with distance from the wall) -
@@ -705,17 +704,19 @@ def make_room(objs, M_to, M_from, expander_trees, pinned, rigid, gap=0.0015, dec
                                 D[i] = push; C[i] = True
                         n_bulge += 1
             n_soft = 0
-            for i, b in inside_other(X, trees_):   # both give way, half each
-                if (i, b) in base_in or pin[i]:
+            for i, b in inside_other(X, trees_):   # both give way, half each (all of it: the other, if i is held)
+                if (i, b) in base_in:
                     continue
                 h = trees_[b].find_nearest(Vector(X[i])); dv = np.array(h[0]) - X[i]; ln = np.linalg.norm(dv)
                 if ln < 1e-12:
                     continue
                 full = dv + dv / ln * gap * 0.5
-                cand = [(i, full * 0.5)]
                 fb = tf_[b][1]
-                if h[2] < len(fb):
-                    cand += [(j, -full * 0.5) for j in Fo[b][fb[h[2]]]]
+                face = Fo[b][fb[h[2]]] if h[2] < len(fb) else []
+                held = all(pin[j] for j in face)     # a held organ's face: i takes the whole push
+                share = 1.0 if pin[i] else 0.5
+                cand = [] if pin[i] else [(i, full * (1.0 if held else 0.5))]
+                cand += [(j, -full * share) for j in face]
                 for j, push in cand:
                     if pin[j]:
                         continue
@@ -772,18 +773,28 @@ def drive(kb, ctl, prop, expr):
     return fc
 
 
-def settle(X, faces, fixed, trees, gap=0.0006, decay=0.985, iters=300, rounds=8, band=0.02):
+def settle(X, faces, fixed, trees, gap=0.0006, decay=0.985, iters=300, rounds=8, band=0.02, inward=True):
     """the grown organ itself gives way where it still presses into its neighbours (an organ trapped against bone
     cannot move further): vertices inside or within `gap` of any shell in `trees` move back out, the correction eases
-    out over the organ's surface (fixed vertices stay). Returns (X, worst depth before, after) in metres."""
+    out over the organ's surface (fixed vertices stay). inward: a vertex inside a neighbour goes back the way it
+    came - along its own inward normal to where it leaves the neighbour (a dent; the nearest way out can be the
+    neighbour's far side when it is pressed in deep, wrapping the organ round it). Returns (X, worst depth before,
+    after) in metres. X's faces must wind outward."""
     X = np.array(X, float); nb = neighbours(len(X), faces); L = laplacian_matrix(nb); worst0 = None
+    tris = np.array([(f[0], f[i], f[i + 1]) for f in faces for i in range(1, len(f) - 1)], int)
     for r in range(rounds):
         D = np.zeros_like(X); C = np.zeros(len(X), bool); worst = 0.0
+        N = vnormals(X, tris) if inward else None
         for tree in trees:
             d, q, out = signed_dist(tree, X, band=band)
             m = (d < gap) & ~fixed
             worst = max(worst, float(max(0.0, -d[m].min())) if m.any() else 0.0)
             push = q + out * gap - X
+            if inward:
+                for i in np.nonzero(m & (d < 0))[0]:
+                    n_ = Vector(-N[i]); h = tree.ray_cast(Vector(X[i]), n_, 0.05)
+                    if h[0] is not None:
+                        push[i] = np.array(h[0] + n_ * gap) - X[i]
             upd = m & (np.einsum("ij,ij->i", push, push) > np.einsum("ij,ij->i", D, D))
             D[upd] = push[upd]; C |= m
         if worst0 is None:
@@ -801,11 +812,13 @@ def settle(X, faces, fixed, trees, gap=0.0006, decay=0.985, iters=300, rounds=8,
     return X, worst0 or 0.0, after
 
 
-def polish(X, faces, fixed, trees, skip, boxes=None, gap=0.0004, decay=0.93, iters=60, rounds=8, band=0.006):
+def polish(X, faces, fixed, trees, skip, boxes=None, others=(), gap=0.0004, decay=0.93, iters=60, rounds=8, band=0.006):
     """last touches for one state (written into the key active there): vertices newly inside (or within `gap` of)
     a neighbour's shell step just outside it, the correction easing out over a few mm. skip[t]: bool per vertex,
     vertices allowed inside trees[t] (inside it at rest too: seams, joins); boxes[t]: (lo, hi) of that shell (only
-    vertices within it are tested). Returns (X, worst before, after) (m)."""
+    vertices within it are tested). others: [(points, skip)] - the vertices of neighbours that cannot move (bone,
+    a held organ): where one is inside this organ's shell (a coarse face of ours over it), our nearest vertices step
+    back past it. Returns (X, worst before, after) (m)."""
     X = np.array(X, float); nb = neighbours(len(X), faces); L = laplacian_matrix(nb); worst0 = None
 
     def pressing(X_):
@@ -825,6 +838,34 @@ def polish(X, faces, fixed, trees, skip, boxes=None, gap=0.0004, decay=0.93, ite
             ci = ci[m]; push = q[m] + out[m] * gap - X_[ci]
             upd = np.einsum("ij,ij->i", push, push) > np.einsum("ij,ij->i", D[ci], D[ci])
             D[ci[upd]] = push[upd]; C[ci] = True
+        if others:
+            bm = bmesh.new(); vv = [bm.verts.new(Vector(p)) for p in X_]
+            for f in faces:
+                try:
+                    bm.faces.new([vv[i] for i in f])
+                except ValueError:
+                    pass
+            bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-9)
+            bnd = [e for e in bm.edges if e.is_boundary]
+            if bnd:
+                bmesh.ops.holes_fill(bm, edges=bnd, sides=0)
+            tA = BVHTree.FromBMesh(bm); bm.free()
+            kd = kdtree.KDTree(len(X_))
+            for i, p in enumerate(X_):
+                kd.insert(Vector(p), i)
+            kd.balance()
+            lo, hi = X_.min(0) - band, X_.max(0) + band
+            for P, sk in others:
+                ci = np.nonzero(~sk & np.all((P > lo) & (P < hi), axis=1))[0]
+                if not len(ci):
+                    continue
+                d, q, out = signed_dist(tA, P[ci], band=band)
+                for j in np.nonzero(d < gap)[0]:
+                    worst = max(worst, float(max(0.0, -d[j])))
+                    push = (P[ci[j]] - q[j]) - out[j] * gap
+                    for _, i, _ in kd.find_n(Vector(q[j]), 3):
+                        if not fixed[i] and np.dot(push, push) > np.dot(D[i], D[i]):
+                            D[i] = push; C[i] = True
         return D, C, worst
     for r in range(rounds):
         D, C, worst = pressing(X)

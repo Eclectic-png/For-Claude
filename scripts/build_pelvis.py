@@ -314,6 +314,24 @@ for s_ in "LR":
 J["vagina"] = T.open_junction(vag_space, uterus, centre=Mw @ (P_os + C_AX * 0.008), sides=(0,))
 report["reproductive"]["joins"] = {k: {kk: v[kk] for kk in ("curve_mm", "patch_radius_mm", "killed_faces")} for k, v in J.items()}
 report["reproductive"]["uterus_dims_mm"] = [round(float(x) * 1000, 1) for x in (np.array([tuple(v.co) for v in ut_me.vertices]).max(0) - np.array([tuple(v.co) for v in ut_me.vertices]).min(0))]
+# the tubes' fimbriated ends, the ovaries and the suspensory ligaments lie against the pelvic side wall: they give
+# way to the bone (2 mm clear), the tubes held where they leave the uterus, the ligaments at their wall ends
+report["reproductive"]["off_bone_mm"] = {}
+for n_, o_ in REPRO.items():
+    if n_ in ("AN_Uterus", "AN_Uterus_Lumen"):
+        continue
+    P_ = np.array([tuple(v.co) for v in o_.data.vertices])
+    if n_.startswith("AN_Uterine_Tube"):
+        fx = np.linalg.norm(P_ - np.array(CORN[n_[-1]]), axis=1) < 0.015
+    elif n_ in CORDS and CORDS[n_][2] is None:
+        fx = np.linalg.norm(P_ - np.array(CORDS[n_][3]), axis=1) < 0.003
+    else:
+        fx = np.zeros(len(P_), bool)
+    Xs_, w0_, w1_ = U.settle(P_, [tuple(p.vertices) for p in o_.data.polygons], fx, [t_ for t_, _ in bone_trees], gap=0.002, inward=False)
+    if w0_ > 0:
+        o_.data.vertices.foreach_set("co", Xs_.astype(np.float32).ravel()); o_.data.update()
+        report["reproductive"]["off_bone_mm"][n_] = [round(w0_ * 1000, 2), round(w1_ * 1000, 2)]
+bpy.context.view_layer.update()
 vag_tree = U.tree_in(vag_space, Mi)
 REPRO_SOLID = [REPRO[n_] for n_ in REPRO if n_ != "AN_Uterus_Lumen"]
 # the bowel (and the ureters) make room for them, as for the vagina (again after the uterus has settled on the
@@ -404,8 +422,8 @@ def repro_pre(thetas):
         return X, h
     return pre
 def pin_repro(name, P):
-    if name in ("AN_Uterus", "AN_Uterus_Lumen"):        # the cervix in the vault
-        return (((P - _Pos) @ _Cax) < 0.012) | (U.signed_dist(vag_tree, P, band=0.004)[0] < 0.002)
+    if name in ("AN_Uterus", "AN_Uterus_Lumen"):        # firm: it only tilts (pre_stage), it is never pushed out of
+        return np.ones(len(P), bool)                    # shape - its neighbours give way to it, or dent
     if name in CORDS and CORDS[name][2] is None:        # a ligament's end on the pelvic / abdominal wall
         return np.linalg.norm(P - np.array(CORDS[name][3]), axis=1) < 0.003
     return np.zeros(len(P), bool)
@@ -581,12 +599,31 @@ def dist_trigone(P):
         out_[i] = kd_.find(Vector(p))[2]
     return out_
 mob_f = U.ss(TRIG_FIX, TRIG_FREE, dist_trigone(Xe))
-stages = [Xe]
+# each stage: grown freely, the uterus tilts back on its cervix to clear it (the least turn, stopped by bone or 8 mm
+# into the rectum, at most 40 deg), then the stage is grown again with the tilted uterus solid - the bladder takes
+# its volume elsewhere (the dome rising along the abdominal wall) instead of being dented by a third
+rect_rest_tree = U.union_tree([O["AN_Rectum"], O["AN_Rectum_LowerAmpulla"]], Mi)
+_blk = [(t_, 0.002) for t_, _ in bone_trees] + [(rect_rest_tree, -0.008)]   # the rectum gives way up to 8 mm
+stages = [Xe]; th_grow = []; obst_st = []
 for V_ in V_STAGES[1:]:
     log = []
     Xn, Vn = U.grow(stages[-1], Fb, mob_f, V_ * 1e-6, obst, log=log)
-    stages.append(Xn); print("BLADDER stage", V_, Vn * 1e6, log[-2:])
+    th_, left_ = repro_tilt(U.tree_np(Xn, Fb), (BACK,), _blk, max_deg=40)
+    if th_grow and abs(th_grow[-1]) > abs(th_):
+        th_ = th_grow[-1]
+    th_grow.append(th_)
+    # (the tubes, ovaries and ligaments with it, where the tilt takes them: tied to the uterus and the pelvic wall,
+    # they cannot get out of the bladder's way, so it grows round them)
+    # (two shells - the uterus, and the rest: one shell of overlapping organs - the tubes run through the uterine
+    # wall - would fool the ray-parity inside test)
+    _Dt = repro_disp(th_); _pos = {o_.name: REST_R[o_.name] + _Dt[o_.name] for o_ in REPRO_SOLID}
+    _rp_t = [(U.union_tree([uterus], Mi, positions=_pos), 0.0015),
+             (U.union_tree([o_ for o_ in REPRO_SOLID if o_ is not uterus], Mi, positions=_pos), 0.0015)]
+    obst_st.append(U.Obstacles(obst.solid + _rp_t, obst.container, obst.planes))
+    Xn, Vn = U.grow(stages[-1], Fb, mob_f, V_ * 1e-6, obst_st[-1], log=log)
+    stages.append(Xn); print("BLADDER stage", V_, Vn * 1e6, round(math.degrees(abs(th_)), 1), left_, log[-2:])
     report["bladder"].setdefault("stages_ml", []).append(round(Vn * 1e6, 1))
+    report["bladder"].setdefault("uterus_tilt_deg", []).append(round(math.degrees(abs(th_)), 1))
 # the crease round the still trigone (the still patch against the expanding wall): Taubin passes (smoothing that does
 # not shrink) on each stage, only in the band where the wall's mobility ramps up; a stage keeps them only if its
 # volume changes < 2 %
@@ -598,7 +635,9 @@ for k in range(1, len(stages)):
     for it in range(CREASE_IT):
         for lam in (0.55, -0.58):
             X_ += U.umbrella(X_, _Lc) * (lam * _wc)[:, None]
-    X_, _ = obst.project(X_, mob_f > 1e-6); v1 = U.volume(X_, Fb)
+    X_, _ = obst_st[k - 1].project(X_, mob_f > 1e-6); v1 = U.volume(X_, Fb)
+    if abs(v1 - v0) / v0 > 0.005:                # a short regrow puts back what the smoothing took
+        X_, v1 = U.grow(X_, Fb, mob_f, v0, obst_st[k - 1], iters=400)
     keep = abs(v1 - v0) / v0 < 0.02
     if keep:
         stages[k] = X_
@@ -611,6 +650,10 @@ if STOP == "bladder_raw":                         # development: every stage as 
     for k, Xk in enumerate(stages):
         me_ = bpy.data.meshes.new(f"_bl{k}"); me_.from_pydata([tuple(p) for p in Xk], [], [tuple(f) for f in Fb])
         ob_ = O.new(f"_bladder_stage{k}", me_); col_fit.objects.link(ob_); ob_.parent = E
+    for k, th_ in enumerate(th_grow):                # and the uterus as tilted for each stage
+        P_ = REST_R["AN_Uterus"] + tilt_disp(REST_R["AN_Uterus"], th_)
+        me_ = bpy.data.meshes.new(f"_ut{k + 1}"); me_.from_pydata([tuple(p) for p in P_], [], [tuple(p.vertices) for p in uterus.data.polygons])
+        ob_ = O.new(f"_uterus_stage{k + 1}", me_); col_fit.objects.link(ob_); ob_.parent = E
     U.save(SAVE_AS, OUT, report); sys.exit(0)
 
 # ======================= 4. urethra: neck -> external meatus (a slit cut into the vestibule's crest) =================
@@ -854,15 +897,10 @@ for k in range(1, NS + 1):
     stage_trees.append(U.tree_in(tmp, None))
     me_.update(); stage_pts.append((np.array([tuple(v.co) for v in me_.vertices]), np.array([tuple(v.normal) for v in me_.vertices])))
     O.remove(tmp); bpy.data.meshes.remove(me_)
-# the uterus tilts back on its cervix as the dome rises under it (stopped by bone, or 6 mm into the bowel - which
-# then gives way too)
-rect_rest_tree = U.union_tree([O["AN_Rectum"], O["AN_Rectum_LowerAmpulla"]], Mi)
-_blk = [(t_, 0.002) for t_, _ in bone_trees] + [(rect_rest_tree, -0.006)]
-th_f = []
+# the uterus tilts back on its cervix as the dome rises under it, as found while growing the stages (2c)
+th_f = list(th_grow)
 for k in range(NS):
-    th_, left_ = repro_tilt(stage_trees[k], (BACK,), _blk)
-    th_f.append(th_ if not th_f or abs(th_) > abs(th_f[-1]) else th_f[-1])
-    report.setdefault("uterus_tilt", {})[names_fill[k]] = {"deg": round(math.degrees(abs(th_f[-1])), 1), "left_mm": round(left_ * 1000, 2)}
+    report.setdefault("uterus_tilt", {})[names_fill[k]] = {"deg": round(math.degrees(abs(th_f[k])), 1)}
 print("TILT fill", json.dumps(report["uterus_tilt"]))
 mr_log = []
 room, resid = U.make_room([O[n_] for n_ in SOFT_N], Mi, Mw, stage_trees, pinned, rigid_soft, gap=0.0025, log=mr_log, rounds=10, decay=0.996, iters=400,
@@ -949,13 +987,9 @@ bl_rest_tree = U.tree_in(bladder, Mi)
 rigid_r1 = U.Obstacles(rigid_r.solid + [(bl_rest_tree, 0.001)], rigid_r.container, [])   # the bladder stays (alone)
 st_trees_r = [U.tree_np(Xk, Tr) for Xk in stages_r[1:]]
 st_pts_r = [(Xk, U.vnormals(Xk, Tr)) for Xk in stages_r[1:]]
-_blk_r = [(t_, 0.002) for t_, _ in bone_trees] + [(bl_rest_tree, 0.0015)]
-th_r = []
-for k in range(RS):
-    th_, left_ = repro_tilt(st_trees_r[k], (-BACK,), _blk_r)
-    th_r.append(th_ if not th_r or abs(th_) > abs(th_r[-1]) else th_r[-1])
-    report["uterus_tilt"][names_rf[k]] = {"deg": round(math.degrees(abs(th_r[-1])), 1), "left_mm": round(left_ * 1000, 2)}
-print("TILT rectum", json.dumps(report["uterus_tilt"]))
+# the uterus stays (the empty bladder in front of it leaves it no room to tip forward): the full rectum settles
+# against it, the tubes and ovaries give way
+th_r = [0.0] * RS
 rlog = []
 room_r, resid_r = U.make_room([O[n_] for n_ in SOFT_R], Mi, Mw, st_trees_r, pinned_r, rigid_r1, gap=0.0025, log=rlog,
                               rounds=10, decay=0.996, iters=400, carry_from=Xr, expanders=st_pts_r,
@@ -1010,20 +1044,34 @@ def shell_tree(names_, extra=None):
     if bnd:
         bmesh.ops.holes_fill(bm_, edges=bnd, sides=0)
     t_ = BVHTree.FromBMesh(bm_); bm_.free(); return t_
+# the full rectum settles against the uterus as the full bladder has tilted it (Both_Full keys on the rectum too)
+Xr_add = stages_r[-1].copy()
+def _to_atlas(n_, P_):
+    M_ = Mi @ O[n_].matrix_world; return np.array(P_) @ np.array(M_.to_3x3()).T + np.array(M_.translation)
+def _to_local(n_, P_):
+    M_ = (Mi @ O[n_].matrix_world).inverted(); return np.array(P_) @ np.array(M_.to_3x3()).T + np.array(M_.translation)
+for n_ in ("AN_Rectum", "AN_Rectum_LowerAmpulla"):
+    Xr_add[idx_r[n_]] = _to_atlas(n_, ADD[n_])      # (the rectum keeps its own object transform; caps stay)
+_ut_add = [U.union_tree([O[n_]], Mi, positions={n_: ADD[n_]}) for n_ in ("AN_Uterus",)]
+Xr_both, wr0, wr1 = U.settle(Xr_add, Tr, fixed_r, _ut_add)
+for n_ in ("AN_Rectum", "AN_Rectum_LowerAmpulla"):
+    ADD_R = _to_local(n_, Xr_both[idx_r[n_]]); ob = O[n_]; base = np.array([tuple(v.co) for v in ob.data.vertices])
+    if float(np.abs(ADD_R - ADD[n_]).max()) > 1e-9:
+        kb = U.add_key(ob, "Both_Full", base + (ADD_R - ADD[n_]), relative="Basis")
+        U.drive2(kb, ctl, ["Bladder_Fill", "Rectum_Fill"], "a*b")
+    ADD[n_] = ADD_R
+report["rectum_fill"]["both_on_uterus_mm"] = [round(wr0 * 1000, 2), round(wr1 * 1000, 2)]
 rect_full = shell_tree(["AN_Rectum", "AN_Rectum_LowerAmpulla"])
 Xb_add = np.array([tuple(Vector(p)) for p in ADD["AN_Bladder"]])     # bladder local = atlas
 Xb_both, w0, w1 = U.settle(Xb_add, bl_faces, fixed_b, [rect_full, shell_tree(["AN_Colon_Descending"]), vag_tree] + [t_ for t_, _ in bone_trees])
 ADD_B = ADD["AN_Bladder"]; ADD["AN_Bladder"] = Xb_both
 both_expander = shell_tree(["AN_Bladder", "AN_Rectum", "AN_Rectum_LowerAmpulla"])
 ADD["AN_Bladder"] = ADD_B
-# the uterus, squeezed between the two, takes whichever turn (back or forward) leaves it least pressed - from rest:
-# the two single-organ tilts would roughly cancel in the sum
+# everything starts from the sum of the two single fillings, so Both_Full is the least correction from it: half-way
+# states (one full, the other half) blend two near-identical arrangements instead of two separately solved ones
 SOFT_B = [n_ for n_ in ("AN_Colon_Descending", "AN_Ureter_L", "AN_Ureter_R") if n_ in O] + REPRO_N
-th_b, left_b = repro_tilt(both_expander, (BACK, -BACK), [(t_, 0.002) for t_, _ in bone_trees])
-report["uterus_tilt"]["Both_Full"] = {"deg": round(math.degrees(th_b * BACK), 1), "left_mm": round(left_b * 1000, 2)}
 room_b, resid_b = U.make_room([O[n_] for n_ in SOFT_B], Mi, Mw, [both_expander], pinned_r, rigid_r, gap=0.0025,
-                              rounds=10, decay=0.996, iters=400, start={n_: ADD[n_] for n_ in SOFT_B if n_ not in REPRO},
-                              pre_stage=repro_pre([th_b]))
+                              rounds=10, decay=0.996, iters=400, start={n_: ADD[n_] for n_ in SOFT_B})
 # the bladder settles again where the uterus could not go further
 _w2 = U.settle(Xb_both, bl_faces, fixed_b, [U.union_tree([O[n_]], Mi, positions={n_: room_b[n_][0]}) for n_ in REPRO_N if n_ != "AN_Uterus_Lumen"])
 Xb_both = _w2[0]
@@ -1060,12 +1108,20 @@ def boxes_meet(A, B, pad=0.005):
     return bool(np.all(A.min(0) - pad < B.max(0)) and np.all(B.min(0) - pad < A.max(0)))
 CHK_OB = [bladder, urethra, uwall] + [O[n_] for n_ in SOFT_N if n_ != "AN_AnalCanal"] + [O["AN_AnalCanal"], O["AN_AnalSphincter"]] + \
          [O[n_] for n_ in ("AN_HipBone_L", "AN_HipBone_R", "AN_Sacrum")] + [O["AN_Kidney_L"], O["AN_Kidney_R"], vag_space]
-NO_PAIR = ({"AN_Urethra", "AN_Urethra_Wall"},)
+# overlaps by design, left out of the polish and the checks: urethra in its wall, the lumen inside the uterus (and
+# with it the cervix inside the vagina's vault), the tubes through the uterine wall into the cavity, each ligament's
+# ends sunk in the organs it holds
+NO_PAIR = [{"AN_Urethra", "AN_Urethra_Wall"}, {"AN_Uterus", "AN_Uterus_Lumen"}, {"AN_Uterus", "AN_Vagina_Space"},
+           {"AN_Uterus_Lumen", "AN_Vagina_Space"}]
+for s_ in "LR":
+    NO_PAIR += [{f"AN_Uterine_Tube_{s_}", "AN_Uterus"}, {f"AN_Uterine_Tube_{s_}", "AN_Uterus_Lumen"}]
+for n_, (a_org, _, b_org, _, _, _) in CORDS.items():
+    NO_PAIR += [{n_, o_} for o_ in (a_org, b_org) if o_]
 setc(0.0, 0.0, 0.0)
 REST_W = {o_.name: ev_np(o_) for o_ in CHK_OB}; REST_T = {o_.name: ev_tree(o_) for o_ in CHK_OB}
 _rest_in = {}
-def rest_in(a, b, gap=0.0008):
-    """vertices of a inside (or within gap of) b at rest"""
+def rest_in(a, b, gap=0.0001):
+    """vertices of a inside b at rest (or on it: seams)"""
     if (a, b) not in _rest_in:
         P_ = REST_W[a]; m_ = np.all((P_ > REST_W[b].min(0) - 0.006) & (P_ < REST_W[b].max(0) + 0.006), axis=1)
         out_ = np.zeros(len(P_), bool); ci = np.nonzero(m_)[0]
@@ -1074,7 +1130,7 @@ def rest_in(a, b, gap=0.0008):
         _rest_in[(a, b)] = out_
     return _rest_in[(a, b)]
 def fixed_of(ob):
-    n_ = ob.name; P_ = np.array([tuple(v.co) for v in ob.data.vertices])
+    n_ = ob.name; P_ = _to_atlas(n_, [tuple(v.co) for v in ob.data.vertices])     # (the pin tests work in atlas space)
     if ob is bladder:
         return fixed_b
     if n_ in idx_r:
@@ -1082,11 +1138,13 @@ def fixed_of(ob):
     if n_ in ("AN_AnalCanal", "AN_AnalSphincter", "AN_Urethra", "AN_Urethra_Wall"):
         return np.ones(len(P_), bool)
     return pinned_r(n_, P_)
-POLISH = [((1.0, 0.0, 0.0), [names_fill[-1], "Bladder_" + names_fill[-1]]), ((0.0, 0.0, 1.0), [names_rf[-1]]),
-          ((1.0, 0.0, 1.0), ["Both_Full"])]
+# every stage state, in order, then both full: key k (chained, relative to k-1) is fully on only at its own stage
+# and the sum telescopes, so a correction written into it touches only the states between its neighbours
+POLISH = [((k / NS, 0.0, 0.0), [names_fill[k - 1], "Bladder_" + names_fill[k - 1]]) for k in range(1, NS + 1)] + \
+         [((0.0, 0.0, k / RS), [names_rf[k - 1]]) for k in range(1, RS + 1)] + [((1.0, 0.0, 1.0), ["Both_Full"])]
 report["polish"] = {}
 for st_, knames in POLISH:
-    setc(*st_); tag = f"bladder{st_[0]}_void{st_[1]}_rectum{st_[2]}"; rep_ = {}
+    setc(*st_); tag = f"bladder{round(st_[0], 3)}_void{st_[1]}_rectum{round(st_[2], 3)}"; rep_ = {}
     W = {o_.name: ev_np(o_) for o_ in CHK_OB}; TR = {o_.name: ev_tree(o_) for o_ in CHK_OB}
     for a in CHK_OB:
         keys = a.data.shape_keys.key_blocks if a.data.shape_keys else {}
@@ -1096,9 +1154,13 @@ for st_, knames in POLISH:
         others = [b for b in CHK_OB if b is not a and {a.name, b.name} not in NO_PAIR and boxes_meet(W[a.name], W[b.name])]
         if not others:
             continue
-        Xn, w0, w1 = U.polish(W[a.name], [tuple(p.vertices) for p in a.data.polygons], fixed_of(a),
+        fx_ = fixed_of(a)
+        if fx_.all():                                # (held: the uterus - the others step off it)
+            continue
+        Xn, w0, w1 = U.polish(W[a.name], [tuple(p.vertices) for p in a.data.polygons], fx_,
                               [TR[b.name] for b in others], [rest_in(a.name, b.name) for b in others],
-                              boxes=[(W[b.name].min(0), W[b.name].max(0)) for b in others])
+                              boxes=[(W[b.name].min(0), W[b.name].max(0)) for b in others],
+                              others=[(W[b.name], rest_in(b.name, a.name)) for b in others])
         if w0 <= 0.0:
             continue
         dl = (Xn - W[a.name]) @ np.array(a.matrix_world.inverted().to_3x3()).T

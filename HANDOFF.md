@@ -2,7 +2,8 @@
 
 **Project goal:** functioning organ systems from the base of the neck down, in Blender, toon shader, female model
 first (`Hips.blend`), a male version later. Done: the digestive system (esophagus -> anus, real openable passage).
-**Current: the urinary system (female) - `scripts/build_urinary.py`, built on build5_passage's output.**
+**Current: the female pelvis - `scripts/build_pelvis.py` (was `build_urinary.py`): urinary system, female bony pelvis,
+internal reproductive organs (first pass), built on build5_passage's output.**
 
 **Urinary system, state (details under "Urinary system" below):**
 1. Kidneys / ureters / adrenals from the atlas, in `Internal_Fit` under `Internal_Fit_Xform`. The atlas ureter already
@@ -20,14 +21,19 @@ first (`Hips.blend`), a male version later. Done: the digestive system (esophagu
    `Bladder_Fill_1..4` (descending/sigmoid colon, rectum, lower ampulla, ureters) - they give way, nothing clips.
 6. Insides lit for every organ / bone material (`tract_lib.light_all`, all three atlas shader families), AO_in
    baked; also in the atlas tract build (all 122 meshes).
+7. Internal reproductive organs (first pass, see "Internal reproductive organs" below): uterus with its canal and
+   cavity, uterine tubes, ovaries, ovarian / round / suspensory ligaments, the cervix opening into the vagina
+   placeholder's vault. The uterus tilts back on its cervix as the bladder fills (22 deg at full); bladder, rectum,
+   bowel, tubes and ovaries give way around it. Renders: `reproductive_views.png`, `reproductive_cutaways.png`,
+   `pelvis_sections.png` (midline sections: rest / bladder full / rectum full / both full).
 
-**Builds (outputs gitignored, rebuild locally):**
+**Builds (blends gitignored, rebuild locally; renders + report in `out/urinary/`):**
 ```
 cd drive
 ANATOMY_REF=$PWD/anatomy_ref.blend blender -b Hips.blend --python ../scripts/build5_passage.py -- \
     $PWD/../out/blend/Hips_build5_passage.blend <report dir>          # anus / tract working file, ~25 s
 ANATOMY_REF=$PWD/anatomy_ref.blend blender -b ../out/blend/Hips_build5_passage.blend \
-    --python ../scripts/build_urinary.py -- $PWD/../out/blend/Hips_urinary.blend ../out/urinary   # ~10-15 min
+    --python ../scripts/build_pelvis.py -- $PWD/../out/blend/Hips_urinary.blend ../out/urinary   # ~25-30 min
 blender -b anatomy_ref.blend --python ../scripts/build_tract_passage.py -- \
     $PWD/../out/blend/anatomy_tract_passage.blend <report dir>        # full atlas tract, ~70 s
 ```
@@ -37,28 +43,28 @@ Python (`/opt/blender-4.2.3-linux-x64/4.2/python/bin/python3.11 -m pip install p
 
 **Open questions for the user / next steps (urinary):**
 - The vulva is rudimentary; the reproductive step rebuilds it. The meatus then needs re-cutting: re-run
-  build_urinary with the new skin (and `URETHRA_MEATUS` / `URETHRA_MEATUS_FROM` if the vestibule moved).
+  build_pelvis with the new skin (and `URETHRA_MEATUS` / `URETHRA_MEATUS_FROM` if the vestibule moved).
 - The organ / bone atlas is a male reference body (the skin is female). Done for the female layout: the bony pelvis
   reshaped (0b), room for the vagina (`AN_Vagina_Space`), the bowel moved out of it.
 - Pelvis: done (female reshaping, step 0b). Rectum filling and both full: done (5d, 5e). The bones were reshaped
   only in the Hips working file; the full-atlas tract file (anatomy_tract_passage) still has the male pelvis.
 - Male version later: no vaginal plane, prostate round the urethra's first 3 cm, a ~20 cm urethra through the penis.
-- Fill is linear between the stages (70 / 150 / 260 / 380 / 500 ml at Fill 0 / .25 / .5 / .75 / 1); the checks run
-  at those values. In-between values blend two clean states.
-- Remaining contact (`checks` in report.json, 14 states of Bladder_Fill x Void x Rectum_Fill; only the intended /
-  atlas overlaps excluded: renal pelvis in the kidney, sacroiliac joint): bladder 0-0.5, all Void states, rectum 0.5
-  are clean or <= 0.3 mm. Bladder full alone: bladder into rectum 2.1 mm (6 vertices), colon into rectum 1.0 mm (14),
-  in the sigmoid-rectum fold. Rectum full alone: left ureter into rectum 1.6 mm (5). Both full: <= 0.5 mm. Seams
-  (neck, meatus, ureteric openings) <= 0.0005 mm in every state. Tried and dropped: smoothing each stage's displacement over the trigone band (it un-filled the bladder:
-  the band covers most of it) and a settle pass for neighbour vertices poking through bladder faces (no effect, and
-  it misfired near the capped openings).
-- Cosmetic: a swirled crease on the bladder's inner back wall round the still trigone at Fill 0.5-1 (the still
-  patch vs the expanding wall); softened (16 -> 50 mm transition, smoothing reaches further than the pressure),
-  not gone.
+- Fill is linear between the stages: 70 / 149 / 257 / 361 / 471 ml at Bladder_Fill 0 / .25 / .5 / .75 / 1 (real ml;
+  grown to 150 / 260 / 380 / 500 targets, ~5 % lost to the crease smoothing, the polish and the room the tilted
+  uterus takes - 470 ml still is a normal full bladder). Rectum 109 -> 176 / 243 / 308 ml. Both full: bladder 470 ml.
+  The checks run at those values; in-between values blend two clean states.
+- Remaining contact (`checks` -> `clipping` in report.json, 14 states; only contacts new or > 0.3 mm deeper than at
+  rest, intended overlaps excluded): rest and Void states clean; bladder-only and rectum-only states <= 0.8 mm except
+  one colon / rectum vertex against the uterus at Bladder_Fill 0.5 (2.4-2.7 mm); both full <= 0.2 mm. The half-way
+  mixes are the worst: bladder 0.5 + rectum 1 has the uterus 1.8 mm into the rectum (370 vertices) and the same single
+  vertices at 2.4-2.9 mm. Tubes / ovaries touch the hip bone by <= 0.6 mm in some states. Seams (neck, meatus,
+  ureteric openings) <= 0.0005 mm everywhere.
+- Crease round the still trigone: smoothed (Taubin passes in the 16-46 mm band, then a short regrow to put the
+  volume back); see `eevee_cut_inside.png`.
 - Lighting of the full atlas tract file: every material is now lit inside (122 meshes); `AO_in` of small closed
   shells (bronchial trees, sphincter) is dark (0.04-0.07), as a fully enclosed inside would be.
 
-## Urinary system (female) - `scripts/build_urinary.py`, `scripts/urinary_lib.py`
+## Urinary system (female) - `scripts/build_pelvis.py`, `scripts/urinary_lib.py`
 
 Runs on build5_passage's output (`out/blend/Hips_build5_passage.blend`) and writes `out/blend/Hips_urinary.blend` +
 `out/urinary/report.json`. Everything is built in "atlas space" (the frame under `Internal_Fit_Xform`, real-size
@@ -156,10 +162,59 @@ settles away from the full rectum (it holds less: 495 instead of 500 ml), then t
 of both. The difference is a `Both_Full` key on bladder, colon and ureters, driven by `a*b` (Bladder_Fill x
 Rectum_Fill), so it fades in with either.
 
+**Internal reproductive organs (step 2b, `scripts/repro_lib.py`; first pass, connected to the vagina placeholder):**
+all real-size in atlas space, parented to `Internal_Fit_Xform`, materials tinted copies of the atlas organ material.
+- `AN_Uterus` (outer surface) + `AN_Uterus_Lumen` (cervical canal + flat triangular cavity), metaballs (built in mm -
+  Blender clamps metaball resolution to >= 5 mm - then decimated to ~5-6k vertices each). Cervix 25 mm, square to the
+  vagina (anteversion), body bent forward on it by `UT_FLEX_DEG` 35 (anteflexion); ~52 x 65 x 50 mm. The two meet at
+  the external os (shared loop, `open_junction(..., outside=(1,))`: the lumen's stub outside the uterus is removed);
+  the cervix pierces the vagina placeholder's vault (shared loop, 40 mm round).
+- `AN_Uterine_Tube_L/R` (~127 mm): from the cavity's corners (shared loops), through the wall, over the ovary, ending
+  in an open fimbriated funnel. `AN_Ovary_L/R` (34 x 20 x 13 mm, small surface bumps) on the side walls.
+  Ligaments as cords: `AN_Ovarian_Ligament_*` (ovary -> uterus), `AN_Round_Ligament_*` (uterus -> deep inguinal
+  ring, inside the abdominal wall), `AN_Suspensory_Ligament_*` (ovary -> pelvic brim); ends sunk 1 mm.
+- The bowel and ureters give way to them (`bowel_room`, keys moved too); tubes / ovaries are kept 2 mm off bone.
+- The empty bladder is grown under the uterus (solid), then the uterus settles on it (`repro_tilt`: 7 deg back);
+  its top is dented where the uterus lies on it, as in life. Each filling stage is grown freely, the uterus tilt that
+  clears it is found, and the stage is grown again with the tilted uterus, tubes, ovaries and ligaments solid (two
+  shells: the uterus, the rest - one shell of overlapping organs fools the ray-parity inside test), so the bladder
+  takes its volume elsewhere (the dome rising along the abdominal wall) instead of being dented.
+- Filling: the uterus is firm - it is never pushed out of shape, it only tilts on its cervix (`tilt_disp`: no turn
+  below 10 mm up the cervix, all of it above 28 mm; the least turn that clears the filling bladder, stopped by bone
+  or 8 mm into the rectum, at most 40 deg). Its neighbours give way to it (make_room: a held organ's face makes the
+  other take the whole push) and the bladder settles (dents) where it presses on. Tubes, ovaries, ligaments follow
+  part of the tilt (less the further from the uterus; ligaments blend between their ends) and are soft. Rectum full:
+  the uterus stays (no room to tip forward with the bladder in front), the rectum settles against it. Both full:
+  every soft organ starts from the sum of the two fillings (the least correction), the rectum and bladder settle
+  against the uterus (`Both_Full` keys on the rectum and ampulla too). Settling now dents inward (`settle(...,
+  inward=True)`: a vertex goes back along its own inward normal to where it leaves the neighbour; the nearest way
+  out wrapped the bladder round the uterus).
+- Not done yet: the vagina itself (still the placeholder `AN_Vagina_Space`), the vulva, broad ligament / peritoneum,
+  blood supply; the male side.
+- What was tried: the uterus soft like the bowel -> its fine mesh was torn into shards when squeezed 10-15 mm (the
+  vertex pushes are fine on coarse bowel meshes only); the empty bladder grown without the uterus, then the uterus
+  tilted onto it -> the cervix sat in the bladder, settling wrapped the bladder round it; Both_Full solved from rest
+  -> half-way states (one full, one half) blended two unrelated arrangements and clipped 4 mm; the bladder grown
+  without the tilted uterus and dented afterwards -> it held only 330-420 ml at full.
+- Gotcha: AN_Rectum / AN_Colon_Descending keep their own object transforms (the new organs are identity under
+  `Internal_Fit_Xform`): convert local <-> atlas (`_to_atlas` / `_to_local`) before mixing them with atlas data.
+- Speed: `urinary_lib.lap_avg` (np.bincount) replaced np.add.at in every diffusion loop (~11x); the polish and the
+  checks test only vertices inside a neighbour's bounding box. Blender ignores PYTHON* env vars: add
+  `--python-use-system-env` (with PYTHONUNBUFFERED=1) to see the log live.
+
+**Polish (5f) and checks:** after all keys, every stage state (bladder 0.25 .. 1, rectum 1/3 .. 1, both full) is
+polished: every organ with a key active there steps out of anything it is newly inside (not inside at rest), and
+pushes off fixed vertices (bone, held organs) poking through its faces, with a short falloff - written into that
+stage's key (chained keys telescope, so a correction touches only the neighbouring states). The checks report, per
+state, only contacts that are new or > 0.3 mm deeper than at rest (`clipping`), the rest ones once
+(`clipping_at_rest`); overlaps by design are left out (lumen in uterus, cervix in the vault, tubes through the wall,
+ligament ends).
+
 **Female pelvis (step 2, before the bladder):** `AN_Vagina_Space` (wire display, not rendered) is a placeholder for
 the collapsed vagina with its walls: a flattened tube (26 x 10 mm real, narrower at the bottom, rounded fornix at the
 top) from 10 mm above the introitus dimple (`VAG_INTROITUS`, body coords) up behind the urethra to the bladder-base
-plane at the neck's height, then 30 mm (`VAG_UP`) up that plane - 54 mm long. The bowel (sigmoid, rectum, lower
+plane at the neck's height, then 40 mm (`VAG_UP_MM`) up that plane (~64 mm long, ~75 mm from the introitus; 30 mm put
+the cervix right on the bladder neck). The bowel (sigmoid, rectum, lower
 ampulla, anal canal except its lowest 12 mm at the anus) is moved out of it with `make_room` (2 mm septum); every
 shape key of a moved organ moves with it, so the anus' Open key still works. Moved: ampulla 2.7 mm, canal top 2.7 mm
 (body), rectum 0.8 mm (atlas). The bladder grows clear of it (solid, 1 mm), the ureters are eased out of it, the
@@ -175,7 +230,8 @@ the rest. 3-ray inside tests gave false answers near grazing edges: 5 rays now.
 
 **Tools:** `scripts/tools/sagittal.py` (any objects, any axis-aligned plane; `SAG_KEYS="Bladder_Fill=1,Rectum_Fill=1"`),
 `scripts/tools/urinary_views.py` (overview, midline cut-aways at Fill 0 / 0.5 / 1, rectum full, both full, meatus
-closed / voiding, EEVEE cut-away of the full bladder's lit inside). Renders in `out/urinary/`.
+closed / voiding, EEVEE cut-away of the full bladder's lit inside, reproductive organs front / top / side and midline
+cut-aways at rest / bladder full / rectum full / both full). Renders in `out/urinary/`.
 
 ---
 
