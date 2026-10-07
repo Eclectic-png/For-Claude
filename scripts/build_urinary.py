@@ -65,6 +65,37 @@ for ob in dst.objects:
 bpy.context.view_layer.update()
 old_bladder = O["AN_Bladder"]; old_bladder.name = "_atlas_bladder"
 
+# ======================= 0b. the pelvis made female =======================
+# the atlas' bones are a male pelvis (narrow subpubic arch, ischial tuberosities ~85 mm apart, heart-shaped inlet,
+# curved sacrum). One smooth displacement field (urinary_lib.female_pelvis_field) for both hip bones and the sacrum -
+# so the symphysis and the sacroiliac joints stay matched - widens the arch and the outlet, moves the ischial spines
+# out, widens the brim and the sacrum, straightens the lower sacrum / coccyx back and lowers the iliac wings a little.
+# FEMALE_PELVIS (default 1) scales it (0 = keep the atlas pelvis); it is backed off if a bone would come within
+# PELVIS_SKIN mm (body) of the skin.
+FEMALE_PELVIS = float(os.environ.get("FEMALE_PELVIS", "1")); PELVIS_SKIN = 0.0025
+PELVIS = [n_ for n_ in ("AN_HipBone_L", "AN_HipBone_R", "AN_Sacrum") if n_ in O]
+def _bone_pts(n_):
+    M_ = Mi @ O[n_].matrix_world; return np.array([tuple(M_ @ v.co) for v in O[n_].data.vertices])
+_P0 = {n_: _bone_pts(n_) for n_ in PELVIS}
+report["pelvis"] = {"before": U.pelvis_metrics(_P0)}
+_skw = U.tree_in(hips, None, cap=False)
+amt = FEMALE_PELVIS
+while FEMALE_PELVIS > 0:
+    _P1 = {n_: _P0[n_] + U.female_pelvis_field(_P0[n_], amt) for n_ in PELVIS}
+    clear = min(_skw.find_nearest(Mw @ Vector(p))[3] for n_ in PELVIS for p in _P1[n_][::2])
+    if clear >= PELVIS_SKIN or amt < 0.1:
+        break
+    amt *= 0.8
+if FEMALE_PELVIS > 0:
+    for n_ in PELVIS:
+        M_ = (Mi @ O[n_].matrix_world).inverted()
+        O[n_].data.vertices.foreach_set("co", np.array([tuple(M_ @ Vector(p)) for p in _P1[n_]], np.float32).ravel())
+        O[n_].data.update()
+    bpy.context.view_layer.update()
+    report["pelvis"].update({"after": U.pelvis_metrics(_P1), "amount": round(amt, 3), "skin_clearance_mm": round(clear * 1000, 2)})
+print("PELVIS", json.dumps(report["pelvis"]))
+done("pelvis")
+
 # ======================= 1. kidneys: open the wall where the renal pelvis leaves at the hilum =======================
 report["hilum"] = {}
 for s in "LR":
@@ -475,16 +506,22 @@ print("URETHRA", json.dumps(report["urethra"]), json.dumps(report["meatus"]))
 done("urethra")
 
 # ======================= 5. controls, shape keys, neighbours that give way =======================
-ctl = O.get("Urinary_Controls") or O.new("Urinary_Controls", None)
+for _old in ("Urinary_Controls",):
+    if O.get(_old):
+        O.remove(O[_old])
+ctl = O.get("Pelvic_Controls") or O.new("Pelvic_Controls", None)
 if ctl.name not in col_fit.objects:
     col_fit.objects.link(ctl)
 ctl.empty_display_type = 'SPHERE'; ctl.empty_display_size = 0.006
 ctl.location = Mw @ (NECK + U0 * 0.03)
-for prop, desc in (("Fill", "bladder: 0 empty (~70 ml) .. 1 full (500 ml); the bowel gives way"),
-                   ("Void", "0 closed .. 1 voiding: bladder neck, urethra and meatus open")):
+for prop, desc in (("Bladder_Fill", "bladder: 0 empty (~70 ml) .. 1 full (500 ml); the bowel gives way"),
+                   ("Void", "0 closed .. 1 voiding: bladder neck, urethra and meatus open"),
+                   ("Rectum_Fill", "rectum: 0 resting .. 1 full (+200 ml); the bowel and the bladder give way")):
     ctl[prop] = 0.0
     ui = ctl.id_properties_ui(prop); ui.update(min=0.0, max=1.0, soft_min=0.0, soft_max=1.0, description=desc)
 NS = len(stages) - 1                             # Fill_1 .. Fill_NS, each relative to the one before
+def setc(fill, void, rect=0.0):
+    ctl["Bladder_Fill"] = fill; ctl["Void"] = void; ctl["Rectum_Fill"] = rect; ctl.update_tag(); bpy.context.view_layer.update()
 
 # 5a. bladder: the stages on the opened, junction-cut mesh (new vertices sit in the still trigone)
 Pb = np.array([tuple(v.co) for v in bladder.data.vertices])
@@ -509,7 +546,7 @@ prev = "Basis"
 for k in range(1, NS + 1):
     pos = np.array([stages[k][i] if i >= 0 else Pb[j] + stages[k][nearest_src[j]] - Xe[nearest_src[j]] for j, i in enumerate(src_i)])
     kb = U.add_key(bladder, names_fill[k - 1], pos, relative=prev); prev = kb.name
-    U.drive(kb, ctl, "Fill", f"f*{NS}-{k - 1}" if k > 1 else f"f*{NS}")
+    U.drive(kb, ctl, "Bladder_Fill", f"f*{NS}-{k - 1}" if k > 1 else f"f*{NS}")
 report["bladder"]["new_vertices_in_trigone"] = n_new
 
 # 5b. Void: the neck funnels open (round, R_OPEN_NECK) and sinks a little; urethra round; meatus lips part
@@ -585,7 +622,7 @@ for n_ in SOFT_N:
         continue
     for k in range(1, NS + 1):
         kb = U.add_key(ob, f"Bladder_{names_fill[k - 1]}", room[n_][k - 1], relative=prev); prev = kb.name
-        U.drive(kb, ctl, "Fill", f"f*{NS}-{k - 1}" if k > 1 else f"f*{NS}")
+        U.drive(kb, ctl, "Bladder_Fill", f"f*{NS}-{k - 1}" if k > 1 else f"f*{NS}")
 # the bladder settles against what could not move further (bowel trapped against the sacrum, the pelvic bones): a
 # shallow dent in its own wall where it still presses in, the trigone stays
 bl_faces = [tuple(p.vertices) for p in bladder.data.polygons]
@@ -604,14 +641,123 @@ for k in range(1, NS + 1):
     kb.data.foreach_set("co", Xs_.astype(np.float32).ravel())
     report["settle"][names_fill[k - 1]] = {"pressing_in_mm": round(w0 * 1000, 2), "after_mm": round(w1 * 1000, 2)}
 print("SETTLE", json.dumps(report["settle"]))
+
+# ======================= 5d. the rectum fills (Rectum_Fill) =======================
+# the rectum and the lower ampulla are one reservoir: welded, its two openings (onto the sigmoid, onto the anal canal)
+# capped and held still, pressure-grown in RS stages to +RECTUM_ADD_ML (real ml) against the bones (sacrum, coccyx),
+# the abdominal wall and the vagina's room. The anal canal stays closed. Then the sigmoid, the bladder (trigone still)
+# and the ureters give way to it, as they do to the bladder.
+RECTUM_ADD_ML = float(os.environ.get("RECTUM_ADD_ML", "200")); RS = 3
+REC = [O["AN_Rectum"], O["AN_Rectum_LowerAmpulla"]]
+Xr_, Fr_, idx_r = U.weld_union(REC, Mi)
+Xr, Tr, loops_r, cen_r = U.cap_holes(Xr_, Fr_)
+if U.volume(Xr, Tr) < 0:
+    Tr = [t[::-1] for t in Tr]
+V_r0 = U.volume(Xr, Tr)
+_rim = [Xr[i] for lp in loops_r for i in lp]
+_kr = kdtree.KDTree(len(_rim))
+for i, p in enumerate(_rim):
+    _kr.insert(Vector(p), i)
+_kr.balance()
+d_rim = np.array([_kr.find(Vector(p))[2] for p in Xr])
+mob_r = U.ss(0.008, 0.025, d_rim); mob_r[cen_r] = 0.0
+# on its own the full rectum does not move the bladder or the ureters (in a woman the vagina / uterus take that
+# push): they are solid for it; the bladder gives way only when both are full (5e)
+obst_r = U.Obstacles([(t_, 0.0035) for t_, _ in bone_trees] + [(vag_tree, 0.0015), (U.tree_in(bladder, Mi), 0.002)] +
+                     [(U.tree_in(O["AN_Ureter_" + s_], Mi, cap=False), 0.0012) for s_ in "LR"], [(skin_tree, 0.005)], [])
+stages_r = [Xr]; report["rectum_fill"] = {"rest_ml": round(V_r0 * 1e6, 1), "stages_ml": []}
+for k in range(1, RS + 1):
+    Xn, Vn = U.grow(stages_r[-1], Tr, mob_r, V_r0 + RECTUM_ADD_ML * 1e-6 * k / RS, obst_r)
+    stages_r.append(Xn); report["rectum_fill"]["stages_ml"].append(round(Vn * 1e6, 1))
+print("RECTUM", json.dumps(report["rectum_fill"]))
+names_rf = [f"Rectum_Fill_{k}" for k in range(1, RS + 1)]
+for ob in REC:
+    Mloc = (Mi @ ob.matrix_world).inverted(); prev = "Basis"
+    for k in range(1, RS + 1):
+        pos = np.array([tuple(Mloc @ Vector(p)) for p in stages_r[k][idx_r[ob.name]]])
+        kb = U.add_key(ob, names_rf[k - 1], pos, relative=prev); prev = kb.name
+        U.drive(kb, ctl, "Rectum_Fill", f"f*{RS}-{k - 1}" if k > 1 else f"f*{RS}")
+# neighbours
+SOFT_R = [n_ for n_ in ("AN_Colon_Descending", "AN_Ureter_L", "AN_Ureter_R") if n_ in O]
+_rim_np = np.array(_rim)
+def pinned_r(name, P):
+    if name == "AN_Bladder":
+        return dist_trigone(P) < TRIG_FIX
+    if name == "AN_Colon_Descending":                # its seam with the rectum stays with the rectum's still rim
+        return np.array([_kr.find(Vector(p))[2] < 0.008 for p in P])
+    if name.startswith("AN_Ureter"):                 # held only right at its bladder opening and in the kidney
+        s_ = name[-1]; near_b = np.array([loop_kd[s_].find(Vector(p))[2] < 0.006 for p in P])
+        near_k = np.array([kid_trees["LR".index(s_)].find_nearest(Vector(p))[3] < 0.006 for p in P])
+        return near_b | near_k
+    return pinned(name, P)
+rigid_r = U.Obstacles([(t_, 0.0008) for t_, _ in bone_trees] +
+                      [(U.tree_in(O[n_], Mi), 0.0005) for n_ in ("AN_Kidney_L", "AN_Kidney_R", "AN_Adrenal_L", "AN_Adrenal_R")] +
+                      [(vag_tree, 0.0008)], [(skin_tree, 0.003)], [])
+st_trees_r = [U.tree_np(Xk, Tr) for Xk in stages_r[1:]]
+st_pts_r = [(Xk, U.vnormals(Xk, Tr)) for Xk in stages_r[1:]]
+rlog = []
+room_r, resid_r = U.make_room([O[n_] for n_ in SOFT_R], Mi, Mw, st_trees_r, pinned_r, rigid_r, gap=0.0025, log=rlog,
+                              rounds=10, decay=0.996, iters=400, carry_from=Xr, expanders=st_pts_r)
+report["rectum_fill"]["neighbours_residual_mm"] = resid_r
+for n_ in SOFT_R:
+    ob = O[n_]; base = np.array([tuple(v.co) for v in ob.data.vertices]); prev = "Basis"
+    if float(np.abs(room_r[n_][-1] - base).max()) < 1e-9:
+        continue
+    for k in range(1, RS + 1):
+        kb = U.add_key(ob, names_rf[k - 1], room_r[n_][k - 1], relative=prev); prev = kb.name
+        U.drive(kb, ctl, "Rectum_Fill", f"f*{RS}-{k - 1}" if k > 1 else f"f*{RS}")
+print("RECTUM_ROOM", resid_r, rlog[-4:])
+
+# ======================= 5e. both full (Bladder_Fill x Rectum_Fill) =======================
+# the two sets of keys add, so both at 1 would collide: from that sum, the bladder gives way where the full rectum
+# presses (it rises and holds less - as it does: a loaded rectum lowers the bladder's capacity), then the bowel and
+# ureters are cleared of both. The difference is one more key per organ, driven by Bladder_Fill * Rectum_Fill.
+setc(1.0, 0.0, 1.0)
+_dg = bpy.context.evaluated_depsgraph_get()
+def ev_local(ob):
+    e_ = ob.evaluated_get(_dg); m_ = e_.to_mesh(); P_ = np.array([tuple(v.co) for v in m_.vertices]); e_.to_mesh_clear(); return P_
+ADD = {n_: ev_local(O[n_]) for n_ in ["AN_Bladder", "AN_Rectum", "AN_Rectum_LowerAmpulla", "AN_Colon_Descending", "AN_Ureter_L", "AN_Ureter_R"]}
+def shell_tree(names_, extra=None):
+    bm_ = bmesh.new()
+    for n_ in names_:
+        M_ = Mi @ O[n_].matrix_world; vv = [bm_.verts.new(M_ @ Vector(p)) for p in ADD[n_]]
+        for poly in O[n_].data.polygons:
+            try:
+                bm_.faces.new([vv[i] for i in poly.vertices])
+            except ValueError:
+                pass
+    bmesh.ops.remove_doubles(bm_, verts=bm_.verts, dist=1e-6)
+    bnd = [e for e in bm_.edges if e.is_boundary]
+    if bnd:
+        bmesh.ops.holes_fill(bm_, edges=bnd, sides=0)
+    t_ = BVHTree.FromBMesh(bm_); bm_.free(); return t_
+rect_full = shell_tree(["AN_Rectum", "AN_Rectum_LowerAmpulla"])
+Xb_add = np.array([tuple(Vector(p)) for p in ADD["AN_Bladder"]])     # bladder local = atlas
+Xb_both, w0, w1 = U.settle(Xb_add, bl_faces, fixed_b, [rect_full, shell_tree(["AN_Colon_Descending"]), vag_tree] + [t_ for t_, _ in bone_trees])
+ADD_B = ADD["AN_Bladder"]; ADD["AN_Bladder"] = Xb_both
+both_expander = shell_tree(["AN_Bladder", "AN_Rectum", "AN_Rectum_LowerAmpulla"])
+ADD["AN_Bladder"] = ADD_B
+SOFT_B = [n_ for n_ in ("AN_Colon_Descending", "AN_Ureter_L", "AN_Ureter_R") if n_ in O]
+room_b, resid_b = U.make_room([O[n_] for n_ in SOFT_B], Mi, Mw, [both_expander], pinned_r, rigid_r, gap=0.0025,
+                              rounds=10, decay=0.996, iters=400, start={n_: ADD[n_] for n_ in SOFT_B})
+setc(0.0, 0.0, 0.0)
+report["both_full"] = {"bladder_pressing_mm": round(w0 * 1000, 2), "after_mm": round(w1 * 1000, 2), "neighbours_residual_mm": resid_b}
+for n_, final in [("AN_Bladder", Xb_both)] + [(n_, room_b[n_][0]) for n_ in SOFT_B]:
+    ob = O[n_]; base = np.array([tuple(v.co) for v in ob.data.vertices])
+    delta = final - ADD[n_]
+    if float(np.abs(delta).max()) < 1e-9:
+        continue
+    kb = U.add_key(ob, "Both_Full", base + delta, relative="Basis")
+    U.drive2(kb, ctl, ["Bladder_Fill", "Rectum_Fill"], "a*b")
+_bmv = U.volume(np.array(Xb_both), [t for f in bl_faces for t in ([f[0], f[i], f[i + 1]] for i in range(1, len(f) - 1))])
+report["both_full"]["bladder_ml"] = round(_bmv * 1e6, 1)
+print("BOTH", json.dumps(report["both_full"]))
 done("keys")
 
 # ======================= 6. lighting: insides lit everywhere, smooth-lighting bakes =======================
 # new organs get the outer "AO" bake (at rest); every organ / bone material lights its inside and every object without
 # an inner bake gets "AO_in" (the urethra's with it open, like the anal canal's); the bowel keeps build5_passage's
 AO_DIST, AO_RAYS = 0.008, 32
-def setc(fill, void):
-    ctl["Fill"] = fill; ctl["Void"] = void; ctl.update_tag(); bpy.context.view_layer.update()
 setc(0.0, 0.0)
 _tr = T.scene_bvh(); report["ao"] = {}
 for ob in (bladder, urethra, uwall):
@@ -646,12 +792,14 @@ setc(0.5, 0.0)
 chk["drivers_at_fill_0.5"] = {kb.name: round(kb.value, 3) for kb in bladder.data.shape_keys.key_blocks[1:]}
 # seams in every state
 _kidx = {s: None for s in "LR"}
-states = [(0.0, 0.0), (0.25, 0.0), (0.5, 0.0), (0.75, 0.0), (1.0, 0.0), (0.0, 1.0), (1.0, 1.0)]
+states = [(0.0, 0.0, 0.0), (0.25, 0.0, 0.0), (0.5, 0.0, 0.0), (0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0),
+          (1.0, 1.0, 0.0), (0.0, 0.0, 0.5), (0.0, 0.0, 1.0), (0.5, 0.0, 0.5), (1.0, 0.0, 0.5), (0.5, 0.0, 1.0),
+          (1.0, 0.0, 1.0), (1.0, 1.0, 1.0)]
 chk["seams_mm"] = {}; chk["volume_ml"] = {}; chk["clipping"] = {}
-pairs_ob = [bladder, urethra, uwall] + [O[n_] for n_ in SOFT_N if n_ != "AN_AnalCanal"] + [O[n_] for n_ in ("AN_HipBone_L", "AN_HipBone_R", "AN_Sacrum")] + \
+pairs_ob = [bladder, urethra, uwall] + [O[n_] for n_ in SOFT_N if n_ != "AN_AnalCanal"] + [O["AN_AnalCanal"], O["AN_AnalSphincter"]] + [O[n_] for n_ in ("AN_HipBone_L", "AN_HipBone_R", "AN_Sacrum")] + \
            [O["AN_Kidney_L"], O["AN_Kidney_R"], vag_space]
-for fill, void in states:
-    setc(fill, void); tag = f"fill{fill}_void{void}"
+for fill, void, rect in states:
+    setc(fill, void, rect); tag = f"bladder{fill}_void{void}_rectum{rect}"
     Pb_ = wpos(bladder); Pu_ = wpos(urethra); Ph_ = wpos(hips)
     neck = max((Pb_[neck_idx[k]] - Pu_[k]).length for k in range(K_U))
     meat = max((Ph_[slit_idx[k]] - Pu_[(NR - 1) * K_U + k]).length for k in range(K_U))
@@ -670,7 +818,7 @@ for fill, void in states:
     bnd = [e for e in bmv.edges if e.is_boundary]
     bmesh.ops.holes_fill(bmv, edges=bnd, sides=0); bmesh.ops.triangulate(bmv, faces=bmv.faces[:])
     chk["volume_ml"][tag] = round(bmv.calc_volume(signed=True) * 1e6, 1); bmv.free()
-    if void == 0.0 or fill == 1.0:
+    if True:
         trees_ = {o_.name: ev_tree(o_) for o_ in pairs_ob}
         clip = {}
         for a in pairs_ob:

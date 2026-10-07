@@ -3,7 +3,7 @@ EEVEE (toon materials) cut-away of the bladder showing its lit inside. Args: -- 
 import bpy, sys, os, math
 from mathutils import Vector
 OUT = sys.argv[-1]; os.makedirs(OUT, exist_ok=True)
-sc = bpy.context.scene; O = bpy.data.objects; ctl = O["Urinary_Controls"]
+sc = bpy.context.scene; O = bpy.data.objects; ctl = O["Pelvic_Controls"]
 COL = {"Hips": (0.85, 0.75, 0.72), "AN_Bladder": (0.95, 0.8, 0.3), "AN_Urethra": (0.95, 0.5, 0.55),
        "AN_Urethra_Wall": (0.75, 0.35, 0.35), "AN_Ureter_L": (0.9, 0.55, 0.1), "AN_Ureter_R": (0.9, 0.55, 0.1),
        "AN_Kidney_L": (0.6, 0.2, 0.2), "AN_Kidney_R": (0.6, 0.2, 0.2), "AN_Adrenal_L": (0.8, 0.6, 0.3),
@@ -16,8 +16,8 @@ for o in O:
 cam = O.new("_cam", bpy.data.cameras.new("_cam")); cam.data.type = 'ORTHO'; sc.collection.objects.link(cam); sc.camera = cam
 
 
-def setc(fill, void):
-    ctl["Fill"] = fill; ctl["Void"] = void; ctl.update_tag(); bpy.context.view_layer.update()
+def setc(fill, void, rect=0.0):
+    ctl["Bladder_Fill"] = fill; ctl["Void"] = void; ctl["Rectum_Fill"] = rect; ctl.update_tag(); bpy.context.view_layer.update()
 
 
 def show(names):
@@ -46,6 +46,10 @@ shot("overview_side", (0, 0.02, 0.86), (-1, 0, 0), 0.24)
 for f in (0.0, 0.5, 1.0):
     setc(f, 0); show(org + ["Hips"])
     shot(f"cut_fill{f}", (0, 0.01, 0.83), (-1, 0, 0), 0.13, clip=0.4)
+# rectum full, and both full
+for f, r, nm in ((0.0, 1.0, "cut_rectum_full"), (1.0, 1.0, "cut_both_full")):
+    setc(f, 0, r); show(org + ["Hips"])
+    shot(nm, (0, 0.01, 0.83), (-1, 0, 0), 0.13, clip=0.4)
 # meatus from below, closed / voiding (labia cut away by a clip plane just under the crest)
 for v in (0.0, 1.0):
     setc(0, v); show(["Hips", "AN_Urethra"])

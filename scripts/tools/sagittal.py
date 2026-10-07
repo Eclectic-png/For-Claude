@@ -1,6 +1,6 @@
 """2D section of many objects through one plane, drawn as coloured outlines on a 5 mm grid (labels in metres).
-Shape keys / modifiers are evaluated, so set them first (SAG_KEYS='Fill=1,Void=0' sets custom props on
-Urinary_Controls before drawing).
+Shape keys / modifiers are evaluated, so set them first (SAG_KEYS='Bladder_Fill=1,Rectum_Fill=1' sets custom props on
+Pelvic_Controls before drawing).
 Args: -- <axis x|y|z> <offset_m> <centre_u> <centre_v> <half_width_m> <out.png> [obj ...]   (no objs = all meshes)"""
 import bpy, bmesh, sys, os, colorsys
 from mathutils import Vector
@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw
 argv = sys.argv[sys.argv.index("--") + 1:]
 ax, off, cu, cv, hw, OUT = argv[0], float(argv[1]), float(argv[2]), float(argv[3]), float(argv[4]), argv[5]
 names = argv[6:] or [o.name for o in bpy.data.objects if o.type == 'MESH' and not o.hide_render]
-ctl = bpy.data.objects.get("Urinary_Controls")
+ctl = bpy.data.objects.get("Pelvic_Controls") or bpy.data.objects.get("Urinary_Controls")
 for kv in filter(None, os.environ.get("SAG_KEYS", "").split(",")):
     k, v = kv.split("="); ctl[k] = float(v); ctl.update_tag()
 bpy.context.view_layer.update()

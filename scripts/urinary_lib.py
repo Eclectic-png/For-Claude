@@ -576,7 +576,7 @@ def cut_meatus(skin, M, t_ap, e_lat, K, half, lip, reg_u, reg_v, step=0.00022):
 
 # ---------------------------------------------------------------- neighbours that give way
 def make_room(objs, M_to, M_from, expander_trees, pinned, rigid, gap=0.0015, decay=0.9992, iters=700, rounds=6,
-              band=0.06, log=None, expanders=None, carry_from=None, carry_sigma=0.010, carry_reach=0.015):
+              band=0.06, log=None, expanders=None, carry_from=None, carry_sigma=0.010, carry_reach=0.015, start=None):
     """corrective positions for soft organs `objs` while an organ grows through stages. At each stage, per round:
       - every soft vertex inside (or within `gap` of) the grown shell is pushed just outside it;
       - where the grown shell bulges through the middle of a soft organ's face (coarse faces: no soft vertex is
@@ -590,7 +590,8 @@ def make_room(objs, M_to, M_from, expander_trees, pinned, rigid, gap=0.0015, dec
     P_all = []; owner = []; F_all = []; off = 0
     for ob in objs:
         Mw_ = ob.matrix_world
-        P = np.array([tuple(M_to @ (Mw_ @ v.co)) for v in ob.data.vertices])
+        src = [Vector(p) for p in start[ob.name]] if start and ob.name in start else [v.co for v in ob.data.vertices]
+        P = np.array([tuple(M_to @ (Mw_ @ c)) for c in src])   # (start: local positions to begin from)
         P_all.append(P); owner.append((ob, off, len(P)))
         F_all.append([[off + i for i in p.vertices] for p in ob.data.polygons]); off += len(P)
     P = np.concatenate(P_all)
@@ -779,3 +780,119 @@ def settle(X, faces, fixed, trees, gap=0.0006, decay=0.985, iters=300, rounds=8,
     for tree in trees:
         d, _, _ = signed_dist(tree, X, band=band); after = max(after, float(max(0.0, -d[~fixed].min())))
     return X, worst0 or 0.0, after
+
+
+# ---------------------------------------------------------------- pelvis: measurements, female reshaping
+def pelvis_metrics(bones_P):
+    """bones_P: {name: (n,3) atlas points}. Subpubic angle (deg, from the medial edges of the inferior pubic rami in
+    the coronal plane), intertuberous and brim (inlet transverse) widths (mm), sacrum height (mm)"""
+    H = np.concatenate([bones_P["AN_HipBone_L"], bones_P["AN_HipBone_R"]])
+    zb = H[:, 2].min()
+    out = {}
+    lines = {}
+    for s, P in (("L", bones_P["AN_HipBone_L"]), ("R", bones_P["AN_HipBone_R"])):
+        F = P[P[:, 1] < -0.05]                    # the front: pubis and its rami
+        pts = []
+        for z in np.linspace(zb + 0.004, zb + 0.022, 7):
+            sl = F[np.abs(F[:, 2] - z) < 0.0015]
+            if len(sl):
+                pts.append((np.abs(sl[:, 0]).min(), z))
+        pts = np.array(pts); a, b = np.polyfit(pts[:, 1], pts[:, 0], 1)   # |x| = a z + b
+        lines[s] = a
+    out["subpubic_angle_deg"] = round(math.degrees(2 * math.atan(abs((lines["L"] + lines["R"]) / 2))), 1)
+    tub = []
+    for P in (bones_P["AN_HipBone_L"], bones_P["AN_HipBone_R"]):
+        q = P[P[:, 1] > -0.09]; tub.append(q[q[:, 2].argmin()])
+    out["intertuberous_mm"] = round(float(abs(tub[0][0] - tub[1][0])) * 1000, 1)
+    brim = []
+    for z in np.linspace(0.835, 0.875, 9):
+        sl = H[(np.abs(H[:, 2] - z) < 0.002) & (H[:, 1] > -0.10) & (H[:, 1] < -0.04)]
+        if len(sl):
+            L = sl[sl[:, 0] > 0][:, 0]; R = sl[sl[:, 0] < 0][:, 0]
+            if len(L) and len(R):
+                brim.append(L.min() - R.max())
+    out["brim_width_mm"] = round(float(max(brim)) * 1000, 1) if brim else None
+    S = bones_P["AN_Sacrum"]; out["sacrum_height_mm"] = round(float(S[:, 2].max() - S[:, 2].min()) * 1000, 1)
+    out["sacrum_width_mm"] = round(float(S[:, 0].max() - S[:, 0].min()) * 1000, 1)
+    return out
+
+
+def female_pelvis_field(P, amt=1.0, sym_x=0.0):
+    """smooth displacement (atlas space, real size) taking a male pelvis toward the female form; one field for the
+    hip bones and the sacrum together, so the symphysis and sacroiliac joints stay matched. amt scales all of it.
+      - outlet: below the acetabula the inferior pubic / ischial rami and the tuberosities spread outward (up to
+        OUT_MM a side), nothing at the symphysis (|x| < 6 mm) -> wider subpubic arch, wider intertuberous distance;
+      - mid-pelvis: the ischial spines (posterior, mid height) move out SPINE_MM;
+      - inlet: the brim and the sacrum's wings widen BRIM_MM a side (oval instead of heart-shaped);
+      - the lower sacrum and coccyx straighten backward (COCCYX_MM at the tip), the iliac wings sit a little lower."""
+    OUT_MM, SPINE_MM, BRIM_MM, COCCYX_MM, ILIUM_LOWER = 0.012, 0.006, 0.005, 0.006, 0.08
+    x, y, z = P[:, 0] - sym_x, P[:, 1], P[:, 2]; ax = np.abs(x); sg = np.sign(x)
+    g = ss(0.006, 0.030, ax)                     # nothing at the midline (symphysis, sacral middle)
+    w_out = ss(0.805, 0.765, z)                  # below the acetabula
+    bump = lambda c, h: np.exp(-((z - c) / h) ** 2)
+    post = ss(-0.090, -0.060, y)
+    dx = sg * g * (OUT_MM * w_out + SPINE_MM * bump(0.795, 0.02) * post + BRIM_MM * bump(0.86, 0.03))
+    dy = COCCYX_MM * ss(0.86, 0.79, z) * ss(-0.07, -0.03, y)
+    dz = -ILIUM_LOWER * np.maximum(0.0, z - 0.875) * ss(0.035, 0.06, ax)
+    return np.stack([dx, dy, dz], 1) * amt
+
+
+def drive2(kb, ctl, props, expr):
+    """kb.value = expr of several control properties (variables a, b, ...), a simple expression"""
+    fc = kb.driver_add("value"); dr = fc.driver; dr.type = 'SCRIPTED'
+    while dr.variables:
+        dr.variables.remove(dr.variables[0])
+    for name, prop in zip("abcdefgh", props):
+        v = dr.variables.new(); v.name = name; v.type = 'SINGLE_PROP'
+        v.targets[0].id = ctl; v.targets[0].data_path = f'["{prop}"]'
+    dr.expression = expr
+    return fc
+
+
+def weld_union(objs, M_to, tol=1e-6):
+    """one welded mesh (work frame) from several objects that share seams: X, faces, and per object the union index
+    of each of its vertices"""
+    P_all = []; F = []; owner = []; off = 0
+    for ob in objs:
+        P = np.array([tuple(M_to @ (ob.matrix_world @ v.co)) for v in ob.data.vertices])
+        P_all.append(P); F += [[off + i for i in p.vertices] for p in ob.data.polygons]; owner.append((ob.name, off, len(P))); off += len(P)
+    P = np.concatenate(P_all); kd = kdtree.KDTree(len(P))
+    for i, p in enumerate(P):
+        kd.insert(Vector(p), i)
+    kd.balance()
+    rep = np.array([min(k_ for _, k_, _ in kd.find_range(Vector(p), tol)) for p in P])
+    uniq, inv = np.unique(rep, return_inverse=True)
+    X = P[uniq]; Fu = []
+    for f in F:
+        g = [int(inv[i]) for i in f]
+        if len(set(g)) == len(g):
+            Fu.append(g)
+    return X, Fu, {n: inv[o:o + c] for n, o, c in owner}
+
+
+def cap_holes(X, F):
+    """close every boundary loop of (X, F) with a fan round its centroid (new vertices appended); returns X, F
+    (triangles), the loops (vertex index lists) and the indices of the cap centres"""
+    edges = {}
+    for f in F:
+        for a, b in zip(f, f[1:] + f[:1]):
+            edges[(a, b)] = edges.get((a, b), 0) + 1
+    bnd = {(a, b) for (a, b) in edges if (b, a) not in edges}
+    nxt = {a: b for a, b in bnd}; loops = []; seen = set()
+    for a in list(nxt):
+        if a in seen:
+            continue
+        lp = [a]; seen.add(a); c = nxt[a]
+        while c != a and c not in seen:
+            lp.append(c); seen.add(c); c = nxt.get(c, a)
+        loops.append(lp)
+    X = list(map(tuple, X)); T = []
+    for f in F:
+        for k in range(1, len(f) - 1):
+            T.append([f[0], f[k], f[k + 1]])
+    centres = []
+    for lp in loops:
+        c = np.mean([X[i] for i in lp], axis=0); X.append(tuple(c)); ci = len(X) - 1; centres.append(ci)
+        for a, b in zip(lp, lp[1:] + lp[:1]):
+            T.append([b, a, ci])                 # the boundary edge a->b belongs to a face; the cap runs b->a
+    return np.array(X), T, loops, centres

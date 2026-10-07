@@ -15,7 +15,7 @@ first (`Hips.blend`), a male version later. Done: the digestive system (esophagu
 4. New `AN_Urethra` (38 mm real / 27 mm in the body) from the bladder neck (shared loop) to the external meatus: a
    3.6 mm sagittal slit cut into the crest of the vestibule's slot (shared loop with the skin). Collapsed at rest
    (transverse crescent -> sagittal slit), `AN_Urethra_Wall` sleeve (thicker at the external sphincter).
-5. One control object, **`Urinary_Controls`** (custom properties **Fill** 0..1, **Void** 0..1) drives every key:
+5. One control object, **`Pelvic_Controls`** (custom properties **Bladder_Fill**, **Void**, **Rectum_Fill**, each 0..1) drives every key:
    bladder `Fill_1..4` (chained stages) + `Void`; urethra `Void`; skin `Void`; and the neighbours' corrective keys
    `Bladder_Fill_1..4` (descending/sigmoid colon, rectum, lower ampulla, ureters) - they give way, nothing clips.
 6. Insides lit for every organ / bone material (`tract_lib.light_all`, all three atlas shader families), AO_in
@@ -38,20 +38,18 @@ Python (`/opt/blender-4.2.3-linux-x64/4.2/python/bin/python3.11 -m pip install p
 **Open questions for the user / next steps (urinary):**
 - The vulva is rudimentary; the reproductive step rebuilds it. The meatus then needs re-cutting: re-run
   build_urinary with the new skin (and `URETHRA_MEATUS` / `URETHRA_MEATUS_FROM` if the vestibule moved).
-- The organ / bone atlas is a male reference body (the skin is female). Done for the female layout so far: room for
-  the vagina (`AN_Vagina_Space`, see "Female pelvis" below), the bowel moved out of it. Not done: the bony pelvis is
-  still male-shaped (narrower subpubic arch, heart-shaped inlet); reshaping it would also move the skin fit.
-- Both full (bladder + rectum): anatomically they compete - a loaded rectum pushes the vagina / bladder base forward,
-  the bladder rises instead and holds less (urgency, frequency, sometimes incomplete emptying). Not modelled yet: a
-  "Rectum Fill" control would use the same give-way machinery, plus one corrective key driven by Fill x Rectum Fill
-  (the two sets of keys add, so both at 1 need their own solve). Offered to the user.
+- The organ / bone atlas is a male reference body (the skin is female). Done for the female layout: the bony pelvis
+  reshaped (0b), room for the vagina (`AN_Vagina_Space`), the bowel moved out of it.
+- Pelvis: done (female reshaping, step 0b). Rectum filling and both full: done (5d, 5e). The bones were reshaped
+  only in the Hips working file; the full-atlas tract file (anatomy_tract_passage) still has the male pelvis.
 - Male version later: no vaginal plane, prostate round the urethra's first 3 cm, a ~20 cm urethra through the penis.
 - Fill is linear between the stages (70 / 150 / 260 / 380 / 500 ml at Fill 0 / .25 / .5 / .75 / 1); the checks run
   at those values. In-between values blend two clean states.
-- Remaining contact (see `checks` in report.json, last build): Fill 0 / 0.25 / 0.5 / 0.75 and every Void state are
-  clean (only the intended / atlas overlaps: renal pelvis inside the kidney, sacroiliac joint). At Fill 1 only: colon
-  into rectum 1.2 mm (10 vertices) and one colon vertex 1.6 mm into the bladder, in the fold where the sigmoid joins
-  the rectum. Tried and dropped: smoothing each stage's displacement over the trigone band (it un-filled the bladder:
+- Remaining contact (`checks` in report.json, 14 states of Bladder_Fill x Void x Rectum_Fill; only the intended /
+  atlas overlaps excluded: renal pelvis in the kidney, sacroiliac joint): bladder 0-0.5, all Void states, rectum 0.5
+  are clean or <= 0.3 mm. Bladder full alone: bladder into rectum 2.1 mm (6 vertices), colon into rectum 1.0 mm (14),
+  in the sigmoid-rectum fold. Rectum full alone: left ureter into rectum 1.6 mm (5). Both full: <= 0.5 mm. Seams
+  (neck, meatus, ureteric openings) <= 0.0005 mm in every state. Tried and dropped: smoothing each stage's displacement over the trigone band (it un-filled the bladder:
   the band covers most of it) and a settle pass for neighbour vertices poking through bladder faces (no effect, and
   it misfired near the capped openings).
 - Cosmetic: a swirled crease on the bladder's inner back wall round the still trigone at Fill 0.5-1 (the still
@@ -66,10 +64,11 @@ Runs on build5_passage's output (`out/blend/Hips_build5_passage.blend`) and writ
 `out/urinary/report.json`. Everything is built in "atlas space" (the frame under `Internal_Fit_Xform`, real-size
 metres): the fit squashes it to the body (0.62 / 0.72 / 0.72), so body-scale lengths are ~0.7x and volumes 0.32x the
 real ones. Objects added / replaced in `Internal_Fit`: AN_Kidney_L/R, AN_Adrenal_L/R, AN_Ureter_L/R, AN_Bladder,
-AN_Urethra, AN_Urethra_Wall, AN_Vagina_Space (placeholder); empties `Urinary_Controls` and `Urethra_Meatus_Target`.
+AN_Urethra, AN_Urethra_Wall, AN_Vagina_Space (placeholder); empties `Pelvic_Controls` and `Urethra_Meatus_Target`.
 
-**How to use it (for the user):** select `Urinary_Controls` -> Object properties -> Custom Properties: drag
-**Fill** (0 empty ~70 ml .. 1 full 500 ml, real volumes) and **Void** (0 closed .. 1 voiding). Everything that has to
+**How to use it (for the user):** select `Pelvic_Controls` -> Object properties -> Custom Properties: drag
+**Bladder_Fill** (0 empty ~70 ml .. 1 full 500 ml, real volumes), **Void** (0 closed .. 1 voiding) and
+**Rectum_Fill** (0 resting ~124 ml .. 1 full ~325 ml). Everything that has to
 move follows through drivers (simple expressions, no Python / auto-run needed). A shape key is a stored version of a
 mesh's shape that can be blended in by a slider; each control blends several of them.
 
@@ -136,6 +135,27 @@ mesh's shape that can be blended in by a slider; each control blends several of 
   ampulla moved back (or compressed) by roughly the vagina's thickness; the vaginal plane already keeps the bladder
   and urethra in front of it.
 
+**Female bony pelvis (step 0b, first thing after loading):** `urinary_lib.female_pelvis_field` - one smooth
+displacement for both hip bones and the sacrum (joints stay matched): below the acetabula the inferior pubic /
+ischial rami and the tuberosities spread out (12 mm a side, nothing at the symphysis), the ischial spines move out
+6 mm, the brim and the sacral wings widen 5 mm a side, the lower sacrum / coccyx straighten back 6 mm, the iliac
+wings sit a little lower. Measured (atlas mm, `report.json` -> pelvis): intertuberous 85 -> 109, brim width 123 ->
+133, sacrum width 118 -> 123; skin clearance stays 5.3 mm (body; backed off automatically below 2.5 mm).
+`FEMALE_PELVIS=0` keeps the atlas pelvis, other values scale it. The `subpubic_angle_deg` metric is unreliable (it
+read 91 deg on the male arch) - judge the arch from `out/urinary/pelvis_male_vs_female.png`.
+
+**Rectum filling (5d):** AN_Rectum + AN_Rectum_LowerAmpulla welded into one reservoir (`weld_union`), its openings
+onto the sigmoid and the anal canal capped (`cap_holes`) and held still (8 mm, free by 25 mm), grown like the bladder
+in 3 stages, +`RECTUM_ADD_ML` 200 ml: 124 -> 191 / 258 / 325 ml (real). Solid for it: bones (3.5 mm), the abdominal
+wall (5 mm), the vagina space, and - on its own - the bladder and the ureters (in a woman the vagina / uterus take that
+push). Keys `Rectum_Fill_1..3` on both (driver f*3-(k-1)); the sigmoid and the ureters give way (`make_room`, carried
+along, ureters held only 6 mm round their bladder openings) with keys of the same names.
+
+**Both full (5e):** with Bladder_Fill = Rectum_Fill = 1 the keys add and would collide; from that sum the bladder
+settles away from the full rectum (it holds less: 495 instead of 500 ml), then the sigmoid and ureters are cleared
+of both. The difference is a `Both_Full` key on bladder, colon and ureters, driven by `a*b` (Bladder_Fill x
+Rectum_Fill), so it fades in with either.
+
 **Female pelvis (step 2, before the bladder):** `AN_Vagina_Space` (wire display, not rendered) is a placeholder for
 the collapsed vagina with its walls: a flattened tube (26 x 10 mm real, narrower at the bottom, rounded fornix at the
 top) from 10 mm above the introitus dimple (`VAG_INTROITUS`, body coords) up behind the urethra to the bladder-base
@@ -153,9 +173,9 @@ moves both walls of the tube); shorter falloff -> helps; carrying the bowel alon
 (`carry_from`) -> the big improvement (no crumpling); the bladder settling against what is trapped -> clears most of
 the rest. 3-ray inside tests gave false answers near grazing edges: 5 rays now.
 
-**Tools:** `scripts/tools/sagittal.py` (any objects, any axis-aligned plane; `SAG_KEYS="Fill=1,Void=0"`),
-`scripts/tools/urinary_views.py` (overview, midline cut-aways at Fill 0 / 0.5 / 1, meatus closed / voiding, EEVEE
-cut-away of the full bladder's lit inside). Renders in `out/urinary/`.
+**Tools:** `scripts/tools/sagittal.py` (any objects, any axis-aligned plane; `SAG_KEYS="Bladder_Fill=1,Rectum_Fill=1"`),
+`scripts/tools/urinary_views.py` (overview, midline cut-aways at Fill 0 / 0.5 / 1, rectum full, both full, meatus
+closed / voiding, EEVEE cut-away of the full bladder's lit inside). Renders in `out/urinary/`.
 
 ---
 
