@@ -38,19 +38,25 @@ Python (`/opt/blender-4.2.3-linux-x64/4.2/python/bin/python3.11 -m pip install p
 **Open questions for the user / next steps (urinary):**
 - The vulva is rudimentary; the reproductive step rebuilds it. The meatus then needs re-cutting: re-run
   build_urinary with the new skin (and `URETHRA_MEATUS` / `URETHRA_MEATUS_FROM` if the vestibule moved).
-- The atlas rectum sits where the vagina must go (male atlas): the reproductive step moves it back / compresses it.
+- The organ / bone atlas is a male reference body (the skin is female). Done for the female layout so far: room for
+  the vagina (`AN_Vagina_Space`, see "Female pelvis" below), the bowel moved out of it. Not done: the bony pelvis is
+  still male-shaped (narrower subpubic arch, heart-shaped inlet); reshaping it would also move the skin fit.
+- Both full (bladder + rectum): anatomically they compete - a loaded rectum pushes the vagina / bladder base forward,
+  the bladder rises instead and holds less (urgency, frequency, sometimes incomplete emptying). Not modelled yet: a
+  "Rectum Fill" control would use the same give-way machinery, plus one corrective key driven by Fill x Rectum Fill
+  (the two sets of keys add, so both at 1 need their own solve). Offered to the user.
 - Male version later: no vaginal plane, prostate round the urethra's first 3 cm, a ~20 cm urethra through the penis.
 - Fill is linear between the stages (70 / 150 / 260 / 380 / 500 ml at Fill 0 / .25 / .5 / .75 / 1); the checks run
   at those values. In-between values blend two clean states.
-- Remaining contact (see `checks` in report.json, last build): Fill 0 / 0.25 / 0.5 and every Void state are clean
-  (only the intended / atlas overlaps: renal pelvis inside the kidney, sacroiliac joint). At 0.75: colon into rectum
-  1.1 mm (4 vertices); at 1.0: colon into rectum 2.4 mm (15 vertices) and bladder into rectum 2.4 mm (2) - all in the
-  fold where the sigmoid joins the rectum, squeezed against the sacrum. Successive solver tweaks moved these around
-  without clearing them (see "What was tried"); next idea: let the sigmoid fold flatten (a per-wall push with a
-  shorter falloff only there) or let the rectum's lumen compress toward the sacrum.
+- Remaining contact (see `checks` in report.json, last build): Fill 0 / 0.25 / 0.5 / 0.75 and every Void state are
+  clean (only the intended / atlas overlaps: renal pelvis inside the kidney, sacroiliac joint). At Fill 1 only: colon
+  into rectum 1.2 mm (10 vertices) and one colon vertex 1.6 mm into the bladder, in the fold where the sigmoid joins
+  the rectum. Tried and dropped: smoothing each stage's displacement over the trigone band (it un-filled the bladder:
+  the band covers most of it) and a settle pass for neighbour vertices poking through bladder faces (no effect, and
+  it misfired near the capped openings).
 - Cosmetic: a swirled crease on the bladder's inner back wall round the still trigone at Fill 0.5-1 (the still
   patch vs the expanding wall); softened (16 -> 50 mm transition, smoothing reaches further than the pressure),
-  not gone. Could fade the trigone's stillness further or smooth the stage displacements once more.
+  not gone.
 - Lighting of the full atlas tract file: every material is now lit inside (122 meshes); `AO_in` of small closed
   shells (bronchial trees, sphincter) is dark (0.04-0.07), as a fully enclosed inside would be.
 
@@ -60,7 +66,7 @@ Runs on build5_passage's output (`out/blend/Hips_build5_passage.blend`) and writ
 `out/urinary/report.json`. Everything is built in "atlas space" (the frame under `Internal_Fit_Xform`, real-size
 metres): the fit squashes it to the body (0.62 / 0.72 / 0.72), so body-scale lengths are ~0.7x and volumes 0.32x the
 real ones. Objects added / replaced in `Internal_Fit`: AN_Kidney_L/R, AN_Adrenal_L/R, AN_Ureter_L/R, AN_Bladder,
-AN_Urethra, AN_Urethra_Wall; empties `Urinary_Controls` and `Urethra_Meatus_Target` (scene root).
+AN_Urethra, AN_Urethra_Wall, AN_Vagina_Space (placeholder); empties `Urinary_Controls` and `Urethra_Meatus_Target`.
 
 **How to use it (for the user):** select `Urinary_Controls` -> Object properties -> Custom Properties: drag
 **Fill** (0 empty ~70 ml .. 1 full 500 ml, real volumes) and **Void** (0 closed .. 1 voiding). Everything that has to
@@ -129,6 +135,16 @@ mesh's shape that can be blended in by a slider; each control blends several of 
 - The atlas is a male body: its rectum sits where the vagina must go. The reproductive step will need the rectum /
   ampulla moved back (or compressed) by roughly the vagina's thickness; the vaginal plane already keeps the bladder
   and urethra in front of it.
+
+**Female pelvis (step 2, before the bladder):** `AN_Vagina_Space` (wire display, not rendered) is a placeholder for
+the collapsed vagina with its walls: a flattened tube (26 x 10 mm real, narrower at the bottom, rounded fornix at the
+top) from 10 mm above the introitus dimple (`VAG_INTROITUS`, body coords) up behind the urethra to the bladder-base
+plane at the neck's height, then 30 mm (`VAG_UP`) up that plane - 54 mm long. The bowel (sigmoid, rectum, lower
+ampulla, anal canal except its lowest 12 mm at the anus) is moved out of it with `make_room` (2 mm septum); every
+shape key of a moved organ moves with it, so the anus' Open key still works. Moved: ampulla 2.7 mm, canal top 2.7 mm
+(body), rectum 0.8 mm (atlas). The bladder grows clear of it (solid, 1 mm), the ureters are eased out of it, the
+bowel treats it as solid while the bladder fills, and it takes a groove round the urethra (urethra in the anterior
+vaginal wall, 2.5 mm). The reproductive step should build the vagina in it (and may let it compress).
 
 **What was tried for the neighbours (so it is not repeated):** pushing soft vertices to the nearest bladder point
 only -> the sigmoid crumpled (its parts pushed every which way) and the bladder bulged through coarse rectum faces;
