@@ -49,16 +49,15 @@ Python (`/opt/blender-4.2.3-linux-x64/4.2/python/bin/python3.11 -m pip install p
 - Pelvis: done (female reshaping, step 0b). Rectum filling and both full: done (5d, 5e). The bones were reshaped
   only in the Hips working file; the full-atlas tract file (anatomy_tract_passage) still has the male pelvis.
 - Male version later: no vaginal plane, prostate round the urethra's first 3 cm, a ~20 cm urethra through the penis.
-- Fill is linear between the stages: 70 / 149 / 258 / 360 / 467 ml at Bladder_Fill 0 / .25 / .5 / .75 / 1 (real ml;
+- Fill is linear between the stages: 70 / 149 / 258 / 360 / 465 ml at Bladder_Fill 0 / .25 / .5 / .75 / 1 (real ml;
   grown to 150 / 260 / 380 / 500 targets round the tilted uterus; the crease smoothing, the polish and the room the
-  uterus takes cost ~7 % - 467 ml still is a normal full bladder). Rectum 109 -> 176 / 243 / 308 ml. Both full: bladder
-  467 ml. The uterus tilts back 22 deg as the bladder fills (`UT_FILL_MAX_DEG`; 25-30 trapped the rectosigmoid
+  uterus takes cost ~7 % - 465 ml still is a normal full bladder). Rectum 109 -> 176 / 243 / 308 ml. Both full: bladder
+  464 ml. The uterus tilts back 22 deg as the bladder fills (`UT_FILL_MAX_DEG`; 25-30 trapped the rectosigmoid
   junction against it). The checks run at those values; in-between values blend two clean states.
 - Remaining contact (`checks` -> `clipping`, 14 states; only contacts new or > 0.3 mm deeper than at rest, intended
-  overlaps excluded): rest and Void states clean; the rest <= 1.8 mm, except isolated spots of 1-8 vertices at 3-4 mm
-  where the held rectosigmoid seam (rectum / colon rims stay welded) is pressed into the uterus at Bladder_Fill
-  0.25 - 1. Tubes / ovaries touch the hip bone by <= 0.8 mm in some states. Seams (neck, meatus, ureteric openings)
-  <= 0.0005 mm everywhere.
+  overlaps excluded): rest and Void states clean; every other state <= 1.4 mm, except one rectum vertex 3.7 mm into
+  the uterus at Bladder_Fill 0.25 (the held rectosigmoid seam). Tubes / ovaries touch the hip bone by <= 0.9 mm in
+  some states. Seams (neck, meatus, ureteric openings) <= 0.0005 mm everywhere.
 - Crease round the still trigone: smoothed (Taubin passes in the 16-46 mm band, then a short regrow to put the
   volume back); see `eevee_cut_inside.png`.
 - Lighting of the full atlas tract file: every material is now lit inside (122 meshes); `AO_in` of small closed
