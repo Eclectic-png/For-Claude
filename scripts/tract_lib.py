@@ -73,7 +73,7 @@ def _ctx_edit(ob):
     bpy.ops.object.mode_set(mode='EDIT')
 
 
-def _cut_patches(bmA, bmB, tA, tB, cA, R, eps=0.0, eps_side=1, sides=(0, 1)):
+def _cut_patches(bmA, bmB, tA, tB, cA, R, eps=0.0, eps_side=1, sides=(0, 1), outside=()):
     """intersect the patches of A and B within R of cA; returns (tb, src layer, kill, closed curve?, curve length).
     sides: which sides lose the piece inside the other organ ((0,) = only A: B passes through A's wall)"""
     patchA = [f for f in bmA.faces if (f.calc_center_median() - cA).length < R]
@@ -243,6 +243,8 @@ def _cut_patches(bmA, bmB, tA, tB, cA, R, eps=0.0, eps_side=1, sides=(0, 1)):
                 continue
             a_tot = sum(f.calc_area() for f in comp)
             frac = sum(f.calc_area() for f in comp if inside(tr, f.calc_center_median())) / max(a_tot, 1e-18)
+            if tag in outside:                     # this side loses its piece OUTSIDE the other (a stub poking out)
+                frac = 1.0 - frac
             score = frac - (0.5 if border else 0.0)
             if frac > 0.5 and (best is None or score > best[0]):
                 best = (score, comp)
@@ -253,13 +255,14 @@ def _cut_patches(bmA, bmB, tA, tB, cA, R, eps=0.0, eps_side=1, sides=(0, 1)):
     return tb, src, [f for k in kill for f in k], ok, sum(e.calc_length() for e in C), (patchA, patchB), stitch
 
 
-def open_junction(A, B, centre=None, margins=(0.012, 0.024, 0.04), report=None, trees=None, sides=(0, 1)):
+def open_junction(A, B, centre=None, margins=(0.012, 0.024, 0.04), report=None, trees=None, sides=(0, 1), outside=()):
     """Open the A/B junction. centre: world point inside the junction zone (default: the biggest zone of A inside B).
     The patch round it grows through `margins` until the junction's intersection curve closes inside it.
     trees: {name: BVHTree} of the organs' CLOSED shells taken before any junction was opened (an opened shell
     would break the inside tests); built here if not given.
     sides=(0,) pierces instead: only A's wall is opened where B passes through it, B stays whole (a ureter's renal
-    pelvis leaving the kidney at the hilum)"""
+    pelvis leaving the kidney at the hilum). outside=(1,): B loses the piece of it OUTSIDE A instead (a lumen whose
+    stub pokes out through A's wall: the uterus' cervical canal at the external os)"""
     tA = trees[A.name] if trees and A.name in trees else closed_tree(A)
     tB = trees[B.name] if trees and B.name in trees else closed_tree(B)
     bmA, bmB = world_bm(A), world_bm(B)
@@ -271,7 +274,7 @@ def open_junction(A, B, centre=None, margins=(0.012, 0.024, 0.04), report=None, 
     else:
         best = min(compsA, key=lambda c: (comp_sphere(bmA, c)[0] - centre).length)
     cA, rA = comp_sphere(bmA, best)
-    compsB = overlap_components(bmB, tA) if 1 in sides else []
+    compsB = overlap_components(bmB, tA) if 1 in sides and 1 not in outside else []
     if compsB:                                     # B's part inside A, near the same place, sizes the patch too
         cb = min(compsB, key=lambda c: (comp_sphere(bmB, c)[0] - cA).length)
         rA = max(rA, max((v.co - cA).length for k in cb for v in bmB.faces[k].verts))
@@ -279,7 +282,7 @@ def open_junction(A, B, centre=None, margins=(0.012, 0.024, 0.04), report=None, 
                                           (5e-4, 1), (-5e-4, 0), (1e-3, 1), (-1e-3, 0)) for m_ in margins]
     for margin, eps, eps_side in tries:
         R = rA + margin
-        tb, src, kill, ok, clen, (patchA, patchB), stitch = _cut_patches(bmA, bmB, tA, tB, cA, R, eps, eps_side, sides)
+        tb, src, kill, ok, clen, (patchA, patchB), stitch = _cut_patches(bmA, bmB, tA, tB, cA, R, eps, eps_side, sides, outside)
         if ok:
             break
         tb.free()

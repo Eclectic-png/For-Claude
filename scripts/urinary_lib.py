@@ -67,16 +67,20 @@ def neighbours(n, F):
 
 
 def laplacian_matrix(nb):
-    """sparse-free umbrella operator as (rows, cols, w) for np.add.at use"""
+    """sparse-free umbrella operator as (rows, cols, w) (see lap_avg)"""
     rows = np.concatenate([np.full(len(s), i) for i, s in enumerate(nb)]); cols = np.concatenate(nb)
     w = np.concatenate([np.full(len(s), 1.0 / max(len(s), 1)) for s in nb])
     return rows, cols, w
 
 
+def lap_avg(X, L):
+    """the umbrella average of X's rows over each vertex's neighbours (np.bincount: np.add.at is ~10x slower)"""
+    rows, cols, w = L; n = len(X)
+    return np.stack([np.bincount(rows, weights=X[cols, c] * w, minlength=n) for c in range(X.shape[1])], axis=1)
+
+
 def umbrella(X, L):
-    rows, cols, w = L
-    avg = np.zeros_like(X); np.add.at(avg, rows, X[cols] * w[:, None])
-    return avg - X
+    return lap_avg(X, L) - X
 
 
 # ---------------------------------------------------------------- signed distances
@@ -576,7 +580,8 @@ def cut_meatus(skin, M, t_ap, e_lat, K, half, lip, reg_u, reg_v, step=0.00022):
 
 # ---------------------------------------------------------------- neighbours that give way
 def make_room(objs, M_to, M_from, expander_trees, pinned, rigid, gap=0.0015, decay=0.9992, iters=700, rounds=6,
-              band=0.06, log=None, expanders=None, carry_from=None, carry_sigma=0.010, carry_reach=0.015, start=None):
+              band=0.06, log=None, expanders=None, carry_from=None, carry_sigma=0.010, carry_reach=0.015, start=None,
+              pre_stage=None):
     """corrective positions for soft organs `objs` while an organ grows through stages. At each stage, per round:
       - every soft vertex inside (or within `gap` of) the grown shell is pushed just outside it;
       - where the grown shell bulges through the middle of a soft organ's face (coarse faces: no soft vertex is
@@ -586,6 +591,8 @@ def make_room(objs, M_to, M_from, expander_trees, pinned, rigid, gap=0.0015, dec
     the pushes spread over each organ's surface (a decaying average: a dent that eases out over a few cm, shared by
     organs welded together, so their seams stay closed), then the `rigid` Obstacles are applied. Repeated until clear.
     M_to: world -> work frame, M_from: work frame -> world. pinned(name, P) -> bool array (never moves).
+    pre_stage(k, X, owner_name, owner_index) -> (X, moved mask): a prescribed motion at the start of each stage (an
+    organ that tilts as a whole: the uterus); the vertices it moves are not carried.
     Returns {name: [positions (local coords) per stage]} and the worst remaining depth (mm) per stage."""
     P_all = []; owner = []; F_all = []; off = 0
     for ob in objs:
@@ -633,18 +640,28 @@ def make_room(objs, M_to, M_from, expander_trees, pinned, rigid, gap=0.0015, dec
     def inside_other(X_, trees_):
         """(vertex, organ) pairs: vertex of one soft organ inside another's shell"""
         res = []
+        box = [(X_[ids].min(0) - 0.004, X_[ids].max(0) + 0.004) for ids in org_v]
         for a, ids in enumerate(org_v):
             for b, tb in enumerate(trees_):
                 if a == b:
                     continue
-                for i in ids:
+                lo, hi = box[b]; Pa = X_[ids]
+                for i in ids[np.all((Pa > lo) & (Pa < hi), axis=1)]:
                     p = Vector(X_[i]); h = tb.find_nearest(p)
                     if h[0] is not None and h[3] < 0.004 and h[3] > 2e-5 and inside(tb, p):
                         res.append((i, b))
         return res
     base_in = set(inside_other(X, [t_ for t_, _ in organ_trees(X)]))   # contacts that exist at rest (seams, atlas) are not ours
+    own_n = np.empty(len(X), object); own_i = np.zeros(len(X), int)
+    for ob, o_, n_ in reversed(owner):
+        own_n[inv[o_:o_ + n_]] = ob.name; own_i[inv[o_:o_ + n_]] = np.arange(n_)
     stages = []; resid = []
     for k, tree in enumerate(expander_trees):
+        handled = np.zeros(len(X), bool)
+        if pre_stage is not None:
+            Xp, handled = pre_stage(k, X, own_n, own_i)
+            X = np.where(pin[:, None], X, Xp); handled &= ~pin
+            X, _ = rigid.project(X, ~pin)
         if carry_from is not None and expanders is not None:
             # carried along: soft tissue next to the growing wall moves the way the wall next to it moves (a
             # weighted average of the wall's motion since the last stage, fading with distance from the wall) -
@@ -655,7 +672,7 @@ def make_room(objs, M_to, M_from, expander_trees, pinned, rigid, gap=0.0015, dec
                 kdw.insert(Vector(p), i)
             kdw.balance()
             Dc = np.zeros_like(X)
-            for i in np.nonzero(~pin)[0]:
+            for i in np.nonzero(~pin & ~handled)[0]:
                 near = kdw.find_range(Vector(X[i]), 2.5 * carry_sigma + carry_reach)
                 if not near:
                     continue
@@ -673,7 +690,9 @@ def make_room(objs, M_to, M_from, expander_trees, pinned, rigid, gap=0.0015, dec
             if expanders is not None:            # the shell bulging through soft faces
                 EP, EN = expanders[k]
                 for ob_i, (tb, fmap) in enumerate(tf_):
-                    for p, nrm in zip(EP, EN):
+                    lo = X[org_v[ob_i]].min(0) - 0.004; hi = X[org_v[ob_i]].max(0) + 0.004
+                    sel = np.all((EP > lo) & (EP < hi), axis=1)
+                    for p, nrm in zip(EP[sel], EN[sel]):
                         pv = Vector(p); h = tb.find_nearest(pv)
                         if h[0] is None or h[3] > 0.004 or not inside(tb, pv):
                             continue
@@ -710,7 +729,7 @@ def make_room(objs, M_to, M_from, expander_trees, pinned, rigid, gap=0.0015, dec
             fixed = C | pin; free = ~fixed
             rows, cols, w = L
             for it in range(iters):
-                avg = np.zeros_like(D); np.add.at(avg, rows, D[cols] * w[:, None])
+                avg = lap_avg(D, L)
                 D[free] = decay * avg[free]
             X = X + D
             X, _ = rigid.project(X, ~pin)
@@ -773,13 +792,52 @@ def settle(X, faces, fixed, trees, gap=0.0006, decay=0.985, iters=300, rounds=8,
             break
         free = ~(C | fixed); rows, cols, w = L
         for it in range(iters):
-            avg = np.zeros_like(D); np.add.at(avg, rows, D[cols] * w[:, None])
+            avg = lap_avg(D, L)
             D[free] = decay * avg[free]
         X = X + D
     after = 0.0                                  # (movable vertices: the still ones never move)
     for tree in trees:
         d, _, _ = signed_dist(tree, X, band=band); after = max(after, float(max(0.0, -d[~fixed].min())))
     return X, worst0 or 0.0, after
+
+
+def polish(X, faces, fixed, trees, skip, boxes=None, gap=0.0004, decay=0.93, iters=60, rounds=8, band=0.006):
+    """last touches for one state (written into the key active there): vertices newly inside (or within `gap` of)
+    a neighbour's shell step just outside it, the correction easing out over a few mm. skip[t]: bool per vertex,
+    vertices allowed inside trees[t] (inside it at rest too: seams, joins); boxes[t]: (lo, hi) of that shell (only
+    vertices within it are tested). Returns (X, worst before, after) (m)."""
+    X = np.array(X, float); nb = neighbours(len(X), faces); L = laplacian_matrix(nb); worst0 = None
+
+    def pressing(X_):
+        D = np.zeros_like(X_); C = np.zeros(len(X_), bool); worst = 0.0
+        for t, (tree, sk) in enumerate(zip(trees, skip)):
+            cand = ~fixed & ~sk
+            if boxes is not None:
+                lo, hi = boxes[t]; cand &= np.all((X_ > lo - band) & (X_ < hi + band), axis=1)
+            ci = np.nonzero(cand)[0]
+            if not len(ci):
+                continue
+            d, q, out = signed_dist(tree, X_[ci], band=band)
+            m = d < gap
+            if not m.any():
+                continue
+            worst = max(worst, float(max(0.0, -d[m].min())))
+            ci = ci[m]; push = q[m] + out[m] * gap - X_[ci]
+            upd = np.einsum("ij,ij->i", push, push) > np.einsum("ij,ij->i", D[ci], D[ci])
+            D[ci[upd]] = push[upd]; C[ci] = True
+        return D, C, worst
+    for r in range(rounds):
+        D, C, worst = pressing(X)
+        if worst0 is None:
+            worst0 = worst
+        if not C.any():
+            break
+        free = ~(C | fixed); rows, cols, w = L
+        for it in range(iters):
+            avg = lap_avg(D, L)
+            D[free] = decay * avg[free]
+        X = X + D
+    return X, worst0 or 0.0, pressing(X)[2]
 
 
 # ---------------------------------------------------------------- pelvis: measurements, female reshaping
@@ -896,3 +954,48 @@ def cap_holes(X, F):
         for a, b in zip(lp, lp[1:] + lp[:1]):
             T.append([b, a, ci])                 # the boundary edge a->b belongs to a face; the cap runs b->a
     return np.array(X), T, loops, centres
+
+
+def union_tree(objs, M=None, positions=None):
+    """one BVH of several organs' closed shells (each welded, open rims capped) - an obstacle made of all of them.
+    positions: {name: local positions} to use instead of the objects' rest shapes"""
+    bm = bmesh.new()
+    for ob in objs:
+        b = bmesh.new()
+        if positions and ob.name in positions:
+            vv = [b.verts.new(Vector(p)) for p in positions[ob.name]]
+            for poly in ob.data.polygons:
+                try:
+                    b.faces.new([vv[i] for i in poly.vertices])
+                except ValueError:
+                    pass
+        else:
+            b.from_mesh(ob.data)
+        b.transform((M @ ob.matrix_world) if M is not None else ob.matrix_world)
+        bmesh.ops.remove_doubles(b, verts=b.verts, dist=1e-7)
+        bnd = [e for e in b.edges if e.is_boundary]
+        if bnd:
+            bmesh.ops.holes_fill(b, edges=bnd, sides=0)
+        me = bpy.data.meshes.new("_ut"); b.to_mesh(me); b.free(); bm.from_mesh(me); bpy.data.meshes.remove(me)
+    t = BVHTree.FromBMesh(bm); bm.free(); return t
+
+
+def carry_cords(cords, movers):
+    """keys for cords (ligaments) tied between organs: cords = {name: (s per vertex 0..1, start organ or None,
+    start point, end organ or None, end point)}; movers = {organ name: (rest positions, [stage positions])} in one
+    frame. A cord vertex moves by the blend (by s) of the motions of the organ points nearest its two ends (an end
+    on the pelvic wall: no motion). Returns {cord name: [displacement (n,3) per stage]}."""
+    out = {}
+    nst = max(len(v[1]) for v in movers.values()) if movers else 0
+    for name, (s, oa, pa, ob_, pb) in cords.items():
+        D = []
+        for k in range(nst):
+            def end_disp(org, p):
+                if org is None or org not in movers:
+                    return np.zeros(3)
+                rest, st = movers[org]; i = int(np.argmin(np.linalg.norm(rest - np.array(p), axis=1)))
+                return st[k][i] - rest[i]
+            da = end_disp(oa, pa); db = end_disp(ob_, pb)
+            D.append(np.outer(1 - s, da) + np.outer(s, db))
+        out[name] = D
+    return out
