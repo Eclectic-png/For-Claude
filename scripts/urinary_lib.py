@@ -1040,3 +1040,108 @@ def carry_cords(cords, movers):
             D.append(np.outer(1 - s, da) + np.outer(s, db))
         out[name] = D
     return out
+
+
+# ---------------------------------------------------------------- the anus tilted, the approach in front made a ramp
+def anus_tilt_ramp(skin, canal, others, phi, r_open=0.005, back=0.005, y_a=0.036, x_in=0.004, x_out=0.008,
+                   fillet=0.003, fade=0.003, step=0.00025):
+    """turn the anus (the skin within r_open of the canal's opening, in front of the pivot) about a transverse axis
+    through the back (higher) end of its opening - a point ON the skin, `back` up-back from the opening's centre along
+    the midline: its front end drops by phi (rad), nothing behind the pivot moves. In front of it, the mound + incline
+    are not carried along: the approach becomes an even ramp from y_a (body y; its slope there kept) into the turned
+    anus' front edge (bending into the anus' face over the last `fillet`), applied as a smooth offset so the creases
+    keep their relief. To the sides the turn fades out over `fade`; front and sides blend by the angle round the anus.
+    The canal (and `others`, e.g. its sphincter) bend: the opening turns with the skin, the top stays. Every shape key
+    gets the same treatment (the Open key turns with the anus). World / body coordinates. Returns a report dict."""
+    def W(o, P=None):
+        M = np.array(o.matrix_world); P = np.array([tuple(v.co) for v in o.data.vertices]) if P is None else P
+        return P @ M[:3, :3].T + M[:3, 3]
+    def to_local(o, Pw):
+        M = np.array(o.matrix_world); return (Pw - M[:3, 3]) @ np.linalg.inv(M)[:3, :3].T
+    def each_key(o, fn):                          # fn(world positions of one key) -> new world positions
+        keys = o.data.shape_keys.key_blocks if o.data.shape_keys else []
+        base = np.array([tuple(v.co) for v in o.data.vertices])
+        for kb in list(keys) + [None]:
+            K = np.array([tuple(d.co) for d in kb.data]) if kb else base
+            N = to_local(o, fn(W(o, K)))
+            (kb.data if kb else o.data.vertices).foreach_set("co", N.astype(np.float32).ravel())
+        o.data.update()
+    def tree_of(P, o):
+        return BVHTree.FromPolygons([tuple(map(float, p)) for p in P], [tuple(f.vertices) for f in o.data.polygons])
+    def zs(t, x, y):
+        h = t.ray_cast(Vector((x, y, -10.0)), Vector((0, 0, 1)), 100.0); return h[0].z if h[0] else np.nan
+    Cw = W(canal); cen = Cw[Cw[:, 2] < Cw[:, 2].min() + 0.0006].mean(0); cen[0] = 0.0
+    top = Cw[Cw[:, 2] > Cw[:, 2].max() - 0.003].mean(0); top[0] = 0.0
+    Hb = W(skin); t0 = tree_of(Hb, skin)
+    nrm = np.array(t0.find_nearest(Vector(cen))[1]); nrm = nrm if nrm[2] < 0 else -nrm
+    up = np.array([0.0, -nrm[2], nrm[1]]); up /= np.linalg.norm(up); up = up if up[1] > 0 else -up
+    pb = cen + up * back; piv = np.array([0.0, pb[1], zs(t0, 0.0, pb[1])])         # on the skin
+    def rot(P, ang):
+        ang = np.broadcast_to(np.asarray(ang, float), (len(P),))
+        rel = P - piv; c, s = np.cos(ang), np.sin(ang); q = rel.copy()
+        q[:, 1] = rel[:, 1] * c - rel[:, 2] * s; q[:, 2] = rel[:, 1] * s + rel[:, 2] * c
+        return q + piv
+    d_c = np.linalg.norm(Hb - cen, axis=1); beh = (Hb - piv) @ up; fwd = (cen - Hb) @ up
+    disc = (d_c < r_open) & (beh <= 0)
+    ang = np.where(disc, phi, phi * (1 - ss(r_open, r_open + fade, d_c)))
+    ang[beh > 0] = 0.0
+    t1 = tree_of(rot(Hb, ang), skin)              # the surface with the anus turned (sides faded)
+    Hd0 = Hb[disc]; Hd = rot(Hd0, phi)
+    xs = np.arange(-x_out, x_out + step / 2, step); ys = np.arange(y_a - 0.002, cen[1] + 0.001, step)
+    strip = []
+    for x in xs:
+        if abs(x) < r_open * 0.95:                # the anus' front edge on this strip, before / after the turn
+            m = np.abs(Hd0[:, 0] - x) < 0.0004; j = np.nonzero(m)[0][np.argmin(Hd0[m, 1])]
+            ye0, ze0, yb, zb = Hd0[j, 1], Hd0[j, 2], Hd[j, 1], Hd[j, 2]
+            mf = (zs(t1, x, yb + 0.001) - zb) / 0.001
+        else:
+            ye0 = yb = cen[1]; zb = zs(t1, x, yb); ze0 = zs(t0, x, yb); mf = (zb - zs(t1, x, yb - 0.0006)) / 0.0006
+        za = zs(t0, x, y_a); ma = (za - zs(t0, x, y_a - 0.001)) / 0.001
+        if np.isnan(mf):
+            mf = (zb - za) / (yb - y_a)
+        strip.append((ye0, ze0, yb, zb, za, ma, mf))
+    def curve(st, s):
+        ye0, ze0, yb, zb, za, ma, mf = st; L_ = yb - y_a; mc = (zb - za) / L_
+        z = za + (zb - za) * s + (mf - mc) * L_ * s ** max(2.0, L_ / fillet) * (s - 1) \
+            + (ma - mc) * L_ * s * (1 - s) ** max(2.0, L_ / 0.004)
+        return y_a + s * L_, z
+    Z0 = np.array([[zs(t0, x, y) for y in ys] for x in xs])
+    for r in Z0:                                  # (the opening: no surface - filled along the strip)
+        m = np.isnan(r)
+        if m.any() and (~m).any():
+            r[m] = np.interp(np.nonzero(m)[0], np.nonzero(~m)[0], r[~m])
+    k = np.exp(-0.5 * (np.arange(-6, 7) / 3.0) ** 2); k /= k.sum()
+    conv = lambda r: np.convolve(np.pad(r, 6, mode='edge'), k, 'valid')
+    Z0s = np.apply_along_axis(conv, 0, np.apply_along_axis(conv, 1, Z0))          # the creases smoothed away
+    # heights only: front / back motion is the turn's own (one smooth field, so the creases' plan stays whole); the
+    # ramp gives the height along each strip as a function of y, the creases' relief (z - smoothed z) rides on it
+    lat = 1 - ss(x_in, x_out, np.abs(xs))
+    def z_ramp(i, y):
+        ye0, ze0, yb, zb = strip[i][:4]
+        s = np.clip((y - y_a) / (yb - y_a), 0.0, 1.0)
+        return curve(strip[i], s)[1]
+    w_r = np.where(~disc & (beh <= 0), ss(0.3, 0.8, fwd / np.maximum(d_c, 1e-9)), 0.0)
+    w_r *= ss(y_a - 0.0015, y_a + 0.0005, Hb[:, 1])
+    fx = (Hb[:, 0] - xs[0]) / step; fy = (Hb[:, 1] - ys[0]) / step
+    inside = (fx >= 0) & (fx <= len(xs) - 1) & (fy >= 0) & (fy <= len(ys) - 1)
+    w_r[~inside] = 0.0
+    ix = np.clip(fx.astype(int), 0, len(xs) - 2); iy = np.clip(fy.astype(int), 0, len(ys) - 2)
+    a_, b_ = np.clip(fx - ix, 0, 1), np.clip(fy - iy, 0, 1)
+    Zs_v = Z0s[ix, iy] * (1 - a_) * (1 - b_) + Z0s[ix + 1, iy] * a_ * (1 - b_) + Z0s[ix, iy + 1] * (1 - a_) * b_ + Z0s[ix + 1, iy + 1] * a_ * b_
+    w_r *= lat[ix] * (1 - a_) + lat[ix + 1] * a_
+    act = np.nonzero(w_r > 0)[0]
+    def skin_fn(Pk):
+        P_turn = rot(Pk, ang); out = P_turn.copy()
+        for v in act:
+            yv = P_turn[v, 1]
+            zr = z_ramp(ix[v], yv) * (1 - a_[v]) + z_ramp(ix[v] + 1, yv) * a_[v] + (Pk[v, 2] - Zs_v[v])
+            out[v, 2] = P_turn[v, 2] * (1 - w_r[v]) + zr * w_r[v]
+        return out
+    each_key(skin, skin_fn)
+    ax = (top - cen) / np.linalg.norm(top - cen); Lc = float(np.linalg.norm(top - cen))
+    for o in [canal] + list(others):
+        wc = 1 - ss(0.0, 0.9, ((W(o) - cen) @ ax) / Lc)
+        each_key(o, lambda Pk, wc=wc: Pk + (rot(Pk, phi) - Pk) * wc[:, None])
+    bpy.context.view_layer.update()
+    return {"deg": round(math.degrees(phi), 1), "pivot": [round(float(v), 4) for v in piv],
+            "opening": [round(float(v), 4) for v in cen]}

@@ -150,15 +150,20 @@ wings sit a little lower. Measured (atlas mm, `report.json` -> pelvis): intertub
 `FEMALE_PELVIS=0` keeps the atlas pelvis, other values scale it. The `subpubic_angle_deg` metric is unreliable (it
 read 91 deg on the male arch) - judge the arch from `out/urinary/pelvis_male_vs_female.png`.
 
-**Anus tilt (step 0c, OFF by default) and perineum measurements:** the skin rises 12 mm (body) from the perineum's
-low point behind the vestibule to the anus in an S: gentle, then 34-41 deg over the last 7 mm, then a flat shelf at
-the anus' front edge - seen from the vulva it reads as a drop-off. Step 0c can turn the anus about a transverse axis
-through the back (higher) end of its opening (`ANUS_TILT_DEG`, default 0; `ANUS_PIVOT_BACK` 7 mm): the opening turns
-rigidly on every key, the skin in front takes its motion fading over 16 mm, the canal bends. Rejected by the user: with
-the back end anchored the total rise is kept, so lowering the front end only pushes up a mound between it and the
-(rising) stretch in front - tilting moves the steep part, it cannot ease it. Proposed instead (awaiting the user's
-choice): reshape the stretch itself into one even ~20-25 deg ramp up to the anus' front edge, anus and rim untouched;
-or lower the whole anus a few mm (the only way to cut the total rise).
+**Anus tilt + ramp (step 0c, `urinary_lib.anus_tilt_ramp`):** the skin rose 12 mm (body) from the perineum's low point
+behind the vestibule to the anus in an S: gentle, then an incline at 36-50 deg (y 47-51.5 mm), then a near-flat shelf
+(a mound) to the opening at y ~56-57 - from the vulva it read as a drop-off. Now: the anus (the skin within 5 mm of
+the canal's opening) turns `ANUS_TILT_DEG` 15 (0 = off) about a transverse axis through the back (higher) end of its
+opening - a point ON the skin 5 mm behind the opening along the midline; its front end drops, nothing behind the pivot
+moves (identical to 0.01 mm). The mound and incline in front are not carried along: their height becomes an even ramp
+from y 36 mm into the turned anus' front edge (~18 deg, bending to ~32 deg over the last 3 mm into the anus' face).
+Front / back motion is the turn's own smooth field (fading over 3 mm round the anus), the ramp sets heights only, and
+each crease's relief (height above the smoothed surface) rides on it, so the creases stay whole; front and sides
+blend by the angle round the anus. The canal and sphincter bend (the opening turns with the skin, the top stays).
+Every shape key gets the same treatment. Tried and dropped (so not repeated): pivoting at the canal's top (the
+opening only slid toward the vagina); turning the anus and dragging the skin in front with it (just moved the mound);
+a pivot off the skin + a fade behind it (a dip behind the anus); matching the ramp's end to the anus' face (a sag then
+a late climb); per-strip front/back offsets (sheared the diagonal creases); 20 deg (too far).
 Measured (real = body / 0.72; the body is ~0.7x real size: hip breadth 249 mm, bi-iliac 180 mm): fourchette -> anus
 ~38 mm (typical 25-40), meatus -> anus ~59 mm, clitoral hood -> anus ~103 mm (typical 70-90; the meatus sits ~43 mm
 behind the hood, real ~25-30 - for the vulva rebuild), anal canal 34 mm (30-40), 18 deg forward of vertical, vagina -
