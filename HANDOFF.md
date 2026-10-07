@@ -150,6 +150,22 @@ wings sit a little lower. Measured (atlas mm, `report.json` -> pelvis): intertub
 `FEMALE_PELVIS=0` keeps the atlas pelvis, other values scale it. The `subpubic_angle_deg` metric is unreliable (it
 read 91 deg on the male arch) - judge the arch from `out/urinary/pelvis_male_vs_female.png`.
 
+**Anus tilt (step 0c, OFF by default) and perineum measurements:** the skin rises 12 mm (body) from the perineum's
+low point behind the vestibule to the anus in an S: gentle, then 34-41 deg over the last 7 mm, then a flat shelf at
+the anus' front edge - seen from the vulva it reads as a drop-off. Step 0c can turn the anus about a transverse axis
+through the back (higher) end of its opening (`ANUS_TILT_DEG`, default 0; `ANUS_PIVOT_BACK` 7 mm): the opening turns
+rigidly on every key, the skin in front takes its motion fading over 16 mm, the canal bends. Rejected by the user: with
+the back end anchored the total rise is kept, so lowering the front end only pushes up a mound between it and the
+(rising) stretch in front - tilting moves the steep part, it cannot ease it. Proposed instead (awaiting the user's
+choice): reshape the stretch itself into one even ~20-25 deg ramp up to the anus' front edge, anus and rim untouched;
+or lower the whole anus a few mm (the only way to cut the total rise).
+Measured (real = body / 0.72; the body is ~0.7x real size: hip breadth 249 mm, bi-iliac 180 mm): fourchette -> anus
+~38 mm (typical 25-40), meatus -> anus ~59 mm, clitoral hood -> anus ~103 mm (typical 70-90; the meatus sits ~43 mm
+behind the hood, real ~25-30 - for the vulva rebuild), anal canal 34 mm (30-40), 18 deg forward of vertical, vagina -
+anal canal 38 mm apart at the skin, ~1 mm at the closest (~3 cm up; real rectovaginal septum 2-4 mm). Not changed (the
+user's approved surroundings): the cleft round and behind the anus is open (an 18 x 12 mm slot, a V behind), so from
+the vulva you see past the anus.
+
 **Rectum filling (5d):** AN_Rectum + AN_Rectum_LowerAmpulla welded into one reservoir (`weld_union`), its openings
 onto the sigmoid and the anal canal capped (`cap_holes`) and held still (8 mm, free by 25 mm), grown like the bladder
 in 3 stages, +`RECTUM_ADD_ML` 200 ml: 124 -> 191 / 258 / 325 ml (real). Solid for it: bones (3.5 mm), the abdominal

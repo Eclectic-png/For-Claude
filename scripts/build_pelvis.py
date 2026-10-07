@@ -100,6 +100,69 @@ if FEMALE_PELVIS > 0:
 print("PELVIS", json.dumps(report["pelvis"]))
 done("pelvis")
 
+# ======================= 0c. the anus tilted: the stretch in front of it eased =======================
+# the skin rose 12 mm from the perineum to the anus, the last 7 mm at 34-41 deg (a drop-off seen from the vulva).
+# The anus turns about a transverse axis through the back (higher) end of its opening, ANUS_PIVOT_BACK mm up-back
+# from its centre along the skin: its front end drops, ANUS_TILT_DEG; the back end and everything behind stay. The
+# anus' opening (within ANUS_R0 of its centre) turns rigidly on every shape key (the Open key turns with it), the
+# skin in front of / beside it takes the motion of the nearest anus vertex, fading over ANUS_RF; the anal canal and
+# its sphincter bend - the opening turns with the skin, the top (welded to the lower ampulla) stays.
+ANUS_TILT = math.radians(float(os.environ.get("ANUS_TILT_DEG", "0")))
+ANUS_BACK = float(os.environ.get("ANUS_PIVOT_BACK", "7")) / 1000
+ANUS_R0, ANUS_RF = 0.0075, 0.016
+if ANUS_TILT:
+    _cv = O["AN_AnalCanal"]; _Cw = np.array([tuple(_cv.matrix_world @ v.co) for v in _cv.data.vertices])
+    _an = _Cw[_Cw[:, 2] < _Cw[:, 2].min() + 0.0015].mean(0); _top = _Cw[_Cw[:, 2] > _Cw[:, 2].max() - 0.003].mean(0)
+    _an[0] = _top[0] = 0.0
+    _hb = U.bm_in(hips); _ht = BVHTree.FromBMesh(_hb); _hb.free()
+    _nrm = np.array(_ht.find_nearest(Vector(_an))[1]); _nrm = _nrm if _nrm[2] < 0 else -_nrm     # out of the skin
+    _up = np.array([0.0, -_nrm[2], _nrm[1]]); _up /= np.linalg.norm(_up)                       # up-back along it
+    if _up[1] < 0:
+        _up = -_up
+    _piv = _an + _up * ANUS_BACK
+    def _rot(P):                                  # about X through the pivot, front end down
+        rel = P - _piv; c, s_ = math.cos(ANUS_TILT), math.sin(ANUS_TILT); q = rel.copy()
+        q[:, 1] = rel[:, 1] * c - rel[:, 2] * s_; q[:, 2] = rel[:, 1] * s_ + rel[:, 2] * c
+        return q + _piv
+    _ax = (_top - _an) / np.linalg.norm(_top - _an); _Lc = float(np.linalg.norm(_top - _an))
+    report["anus_tilt"] = {"deg": round(math.degrees(ANUS_TILT), 1), "pivot_body": [round(float(x), 4) for x in _piv],
+                           "anus_before": [round(float(x), 4) for x in _an], "anus_after": [round(float(x), 4) for x in _rot(_an[None])[0]]}
+    for _n in ("Hips", "AN_AnalCanal", "AN_AnalSphincter"):
+        if _n not in O:
+            continue
+        _o = O[_n]; _M = np.array(_o.matrix_world); _Minv = np.linalg.inv(_M)
+        _B = np.array([tuple(v.co) for v in _o.data.vertices]); _Bw = _B @ _M[:3, :3].T + _M[:3, 3]
+        if _n == "Hips":
+            _beh = (_Bw - _piv) @ _up
+            _disc = (np.linalg.norm(_Bw - _an, axis=1) < ANUS_R0) & (_beh < 0.0005)
+            _Dd = _rot(_Bw[_disc]) - _Bw[_disc]
+            _kd = kdtree.KDTree(int(_disc.sum()))
+            for i_, p_ in enumerate(_Bw[_disc]):
+                _kd.insert(Vector(p_), i_)
+            _kd.balance()
+            _D = np.zeros_like(_Bw)
+            for i_ in np.nonzero(~_disc & (np.linalg.norm(_Bw - _an, axis=1) < ANUS_R0 + ANUS_RF + 0.005))[0]:
+                _, j_, d_ = _kd.find(Vector(_Bw[i_]))
+                _D[i_] = _Dd[j_] * (1 - float(U.ss(0, ANUS_RF, d_))) * (1 - float(U.ss(-0.001, 0.003, _beh[i_])))
+        else:
+            _w = 1 - U.ss(0.0, 0.9, ((_Bw - _an) @ _ax) / _Lc)
+        for kb_ in list(_o.data.shape_keys.key_blocks if _o.data.shape_keys else []) + [None]:
+            _K = np.array([tuple(d.co) for d in kb_.data]) if kb_ else _B
+            _Kw = _K @ _M[:3, :3].T + _M[:3, 3]
+            if _n == "Hips":
+                _Nw = _Kw + _D; _Nw[_disc] = _rot(_Kw[_disc])
+            else:
+                _Nw = _Kw + (_rot(_Kw) - _Kw) * _w[:, None]
+            _Nl = (_Nw - _M[:3, 3]) @ _Minv[:3, :3].T
+            if kb_:
+                kb_.data.foreach_set("co", _Nl.astype(np.float32).ravel())
+            else:
+                _o.data.vertices.foreach_set("co", _Nl.astype(np.float32).ravel())
+        _o.data.update()
+    bpy.context.view_layer.update()
+    print("ANUS_TILT", json.dumps(report["anus_tilt"]))
+done("anus")
+
 # ======================= 1. kidneys: open the wall where the renal pelvis leaves at the hilum =======================
 report["hilum"] = {}
 for s in "LR":
