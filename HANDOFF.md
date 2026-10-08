@@ -1,5 +1,7 @@
 # NEXT SESSION START HERE
 
+> New session? Start with `SESSION_HANDOFF.md` (short state + next steps), then this file.
+
 **Project goal:** functioning organ systems from the base of the neck down, in Blender, toon shader, female model
 first (`Hips.blend`), a male version later. Done: the digestive system (esophagus -> anus, real openable passage).
 **Current: the female pelvis - `scripts/build_pelvis.py` (was `build_urinary.py`): urinary system, female bony pelvis,
