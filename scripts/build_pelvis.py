@@ -106,7 +106,7 @@ done("pelvis")
 # turns ANUS_TILT_DEG about a transverse axis through the back (higher) end of its opening, a point on the skin -
 # its front end drops, nothing behind moves; the mound and incline in front are not carried along but become an even
 # ramp into the turned anus' front edge (a smooth offset - the creases keep their relief). urinary_lib.anus_tilt_ramp.
-ANUS_TILT = math.radians(float(os.environ.get("ANUS_TILT_DEG", "5")))
+ANUS_TILT = math.radians(float(os.environ.get("ANUS_TILT_DEG", "3")))
 if ANUS_TILT:
     report["anus_tilt"] = U.anus_tilt_ramp(hips, O["AN_AnalCanal"], [O[n_] for n_ in ("AN_AnalSphincter",) if n_ in O], ANUS_TILT)
     print("ANUS_TILT", json.dumps(report["anus_tilt"]))

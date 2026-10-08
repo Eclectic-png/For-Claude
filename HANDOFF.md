@@ -154,7 +154,7 @@ behind the vestibule to the anus in an S: gentle, then an incline at 36-50 deg (
 (a mound) to the opening at y ~56-57 - from the vulva it read as a drop-off. Now: the anus (the skin within 5 mm of
 the canal's opening) turns `ANUS_TILT_DEG` 15 (0 = off) about a transverse axis through the back (higher) end of its
 opening - a point ON the skin 5 mm behind the opening along the midline; its front end drops, nothing behind the pivot
-moves (identical to 0.01 mm). Default now 5 deg (the user: 15 too much). The mound and incline in front are not carried along: their height becomes an even ramp
+moves (identical to 0.01 mm). Default 3 deg (the user picked it over 5 and 15). The mound and incline in front are not carried along: their height becomes an even ramp
 from y 36 mm into the turned anus' front edge (midline ~21 deg, steepening smoothly over the last 3 mm into it).
 Front / back motion is the turn's own smooth field (fading over 3 mm round the anus), the ramp sets heights only and
 is smooth (the old mound's relief goes with it); each strip aims at the smoothed rim (turned), and the rim's crease
