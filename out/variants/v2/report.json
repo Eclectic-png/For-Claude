@@ -1,0 +1,87 @@
+{
+ "cleft_squeeze": 0.35,
+ "refined_edges": 1110,
+ "refine_new_verts": 7040,
+ "deleted_verts": 572,
+ "hole_loop": 56,
+ "outer_ring_verts": 72,
+ "base_lift_mm": 2.11,
+ "new_verts": 1799,
+ "degenerate_faces": 0,
+ "anus_centre_A": [
+  0.0,
+  0.057,
+  0.7895
+ ],
+ "boundary_edges_total": 84,
+ "pucker_outer_lateral_halfwidth_mm": 4.7,
+ "slit_length_mm": 5.8,
+ "pigment_outline_mm": {
+  "AP": 15.9,
+  "lateral_over_surface": 12.6,
+  "lateral_projected": 8.1,
+  "climb_up_cheek_wall": 1.9
+ },
+ "slit_tip_welded_verts": 233,
+ "fissure_open_removed_verts": 57,
+ "tip_merged_verts": 125,
+ "tip_tidied_verts": 81,
+ "textures_inpainted": [
+  [
+   "cf_m_body_MT_CT.png",
+   0.06
+  ],
+  [
+   "cf_m_body_MT_DT.png",
+   0.076
+  ],
+  [
+   "cf_m_body_CM.png",
+   0.258
+  ],
+  [
+   "cf_m_body_DM.png",
+   0.065
+  ]
+ ],
+ "textures_untouched": [
+  "cf_m_body_LM.png",
+  "cf_m_body_NMP_CNV.png",
+  "cf_m_body_NMPD_CNV.png"
+ ],
+ "rectum_gap_to_bone_below_860mm_mm": 5.0,
+ "min_gap_ampulla_to_sacrum_coccyx_mm": 4.9,
+ "min_gap_canal_to_coccyx_mm": 14.8,
+ "navel": [
+  0.0,
+  -0.0535,
+  0.9354
+ ],
+ "canal_axis": [
+  -0.0,
+  -0.6037,
+  0.7972
+ ],
+ "canal_length_mm": 25.0,
+ "canal_angle_from_vertical_deg": 37.1,
+ "anorectal_angle_deg": 107.9,
+ "junction_J": [
+  0.0,
+  0.0419,
+  0.8095
+ ],
+ "junction_to_coccyx_tip_mm": 22.3,
+ "junction_vs_pubococcygeal_line_mm": -5.7,
+ "anus_vs_ischial_tuberosity_height_mm": -3.9,
+ "coccyx_tip": [
+  -0.0007,
+  0.0633,
+  0.8156
+ ],
+ "symphysis_low": [
+  -0.0032,
+  -0.0042,
+  0.8142
+ ],
+ "ampulla_len_mm": 20.9
+}

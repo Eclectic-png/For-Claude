@@ -1,0 +1,146 @@
+[
+ {
+  "organ": "AN_Colon_Descending",
+  "edges": 152,
+  "r_mm": 16.87,
+  "centre": [
+   0.005,
+   0.0266,
+   0.8633
+  ],
+  "matched_with": "AN_Rectum",
+  "max_gap_mm": 0.0
+ },
+ {
+  "organ": "AN_Rectum",
+  "edges": 152,
+  "r_mm": 16.87,
+  "centre": [
+   0.005,
+   0.0266,
+   0.8633
+  ],
+  "matched_with": "AN_Colon_Descending",
+  "max_gap_mm": 0.0
+ },
+ {
+  "organ": "AN_Rectum",
+  "edges": 83,
+  "r_mm": 13.28,
+  "centre": [
+   0.0003,
+   0.0467,
+   0.8298
+  ],
+  "matched_with": "AN_Rectum_LowerAmpulla",
+  "max_gap_mm": 0.0
+ },
+ {
+  "organ": "AN_Rectum_LowerAmpulla",
+  "edges": 36,
+  "r_mm": 4.0,
+  "centre": [
+   0.0,
+   0.0415,
+   0.8098
+  ],
+  "matched_with": "AN_AnalCanal",
+  "max_gap_mm": 0.0
+ },
+ {
+  "organ": "AN_Rectum_LowerAmpulla",
+  "edges": 83,
+  "r_mm": 13.28,
+  "centre": [
+   0.0003,
+   0.0467,
+   0.8298
+  ],
+  "matched_with": "AN_Rectum",
+  "max_gap_mm": 0.0
+ },
+ {
+  "organ": "AN_AnalCanal",
+  "edges": 288,
+  "r_mm": 0.21,
+  "centre": [
+   0.0,
+   0.0564,
+   0.7901
+  ],
+  "matched_with": "Hips",
+  "max_gap_mm": 0.0
+ },
+ {
+  "organ": "AN_AnalCanal",
+  "edges": 36,
+  "r_mm": 4.0,
+  "centre": [
+   0.0,
+   0.0415,
+   0.8098
+  ],
+  "matched_with": "AN_Rectum_LowerAmpulla",
+  "max_gap_mm": 0.0
+ },
+ {
+  "organ": "Hips",
+  "edges": 22,
+  "r_mm": 61.66,
+  "centre": [
+   0.0615,
+   0.0262,
+   0.7616
+  ],
+  "matched_with": "AN_AnalCanal",
+  "max_gap_mm": 129.795
+ },
+ {
+  "organ": "Hips",
+  "edges": 22,
+  "r_mm": 61.66,
+  "centre": [
+   -0.0616,
+   0.0262,
+   0.7616
+  ],
+  "matched_with": "AN_AnalCanal",
+  "max_gap_mm": 129.8727
+ },
+ {
+  "organ": "Hips",
+  "edges": 40,
+  "r_mm": 74.04,
+  "centre": [
+   0.0,
+   0.0085,
+   0.9503
+  ],
+  "matched_with": "AN_Colon_Descending",
+  "max_gap_mm": 117.6785
+ },
+ {
+  "organ": "Hips",
+  "edges": 288,
+  "r_mm": 0.21,
+  "centre": [
+   0.0,
+   0.0564,
+   0.7901
+  ],
+  "matched_with": "AN_AnalCanal",
+  "max_gap_mm": 0.0
+ },
+ {
+  "organ": "Hips",
+  "edges": 3,
+  "r_mm": 0.89,
+  "centre": [
+   0.0,
+   0.0149,
+   0.7837
+  ],
+  "matched_with": "AN_Rectum_LowerAmpulla",
+  "max_gap_mm": 33.7415
+ }
+]

@@ -1,0 +1,1840 @@
+{
+ "pelvis": {
+  "before": {
+   "subpubic_angle_deg": 90.9,
+   "intertuberous_mm": 84.9,
+   "brim_width_mm": 123.2,
+   "sacrum_height_mm": 144.4,
+   "sacrum_width_mm": 117.8
+  },
+  "after": {
+   "subpubic_angle_deg": 116.8,
+   "intertuberous_mm": 109.0,
+   "brim_width_mm": 132.5,
+   "sacrum_height_mm": 144.4,
+   "sacrum_width_mm": 122.8
+  },
+  "amount": 1.0,
+  "skin_clearance_mm": 5.33
+ },
+ "anus_tilt": {
+  "deg": 3.0,
+  "pivot": [
+   0.0,
+   0.0597,
+   0.7924
+  ],
+  "opening": [
+   0.0,
+   0.0563,
+   0.7902
+  ]
+ },
+ "hilum": {
+  "L": {
+   "pair": [
+    "AN_Kidney_L",
+    "AN_Ureter_L"
+   ],
+   "curve_mm": 72.8,
+   "inflate_mm": 0.0,
+   "inflated": null,
+   "gaps_stitched": 0,
+   "stitch_faces": 0,
+   "centre": [
+    0.0355,
+    0.0172,
+    0.9982
+   ],
+   "patch_radius_mm": 23.9,
+   "killed_faces": 419,
+   "AN_Kidney_L": {
+    "patch_faces": 1706
+   },
+   "AN_Ureter_L": {
+    "patch_faces": 1263
+   },
+   "kidney_pieces_inside_pelvis": 2,
+   "opening": [
+    {
+     "edges": 172,
+     "perimeter_mm": 72.8,
+     "mean_radius_mm": 7.4
+    }
+   ]
+  },
+  "R": {
+   "pair": [
+    "AN_Kidney_R",
+    "AN_Ureter_R"
+   ],
+   "curve_mm": 90.5,
+   "inflate_mm": 0.0,
+   "inflated": null,
+   "gaps_stitched": 0,
+   "stitch_faces": 0,
+   "centre": [
+    -0.0277,
+    0.007,
+    0.9853
+   ],
+   "patch_radius_mm": 34.7,
+   "killed_faces": 401,
+   "AN_Kidney_R": {
+    "patch_faces": 1918
+   },
+   "AN_Ureter_R": {
+    "patch_faces": 1334
+   },
+   "kidney_pieces_inside_pelvis": 1,
+   "opening": [
+    {
+     "edges": 177,
+     "perimeter_mm": 90.5,
+     "mean_radius_mm": 10.5
+    }
+   ]
+  }
+ },
+ "vagina_space": {
+  "skin_clearance_mm": 1.39,
+  "introitus_atlas": [
+   0.0,
+   -0.06402778625488281,
+   0.7324060201644897
+  ],
+  "top_atlas": [
+   0.0,
+   -0.03920384496450424,
+   0.7874749898910522
+  ],
+  "length_mm": 64.3,
+  "bowel_moved_mm": {
+   "AN_Colon_Descending": 0.71,
+   "AN_Rectum": 3.18,
+   "AN_Rectum_LowerAmpulla": 11.77,
+   "AN_AnalCanal": 3.98
+  },
+  "residual_mm": [
+   0.0
+  ],
+  "urethral_groove_mm": 2.96
+ },
+ "reproductive": {
+  "tube_length_mm": {
+   "L": 126.8,
+   "R": 126.8
+  },
+  "joins": {
+   "os": {
+    "curve_mm": 9.3,
+    "patch_radius_mm": 13.8,
+    "killed_faces": 730
+   },
+   "wall_L": {
+    "curve_mm": 7.2,
+    "patch_radius_mm": 13.8,
+    "killed_faces": 22
+   },
+   "ostium_L": {
+    "curve_mm": 15.1,
+    "patch_radius_mm": 14.4,
+    "killed_faces": 358
+   },
+   "wall_R": {
+    "curve_mm": 7.2,
+    "patch_radius_mm": 13.8,
+    "killed_faces": 22
+   },
+   "ostium_R": {
+    "curve_mm": 15.1,
+    "patch_radius_mm": 14.4,
+    "killed_faces": 363
+   },
+   "vagina": {
+    "curve_mm": 41.2,
+    "patch_radius_mm": 19.6,
+    "killed_faces": 80
+   }
+  },
+  "uterus_dims_mm": [
+   51.9,
+   64.7,
+   49.5
+  ],
+  "off_bone_mm": {
+   "AN_Uterine_Tube_L": [
+    3.57,
+    0.0
+   ],
+   "AN_Uterine_Tube_R": [
+    4.19,
+    0.0
+   ]
+  },
+  "bowel_room": {
+   "bowel_moved_mm": {
+    "AN_Colon_Descending": 9.59,
+    "AN_Rectum": 7.97,
+    "AN_Rectum_LowerAmpulla": 6.18,
+    "AN_AnalCanal": 1.27,
+    "AN_Ureter_L": 0.0,
+    "AN_Ureter_R": 0.01
+   },
+   "bowel_residual_mm": [
+    0.0
+   ]
+  },
+  "vertices": {
+   "AN_Uterus": 5787,
+   "AN_Uterus_Lumen": 4900,
+   "AN_Ovary_L": 642,
+   "AN_Ovary_R": 642,
+   "AN_Uterine_Tube_L": 2311,
+   "AN_Uterine_Tube_R": 2314,
+   "AN_Ovarian_Ligament_L": 374,
+   "AN_Round_Ligament_L": 710,
+   "AN_Suspensory_Ligament_L": 218,
+   "AN_Ovarian_Ligament_R": 374,
+   "AN_Round_Ligament_R": 710,
+   "AN_Suspensory_Ligament_R": 218
+  },
+  "bowel_room_after_rest_tilt": {
+   "bowel_moved_mm": {
+    "AN_Colon_Descending": 4.7,
+    "AN_Rectum": 1.64,
+    "AN_Rectum_LowerAmpulla": 0.28,
+    "AN_AnalCanal": 0.01,
+    "AN_Ureter_L": 0.0,
+    "AN_Ureter_R": 0.0
+   },
+   "bowel_residual_mm": [
+    0.0
+   ]
+  },
+  "rest_tilt": {
+   "deg": 7.0,
+   "left_mm": 0.1,
+   "bladder_settled_mm": [
+    0.07,
+    0.0
+   ],
+   "empty_ml_after": 70.0
+  }
+ },
+ "seed_violations_mm": 3.23,
+ "bladder": {
+  "neck": [
+   0.0,
+   -0.07999999821186066,
+   0.7760000228881836
+  ],
+  "meatus_body": [
+   0.0,
+   0.013500000350177288,
+   0.7835129499435425
+  ],
+  "empty_ml": 70.2,
+  "log_empty": [
+   [
+    0,
+    4.2,
+    0.6
+   ],
+   [
+    100,
+    84.2,
+    0.017
+   ],
+   [
+    200,
+    72.0,
+    0.012
+   ]
+  ],
+  "neck_annulus_faces": 78,
+  "stages_ml": [
+   149.8,
+   260.7,
+   371.5,
+   498.7
+  ],
+  "uterus_tilt_deg": [
+   22.0,
+   22.0,
+   22.0,
+   22.0
+  ],
+  "crease_smoothing_ml": [
+   [
+    149.8,
+    148.8,
+    true
+   ],
+   [
+    260.7,
+    258.0,
+    true
+   ],
+   [
+    371.5,
+    366.0,
+    true
+   ],
+   [
+    498.7,
+    489.9,
+    true
+   ]
+  ],
+  "orifices": {
+   "L": [
+    0.010800023563206196,
+    -0.062276698648929596,
+    0.789752721786499
+   ],
+   "R": [
+    -0.011278180405497551,
+    -0.06138230487704277,
+    0.7902049422264099
+   ]
+  },
+  "opening_centres": {
+   "L": [
+    0.02411,
+    -0.05575,
+    0.797
+   ],
+   "R": [
+    -0.03046,
+    -0.06148,
+    0.8033
+   ]
+  },
+  "new_vertex_worst_mobility": 0.0643,
+  "new_vertices_in_trigone": 91
+ },
+ "ureters": {
+  "L": {
+   "end_moved_mm": 35.1,
+   "eased_out_of_bowel_mm": [
+    5.68,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "junction": {
+    "pair": [
+     "AN_Ureter_L",
+     "AN_Bladder"
+    ],
+    "curve_mm": 9.2,
+    "inflate_mm": 0.0,
+    "inflated": null,
+    "gaps_stitched": 0,
+    "stitch_faces": 0,
+    "centre": [
+     0.0112,
+     0.0301,
+     0.8213
+    ],
+    "patch_radius_mm": 20.4,
+    "killed_faces": 95,
+    "AN_Ureter_L": {
+     "patch_faces": 144
+    },
+    "AN_Bladder": {
+     "patch_faces": 2068
+    },
+    "opening": [
+     {
+      "edges": 24,
+      "perimeter_mm": 9.2,
+      "mean_radius_mm": 1.4
+     }
+    ]
+   },
+   "opening_from_planned_orifice_mm": 16.5
+  },
+  "R": {
+   "end_moved_mm": 30.3,
+   "eased_out_of_bowel_mm": [
+    0.0,
+    0.0,
+    0.0,
+    0.42
+   ],
+   "junction": {
+    "pair": [
+     "AN_Ureter_R",
+     "AN_Bladder"
+    ],
+    "curve_mm": 8.1,
+    "inflate_mm": 0.0,
+    "inflated": null,
+    "gaps_stitched": 0,
+    "stitch_faces": 0,
+    "centre": [
+     -0.0119,
+     0.0287,
+     0.8232
+    ],
+    "patch_radius_mm": 25.2,
+    "killed_faces": 158,
+    "AN_Ureter_R": {
+     "patch_faces": 190
+    },
+    "AN_Bladder": {
+     "patch_faces": 3056
+    },
+    "opening": [
+     {
+      "edges": 29,
+      "perimeter_mm": 8.1,
+      "mean_radius_mm": 1.2
+     }
+    ]
+   },
+   "opening_from_planned_orifice_mm": 23.2
+  }
+ },
+ "meatus": {
+  "body": [
+   0.0,
+   0.013500000350177288,
+   0.7835129499435425
+  ],
+  "atlas": [
+   0.0,
+   -0.08347223699092865,
+   0.7382124662399292
+  ],
+  "edges_split": 2200,
+  "welded": 8,
+  "fins_removed": 10,
+  "faces_removed": 498,
+  "faces_added": 786,
+  "winding_votes": 94
+ },
+ "urethra": {
+  "length_mm": 38.0,
+  "length_body_mm": 27.3,
+  "rings": 56,
+  "wall_rings": [
+   8,
+   53
+  ],
+  "wall_from_neck_mm": 5.5,
+  "wall_to_meatus_mm": 1.4,
+  "bone_clearance_mm": 18.6
+ },
+ "void": {
+  "neck_open_mm": 7.0,
+  "meatus_lips_apart_mm": 2.0,
+  "neck_seam_mm": 0.0
+ },
+ "uterus_tilt": {
+  "Fill_1": {
+   "deg": 22.0
+  },
+  "Fill_2": {
+   "deg": 22.0
+  },
+  "Fill_3": {
+   "deg": 22.0
+  },
+  "Fill_4": {
+   "deg": 22.0
+  }
+ },
+ "make_room": {
+  "organs": [
+   "AN_Colon_Descending",
+   "AN_Rectum",
+   "AN_Rectum_LowerAmpulla",
+   "AN_AnalCanal",
+   "AN_Ureter_L",
+   "AN_Ureter_R",
+   "AN_Uterus",
+   "AN_Uterus_Lumen",
+   "AN_Ovary_L",
+   "AN_Ovary_R",
+   "AN_Uterine_Tube_L",
+   "AN_Uterine_Tube_R",
+   "AN_Ovarian_Ligament_L",
+   "AN_Round_Ligament_L",
+   "AN_Suspensory_Ligament_L",
+   "AN_Ovarian_Ligament_R",
+   "AN_Round_Ligament_R",
+   "AN_Suspensory_Ligament_R"
+  ],
+  "residual_inside_mm": [
+   0.0,
+   1.39,
+   1.14,
+   0.29
+  ],
+  "log": [
+   [
+    0,
+    0,
+    31,
+    10,
+    1184
+   ],
+   [
+    0,
+    1,
+    18,
+    10,
+    473
+   ],
+   [
+    0,
+    2,
+    24,
+    10,
+    502
+   ],
+   [
+    0,
+    3,
+    12,
+    10,
+    234
+   ],
+   [
+    0,
+    4,
+    13,
+    10,
+    323
+   ],
+   [
+    0,
+    5,
+    10,
+    10,
+    89
+   ],
+   [
+    0,
+    6,
+    9,
+    10,
+    110
+   ],
+   [
+    0,
+    7,
+    9,
+    10,
+    175
+   ],
+   [
+    0,
+    8,
+    9,
+    10,
+    163
+   ],
+   [
+    0,
+    9,
+    9,
+    10,
+    116
+   ],
+   [
+    1,
+    0,
+    948,
+    10,
+    85
+   ],
+   [
+    1,
+    1,
+    478,
+    10,
+    110
+   ],
+   [
+    1,
+    2,
+    466,
+    10,
+    96
+   ],
+   [
+    1,
+    3,
+    388,
+    10,
+    119
+   ],
+   [
+    1,
+    4,
+    443,
+    10,
+    56
+   ],
+   [
+    1,
+    5,
+    446,
+    10,
+    52
+   ],
+   [
+    1,
+    6,
+    418,
+    10,
+    58
+   ],
+   [
+    1,
+    7,
+    376,
+    10,
+    101
+   ],
+   [
+    1,
+    8,
+    384,
+    10,
+    70
+   ],
+   [
+    1,
+    9,
+    353,
+    10,
+    101
+   ],
+   [
+    2,
+    0,
+    1836,
+    10,
+    59
+   ],
+   [
+    2,
+    1,
+    779,
+    10,
+    138
+   ],
+   [
+    2,
+    2,
+    765,
+    10,
+    35
+   ],
+   [
+    2,
+    3,
+    975,
+    10,
+    66
+   ],
+   [
+    2,
+    4,
+    767,
+    10,
+    25
+   ],
+   [
+    2,
+    5,
+    641,
+    10,
+    43
+   ],
+   [
+    2,
+    6,
+    731,
+    10,
+    22
+   ],
+   [
+    2,
+    7,
+    610,
+    10,
+    40
+   ],
+   [
+    2,
+    8,
+    628,
+    10,
+    40
+   ],
+   [
+    2,
+    9,
+    659,
+    10,
+    70
+   ],
+   [
+    3,
+    0,
+    2629,
+    10,
+    33
+   ],
+   [
+    3,
+    1,
+    1462,
+    10,
+    173
+   ],
+   [
+    3,
+    2,
+    1367,
+    10,
+    43
+   ],
+   [
+    3,
+    3,
+    1203,
+    10,
+    139
+   ],
+   [
+    3,
+    4,
+    1280,
+    10,
+    73
+   ],
+   [
+    3,
+    5,
+    1094,
+    10,
+    100
+   ],
+   [
+    3,
+    6,
+    1086,
+    10,
+    50
+   ],
+   [
+    3,
+    7,
+    1042,
+    10,
+    78
+   ],
+   [
+    3,
+    8,
+    1020,
+    10,
+    64
+   ],
+   [
+    3,
+    9,
+    996,
+    10,
+    82
+   ]
+  ],
+  "max_move_mm": {
+   "AN_Colon_Descending": 23.32,
+   "AN_Rectum": 19.54,
+   "AN_Rectum_LowerAmpulla": 1.76,
+   "AN_AnalCanal": 0.0,
+   "AN_Ureter_L": 0.0,
+   "AN_Ureter_R": 0.0,
+   "AN_Uterus": 0.02,
+   "AN_Uterus_Lumen": 0.02,
+   "AN_Ovary_L": 0.01,
+   "AN_Ovary_R": 0.01,
+   "AN_Uterine_Tube_L": 0.03,
+   "AN_Uterine_Tube_R": 0.03,
+   "AN_Ovarian_Ligament_L": 0.02,
+   "AN_Round_Ligament_L": 0.02,
+   "AN_Suspensory_Ligament_L": 0.01,
+   "AN_Ovarian_Ligament_R": 0.02,
+   "AN_Round_Ligament_R": 0.02,
+   "AN_Suspensory_Ligament_R": 0.01
+  }
+ },
+ "settle": {
+  "Fill_1": {
+   "pressing_in_mm": 0.0,
+   "after_mm": 0.0
+  },
+  "Fill_2": {
+   "pressing_in_mm": 0.0,
+   "after_mm": 0.0
+  },
+  "Fill_3": {
+   "pressing_in_mm": 0.0,
+   "after_mm": 0.0
+  },
+  "Fill_4": {
+   "pressing_in_mm": 0.0,
+   "after_mm": 0.0
+  }
+ },
+ "rectum_fill": {
+  "rest_ml": 116.9,
+  "stages_ml": [
+   184.1,
+   250.9,
+   317.1
+  ],
+  "neighbours_residual_mm": [
+   0.0,
+   0.0,
+   1.72
+  ],
+  "settle": {
+   "Rectum_Fill_1": {
+    "pressing_in_mm": 0.0,
+    "after_mm": 0.0
+   },
+   "Rectum_Fill_2": {
+    "pressing_in_mm": 0.0,
+    "after_mm": 0.0
+   },
+   "Rectum_Fill_3": {
+    "pressing_in_mm": 2.04,
+    "after_mm": 0.0
+   }
+  },
+  "settled_ml": [
+   184.1,
+   250.9,
+   315.8
+  ],
+  "both_on_uterus_mm": [
+   6.87,
+   0.0
+  ]
+ },
+ "both_full": {
+  "bladder_pressing_mm": 0.0,
+  "after_mm": 0.0,
+  "neighbours_residual_mm": [
+   0.36
+  ],
+  "bladder_on_uterus_mm": [
+   0.0,
+   0.0
+  ],
+  "bladder_ml": 486.4
+ },
+ "polish": {
+  "bladder0.25_void0.0_rectum0.0": {
+   "AN_Colon_Descending": {
+    "key": "Bladder_Fill_1",
+    "pressing_mm": 4.93,
+    "after_mm": 0.34
+   },
+   "AN_Rectum": {
+    "key": "Bladder_Fill_1",
+    "pressing_mm": 0.27,
+    "after_mm": 0.27
+   },
+   "AN_Rectum_LowerAmpulla": {
+    "key": "Bladder_Fill_1",
+    "pressing_mm": 0.12,
+    "after_mm": 0.12
+   },
+   "AN_Ovary_R": {
+    "key": "Bladder_Fill_1",
+    "pressing_mm": 0.33,
+    "after_mm": 0.0
+   },
+   "AN_Uterine_Tube_L": {
+    "key": "Bladder_Fill_1",
+    "pressing_mm": 1.55,
+    "after_mm": 0.0
+   },
+   "AN_Uterine_Tube_R": {
+    "key": "Bladder_Fill_1",
+    "pressing_mm": 1.4,
+    "after_mm": 0.3
+   },
+   "AN_Round_Ligament_L": {
+    "key": "Bladder_Fill_1",
+    "pressing_mm": 1.68,
+    "after_mm": 0.0
+   }
+  },
+  "bladder0.5_void0.0_rectum0.0": {
+   "AN_Bladder": {
+    "key": "Fill_2",
+    "pressing_mm": 0.25,
+    "after_mm": 0.0
+   },
+   "AN_Colon_Descending": {
+    "key": "Bladder_Fill_2",
+    "pressing_mm": 1.23,
+    "after_mm": 0.65
+   },
+   "AN_Rectum_LowerAmpulla": {
+    "key": "Bladder_Fill_2",
+    "pressing_mm": 0.12,
+    "after_mm": 0.12
+   },
+   "AN_Ovary_R": {
+    "key": "Bladder_Fill_2",
+    "pressing_mm": 0.33,
+    "after_mm": 0.0
+   },
+   "AN_Uterine_Tube_L": {
+    "key": "Bladder_Fill_2",
+    "pressing_mm": 1.55,
+    "after_mm": 0.0
+   },
+   "AN_Uterine_Tube_R": {
+    "key": "Bladder_Fill_2",
+    "pressing_mm": 1.4,
+    "after_mm": 0.3
+   },
+   "AN_Round_Ligament_L": {
+    "key": "Bladder_Fill_2",
+    "pressing_mm": 0.08,
+    "after_mm": 0.0
+   }
+  },
+  "bladder0.75_void0.0_rectum0.0": {
+   "AN_Bladder": {
+    "key": "Fill_3",
+    "pressing_mm": 2.79,
+    "after_mm": 1.0
+   },
+   "AN_Colon_Descending": {
+    "key": "Bladder_Fill_3",
+    "pressing_mm": 0.09,
+    "after_mm": 0.08
+   },
+   "AN_Rectum_LowerAmpulla": {
+    "key": "Bladder_Fill_3",
+    "pressing_mm": 0.12,
+    "after_mm": 0.12
+   },
+   "AN_Ovary_R": {
+    "key": "Bladder_Fill_3",
+    "pressing_mm": 0.33,
+    "after_mm": 0.0
+   },
+   "AN_Uterine_Tube_L": {
+    "key": "Bladder_Fill_3",
+    "pressing_mm": 1.55,
+    "after_mm": 0.28
+   },
+   "AN_Uterine_Tube_R": {
+    "key": "Bladder_Fill_3",
+    "pressing_mm": 1.4,
+    "after_mm": 0.3
+   },
+   "AN_Ovarian_Ligament_L": {
+    "key": "Bladder_Fill_3",
+    "pressing_mm": 1.0,
+    "after_mm": 0.0
+   },
+   "AN_Round_Ligament_L": {
+    "key": "Bladder_Fill_3",
+    "pressing_mm": 0.28,
+    "after_mm": 0.1
+   }
+  },
+  "bladder1.0_void0.0_rectum0.0": {
+   "AN_Bladder": {
+    "key": "Fill_4",
+    "pressing_mm": 5.74,
+    "after_mm": 5.22
+   },
+   "AN_Rectum_LowerAmpulla": {
+    "key": "Bladder_Fill_4",
+    "pressing_mm": 0.12,
+    "after_mm": 0.12
+   },
+   "AN_Ovary_R": {
+    "key": "Bladder_Fill_4",
+    "pressing_mm": 0.33,
+    "after_mm": 0.0
+   },
+   "AN_Uterine_Tube_L": {
+    "key": "Bladder_Fill_4",
+    "pressing_mm": 1.55,
+    "after_mm": 0.28
+   },
+   "AN_Uterine_Tube_R": {
+    "key": "Bladder_Fill_4",
+    "pressing_mm": 1.4,
+    "after_mm": 0.3
+   },
+   "AN_Round_Ligament_L": {
+    "key": "Bladder_Fill_4",
+    "pressing_mm": 0.28,
+    "after_mm": 0.09
+   },
+   "AN_Round_Ligament_R": {
+    "key": "Bladder_Fill_4",
+    "pressing_mm": 0.01,
+    "after_mm": 0.0
+   }
+  },
+  "bladder0.0_void0.0_rectum0.333": {
+   "AN_Rectum_LowerAmpulla": {
+    "key": "Rectum_Fill_1",
+    "pressing_mm": 0.12,
+    "after_mm": 0.12
+   }
+  },
+  "bladder0.0_void0.0_rectum0.667": {
+   "AN_Rectum_LowerAmpulla": {
+    "key": "Rectum_Fill_2",
+    "pressing_mm": 0.12,
+    "after_mm": 0.12
+   },
+   "AN_Ureter_R": {
+    "key": "Rectum_Fill_2",
+    "pressing_mm": 0.01,
+    "after_mm": 0.0
+   },
+   "AN_Ovary_L": {
+    "key": "Rectum_Fill_2",
+    "pressing_mm": 0.0,
+    "after_mm": 0.0
+   },
+   "AN_Ovary_R": {
+    "key": "Rectum_Fill_2",
+    "pressing_mm": 0.09,
+    "after_mm": 0.0
+   },
+   "AN_Uterine_Tube_L": {
+    "key": "Rectum_Fill_2",
+    "pressing_mm": 0.17,
+    "after_mm": 0.0
+   },
+   "AN_Uterine_Tube_R": {
+    "key": "Rectum_Fill_2",
+    "pressing_mm": 0.48,
+    "after_mm": 0.06
+   },
+   "AN_Suspensory_Ligament_R": {
+    "key": "Rectum_Fill_2",
+    "pressing_mm": 0.06,
+    "after_mm": 0.02
+   }
+  },
+  "bladder0.0_void0.0_rectum1.0": {
+   "AN_Rectum": {
+    "key": "Rectum_Fill_3",
+    "pressing_mm": 0.8,
+    "after_mm": 0.0
+   },
+   "AN_Rectum_LowerAmpulla": {
+    "key": "Rectum_Fill_3",
+    "pressing_mm": 0.12,
+    "after_mm": 0.12
+   },
+   "AN_Ureter_R": {
+    "key": "Rectum_Fill_3",
+    "pressing_mm": 0.01,
+    "after_mm": 0.01
+   },
+   "AN_Ovary_L": {
+    "key": "Rectum_Fill_3",
+    "pressing_mm": 0.0,
+    "after_mm": 0.0
+   },
+   "AN_Ovary_R": {
+    "key": "Rectum_Fill_3",
+    "pressing_mm": 0.2,
+    "after_mm": 0.13
+   },
+   "AN_Uterine_Tube_L": {
+    "key": "Rectum_Fill_3",
+    "pressing_mm": 0.08,
+    "after_mm": 0.0
+   },
+   "AN_Uterine_Tube_R": {
+    "key": "Rectum_Fill_3",
+    "pressing_mm": 0.57,
+    "after_mm": 0.0
+   }
+  },
+  "bladder1.0_void0.0_rectum1.0": {
+   "AN_Bladder": {
+    "key": "Both_Full",
+    "pressing_mm": 0.95,
+    "after_mm": 0.4
+   },
+   "AN_Colon_Descending": {
+    "key": "Both_Full",
+    "pressing_mm": 0.0,
+    "after_mm": 0.0
+   },
+   "AN_Rectum": {
+    "key": "Both_Full",
+    "pressing_mm": 0.84,
+    "after_mm": 0.0
+   },
+   "AN_Rectum_LowerAmpulla": {
+    "key": "Both_Full",
+    "pressing_mm": 0.12,
+    "after_mm": 0.12
+   },
+   "AN_Ureter_R": {
+    "key": "Both_Full",
+    "pressing_mm": 1.24,
+    "after_mm": 0.08
+   },
+   "AN_Ovary_L": {
+    "key": "Both_Full",
+    "pressing_mm": 0.35,
+    "after_mm": 0.01
+   },
+   "AN_Ovary_R": {
+    "key": "Both_Full",
+    "pressing_mm": 0.39,
+    "after_mm": 0.06
+   },
+   "AN_Uterine_Tube_L": {
+    "key": "Both_Full",
+    "pressing_mm": 0.24,
+    "after_mm": 0.31
+   },
+   "AN_Uterine_Tube_R": {
+    "key": "Both_Full",
+    "pressing_mm": 0.08,
+    "after_mm": 0.11
+   },
+   "AN_Round_Ligament_L": {
+    "key": "Both_Full",
+    "pressing_mm": 0.2,
+    "after_mm": 0.04
+   },
+   "AN_Round_Ligament_R": {
+    "key": "Both_Full",
+    "pressing_mm": 0.01,
+    "after_mm": 0.08
+   },
+   "AN_Suspensory_Ligament_R": {
+    "key": "Both_Full",
+    "pressing_mm": 0.11,
+    "after_mm": 0.14
+   }
+  }
+ },
+ "ao": {
+  "AN_Bladder.AO": 0.527,
+  "AN_Urethra.AO": 0.117,
+  "AN_Urethra_Wall.AO": 0.505,
+  "AN_Uterus.AO": 0.421,
+  "AN_Uterus_Lumen.AO": 0.519,
+  "AN_Ovary_L.AO": 0.422,
+  "AN_Ovary_R.AO": 0.433,
+  "AN_Uterine_Tube_L.AO": 0.593,
+  "AN_Uterine_Tube_R.AO": 0.591,
+  "AN_Ovarian_Ligament_L.AO": 0.477,
+  "AN_Round_Ligament_L.AO": 0.671,
+  "AN_Suspensory_Ligament_L.AO": 0.728,
+  "AN_Ovarian_Ligament_R.AO": 0.47,
+  "AN_Round_Ligament_R.AO": 0.911,
+  "AN_Suspensory_Ligament_R.AO": 0.731,
+  "AN_Adrenal_L.AO_in": 0.357,
+  "AN_Adrenal_R.AO_in": 0.204,
+  "AN_AnalSphincter.AO_in": 0.006,
+  "AN_Bladder.AO_in": 0.621,
+  "AN_HipBone_L.AO_in": 0.685,
+  "AN_HipBone_R.AO_in": 0.67,
+  "AN_Kidney_L.AO_in": 0.723,
+  "AN_Kidney_R.AO_in": 0.681,
+  "AN_Ovarian_Ligament_L.AO_in": 0.002,
+  "AN_Ovarian_Ligament_R.AO_in": 0.002,
+  "AN_Ovary_L.AO_in": 0.641,
+  "AN_Ovary_R.AO_in": 0.64,
+  "AN_Round_Ligament_L.AO_in": 0.01,
+  "AN_Round_Ligament_R.AO_in": 0.009,
+  "AN_Sacrum.AO_in": 0.572,
+  "AN_Suspensory_Ligament_L.AO_in": 0.005,
+  "AN_Suspensory_Ligament_R.AO_in": 0.007,
+  "AN_Ureter_L.AO_in": 0.212,
+  "AN_Ureter_R.AO_in": 0.204,
+  "AN_Urethra_Wall.AO_in": 0.011,
+  "AN_Uterine_Tube_L.AO_in": 0.082,
+  "AN_Uterine_Tube_R.AO_in": 0.082,
+  "AN_Uterus.AO_in": 0.59,
+  "AN_Uterus_Lumen.AO_in": 0.056,
+  "AN_Urethra.AO_in(open)": 0.048
+ },
+ "checks": {
+  "drivers_at_fill_0.5": {
+   "Fill_1": 1.0,
+   "Fill_2": 1.0,
+   "Fill_3": 0.0,
+   "Fill_4": 0.0,
+   "Void": 0.0,
+   "Both_Full": 0.0
+  },
+  "seams_mm": {
+   "bladder0.0_void0.0_rectum0.0": {
+    "neck": 0.0002,
+    "meatus": 0.0001,
+    "ureter_orifices": {
+     "L": 0.0001,
+     "R": 0.0
+    }
+   },
+   "bladder0.25_void0.0_rectum0.0": {
+    "neck": 0.0002,
+    "meatus": 0.0001,
+    "ureter_orifices": {
+     "L": 0.0001,
+     "R": 0.0002
+    }
+   },
+   "bladder0.5_void0.0_rectum0.0": {
+    "neck": 0.0002,
+    "meatus": 0.0001,
+    "ureter_orifices": {
+     "L": 0.0001,
+     "R": 0.0002
+    }
+   },
+   "bladder0.75_void0.0_rectum0.0": {
+    "neck": 0.0002,
+    "meatus": 0.0001,
+    "ureter_orifices": {
+     "L": 0.0001,
+     "R": 0.0002
+    }
+   },
+   "bladder1.0_void0.0_rectum0.0": {
+    "neck": 0.0002,
+    "meatus": 0.0001,
+    "ureter_orifices": {
+     "L": 0.0001,
+     "R": 0.0002
+    }
+   },
+   "bladder0.0_void1.0_rectum0.0": {
+    "neck": 0.0,
+    "meatus": 0.0001,
+    "ureter_orifices": {
+     "L": 0.0001,
+     "R": 0.0
+    }
+   },
+   "bladder1.0_void1.0_rectum0.0": {
+    "neck": 0.0,
+    "meatus": 0.0001,
+    "ureter_orifices": {
+     "L": 0.0001,
+     "R": 0.0002
+    }
+   },
+   "bladder0.0_void0.0_rectum0.5": {
+    "neck": 0.0002,
+    "meatus": 0.0001,
+    "ureter_orifices": {
+     "L": 0.0001,
+     "R": 0.0002
+    }
+   },
+   "bladder0.0_void0.0_rectum1.0": {
+    "neck": 0.0002,
+    "meatus": 0.0001,
+    "ureter_orifices": {
+     "L": 0.0001,
+     "R": 0.0002
+    }
+   },
+   "bladder0.5_void0.0_rectum0.5": {
+    "neck": 0.0002,
+    "meatus": 0.0001,
+    "ureter_orifices": {
+     "L": 0.0003,
+     "R": 0.0004
+    }
+   },
+   "bladder1.0_void0.0_rectum0.5": {
+    "neck": 0.0002,
+    "meatus": 0.0001,
+    "ureter_orifices": {
+     "L": 0.0004,
+     "R": 0.0004
+    }
+   },
+   "bladder0.5_void0.0_rectum1.0": {
+    "neck": 0.0002,
+    "meatus": 0.0001,
+    "ureter_orifices": {
+     "L": 0.0004,
+     "R": 0.0004
+    }
+   },
+   "bladder1.0_void0.0_rectum1.0": {
+    "neck": 0.0002,
+    "meatus": 0.0001,
+    "ureter_orifices": {
+     "L": 0.0005,
+     "R": 0.0005
+    }
+   },
+   "bladder1.0_void1.0_rectum1.0": {
+    "neck": 0.0,
+    "meatus": 0.0001,
+    "ureter_orifices": {
+     "L": 0.0005,
+     "R": 0.0005
+    }
+   }
+  },
+  "volume_ml": {
+   "bladder0.0_void0.0_rectum0.0": 70.0,
+   "bladder0.25_void0.0_rectum0.0": 148.8,
+   "bladder0.5_void0.0_rectum0.0": 257.5,
+   "bladder0.75_void0.0_rectum0.0": 361.1,
+   "bladder1.0_void0.0_rectum0.0": 474.0,
+   "bladder0.0_void1.0_rectum0.0": 69.9,
+   "bladder1.0_void1.0_rectum0.0": 474.0,
+   "bladder0.0_void0.0_rectum0.5": 70.0,
+   "bladder0.0_void0.0_rectum1.0": 70.0,
+   "bladder0.5_void0.0_rectum0.5": 257.7,
+   "bladder1.0_void0.0_rectum0.5": 474.7,
+   "bladder0.5_void0.0_rectum1.0": 257.9,
+   "bladder1.0_void0.0_rectum1.0": 475.4,
+   "bladder1.0_void1.0_rectum1.0": 475.4
+  },
+  "clipping": {
+   "bladder0.0_void0.0_rectum0.0": {},
+   "bladder0.25_void0.0_rectum0.0": {
+    "AN_Colon_Descending in AN_Rectum": [
+     2,
+     0.12
+    ],
+    "AN_Colon_Descending in AN_Uterus": [
+     3,
+     0.64
+    ],
+    "AN_Rectum in AN_Uterus": [
+     2,
+     3.45
+    ],
+    "AN_Uterus in AN_Colon_Descending": [
+     16,
+     0.34
+    ],
+    "AN_Uterus in AN_Rectum": [
+     2,
+     0.27
+    ],
+    "AN_Uterine_Tube_L in AN_Ovary_L": [
+     1,
+     0.71
+    ],
+    "AN_AnalCanal in AN_Rectum_LowerAmpulla": [
+     1,
+     0.13
+    ],
+    "AN_HipBone_R in AN_Uterine_Tube_R": [
+     4,
+     0.3
+    ]
+   },
+   "bladder0.5_void0.0_rectum0.0": {
+    "AN_Colon_Descending in AN_Uterus": [
+     4,
+     0.65
+    ],
+    "AN_Uterus in AN_Colon_Descending": [
+     51,
+     0.48
+    ],
+    "AN_Uterine_Tube_L in AN_Ovary_L": [
+     1,
+     0.71
+    ],
+    "AN_AnalCanal in AN_Rectum_LowerAmpulla": [
+     1,
+     0.13
+    ],
+    "AN_HipBone_R in AN_Uterine_Tube_R": [
+     4,
+     0.3
+    ]
+   },
+   "bladder0.75_void0.0_rectum0.0": {
+    "AN_Bladder in AN_Uterus": [
+     4,
+     0.25
+    ],
+    "AN_Uterus in AN_Bladder": [
+     20,
+     0.42
+    ],
+    "AN_Uterus in AN_Colon_Descending": [
+     2,
+     0.04
+    ],
+    "AN_Uterine_Tube_L in AN_Ovary_L": [
+     1,
+     0.75
+    ],
+    "AN_Ovarian_Ligament_L in AN_Bladder": [
+     5,
+     0.75
+    ],
+    "AN_Round_Ligament_L in AN_Uterine_Tube_L": [
+     1,
+     0.1
+    ],
+    "AN_AnalCanal in AN_Rectum_LowerAmpulla": [
+     1,
+     0.13
+    ],
+    "AN_HipBone_R in AN_Uterine_Tube_R": [
+     4,
+     0.3
+    ]
+   },
+   "bladder1.0_void0.0_rectum0.0": {
+    "AN_Uterus in AN_Bladder": [
+     1,
+     1.1
+    ],
+    "AN_Uterine_Tube_L in AN_Ovary_L": [
+     1,
+     0.74
+    ],
+    "AN_Uterine_Tube_L in AN_Round_Ligament_L": [
+     6,
+     0.09
+    ],
+    "AN_Round_Ligament_L in AN_Uterine_Tube_L": [
+     3,
+     0.07
+    ],
+    "AN_AnalCanal in AN_Rectum_LowerAmpulla": [
+     1,
+     0.13
+    ],
+    "AN_HipBone_R in AN_Uterine_Tube_R": [
+     4,
+     0.3
+    ]
+   },
+   "bladder0.0_void1.0_rectum0.0": {},
+   "bladder1.0_void1.0_rectum0.0": {
+    "AN_Uterus in AN_Bladder": [
+     1,
+     1.1
+    ],
+    "AN_Uterine_Tube_L in AN_Ovary_L": [
+     1,
+     0.74
+    ],
+    "AN_Uterine_Tube_L in AN_Round_Ligament_L": [
+     6,
+     0.09
+    ],
+    "AN_Round_Ligament_L in AN_Uterine_Tube_L": [
+     3,
+     0.07
+    ],
+    "AN_AnalCanal in AN_Rectum_LowerAmpulla": [
+     1,
+     0.13
+    ],
+    "AN_HipBone_R in AN_Uterine_Tube_R": [
+     4,
+     0.3
+    ]
+   },
+   "bladder0.0_void0.0_rectum0.5": {
+    "AN_Uterine_Tube_R in AN_Suspensory_Ligament_R": [
+     2,
+     0.08
+    ],
+    "AN_Suspensory_Ligament_R in AN_Uterine_Tube_R": [
+     3,
+     0.21
+    ],
+    "AN_HipBone_L in AN_Uterine_Tube_L": [
+     1,
+     0.07
+    ]
+   },
+   "bladder0.0_void0.0_rectum1.0": {
+    "AN_Suspensory_Ligament_R in AN_Uterine_Tube_R": [
+     2,
+     0.12
+    ],
+    "AN_HipBone_R in AN_Uterine_Tube_R": [
+     1,
+     0.4
+    ]
+   },
+   "bladder0.5_void0.0_rectum0.5": {
+    "AN_Colon_Descending in AN_Rectum": [
+     5,
+     0.72
+    ],
+    "AN_Colon_Descending in AN_Uterus": [
+     4,
+     0.58
+    ],
+    "AN_Rectum in AN_Colon_Descending": [
+     1,
+     0.06
+    ],
+    "AN_Ureter_L in AN_Kidney_L": [
+     1,
+     0.02
+    ],
+    "AN_Uterus in AN_Colon_Descending": [
+     51,
+     0.63
+    ],
+    "AN_Ovarian_Ligament_R in AN_Ureter_R": [
+     1,
+     0.09
+    ],
+    "AN_Suspensory_Ligament_R in AN_Uterine_Tube_R": [
+     1,
+     0.21
+    ],
+    "AN_AnalCanal in AN_Rectum_LowerAmpulla": [
+     1,
+     0.13
+    ],
+    "AN_HipBone_R in AN_Uterine_Tube_R": [
+     5,
+     0.42
+    ]
+   },
+   "bladder1.0_void0.0_rectum0.5": {
+    "AN_Rectum in AN_Colon_Descending": [
+     6,
+     0.4
+    ],
+    "AN_Ureter_L in AN_Kidney_L": [
+     1,
+     0.02
+    ],
+    "AN_Uterine_Tube_L in AN_Round_Ligament_L": [
+     4,
+     0.1
+    ],
+    "AN_Uterine_Tube_R in AN_HipBone_R": [
+     1,
+     0.04
+    ],
+    "AN_Ovarian_Ligament_R in AN_Ureter_R": [
+     3,
+     0.15
+    ],
+    "AN_Round_Ligament_R in AN_Uterine_Tube_R": [
+     1,
+     0.13
+    ],
+    "AN_Suspensory_Ligament_R in AN_Uterine_Tube_R": [
+     2,
+     0.32
+    ],
+    "AN_AnalCanal in AN_Rectum_LowerAmpulla": [
+     1,
+     0.13
+    ],
+    "AN_HipBone_L in AN_Uterine_Tube_L": [
+     3,
+     0.31
+    ],
+    "AN_HipBone_R in AN_Ovary_R": [
+     1,
+     0.04
+    ],
+    "AN_HipBone_R in AN_Uterine_Tube_R": [
+     1,
+     0.4
+    ]
+   },
+   "bladder0.5_void0.0_rectum1.0": {
+    "AN_Colon_Descending in AN_Uterus": [
+     2,
+     0.51
+    ],
+    "AN_Rectum in AN_Colon_Descending": [
+     14,
+     0.78
+    ],
+    "AN_Rectum in AN_Uterus": [
+     18,
+     2.17
+    ],
+    "AN_Rectum in AN_Ovary_L": [
+     2,
+     0.97
+    ],
+    "AN_Ureter_L in AN_Kidney_L": [
+     1,
+     0.02
+    ],
+    "AN_Ureter_R in AN_Uterine_Tube_R": [
+     1,
+     0.26
+    ],
+    "AN_Uterus in AN_Colon_Descending": [
+     55,
+     0.63
+    ],
+    "AN_Uterus in AN_Rectum": [
+     325,
+     1.86
+    ],
+    "AN_Ovary_L in AN_Rectum": [
+     70,
+     1.06
+    ],
+    "AN_Ovary_L in AN_HipBone_L": [
+     6,
+     0.31
+    ],
+    "AN_Ovary_R in AN_Uterine_Tube_R": [
+     2,
+     0.17
+    ],
+    "AN_Ovary_R in AN_HipBone_R": [
+     121,
+     0.85
+    ],
+    "AN_Uterine_Tube_L in AN_Ovary_L": [
+     3,
+     0.33
+    ],
+    "AN_Uterine_Tube_L in AN_HipBone_L": [
+     10,
+     0.54
+    ],
+    "AN_Uterine_Tube_R in AN_Ureter_R": [
+     2,
+     0.03
+    ],
+    "AN_Uterine_Tube_R in AN_Ovary_R": [
+     6,
+     0.37
+    ],
+    "AN_Uterine_Tube_R in AN_Suspensory_Ligament_R": [
+     7,
+     0.27
+    ],
+    "AN_Uterine_Tube_R in AN_HipBone_R": [
+     68,
+     0.23
+    ],
+    "AN_Round_Ligament_L in AN_Colon_Descending": [
+     1,
+     0.13
+    ],
+    "AN_Round_Ligament_L in AN_Uterine_Tube_L": [
+     1,
+     0.03
+    ],
+    "AN_Suspensory_Ligament_L in AN_Rectum": [
+     6,
+     0.25
+    ],
+    "AN_Suspensory_Ligament_R in AN_Uterine_Tube_R": [
+     4,
+     0.06
+    ],
+    "AN_AnalCanal in AN_Rectum_LowerAmpulla": [
+     1,
+     0.13
+    ],
+    "AN_HipBone_L in AN_Uterine_Tube_L": [
+     1,
+     0.23
+    ],
+    "AN_HipBone_R in AN_Ovary_R": [
+     2,
+     0.19
+    ],
+    "AN_Sacrum in AN_Rectum": [
+     1,
+     0.04
+    ]
+   },
+   "bladder1.0_void0.0_rectum1.0": {
+    "AN_Rectum in AN_Colon_Descending": [
+     2,
+     0.04
+    ],
+    "AN_Uterus in AN_Bladder": [
+     73,
+     0.4
+    ],
+    "AN_Uterine_Tube_R in AN_Ureter_R": [
+     1,
+     0.07
+    ],
+    "AN_Uterine_Tube_R in AN_Round_Ligament_R": [
+     2,
+     0.08
+    ],
+    "AN_Uterine_Tube_R in AN_Suspensory_Ligament_R": [
+     2,
+     0.14
+    ],
+    "AN_Round_Ligament_L in AN_Uterine_Tube_L": [
+     1,
+     0.04
+    ],
+    "AN_Suspensory_Ligament_R in AN_Uterine_Tube_R": [
+     1,
+     0.02
+    ],
+    "AN_AnalCanal in AN_Rectum_LowerAmpulla": [
+     1,
+     0.13
+    ],
+    "AN_HipBone_L in AN_Uterine_Tube_L": [
+     2,
+     0.31
+    ],
+    "AN_HipBone_R in AN_Ovary_R": [
+     1,
+     0.06
+    ]
+   },
+   "bladder1.0_void1.0_rectum1.0": {
+    "AN_Rectum in AN_Colon_Descending": [
+     2,
+     0.04
+    ],
+    "AN_Uterus in AN_Bladder": [
+     73,
+     0.4
+    ],
+    "AN_Uterine_Tube_R in AN_Ureter_R": [
+     1,
+     0.07
+    ],
+    "AN_Uterine_Tube_R in AN_Round_Ligament_R": [
+     2,
+     0.08
+    ],
+    "AN_Uterine_Tube_R in AN_Suspensory_Ligament_R": [
+     2,
+     0.14
+    ],
+    "AN_Round_Ligament_L in AN_Uterine_Tube_L": [
+     1,
+     0.04
+    ],
+    "AN_Suspensory_Ligament_R in AN_Uterine_Tube_R": [
+     1,
+     0.02
+    ],
+    "AN_AnalCanal in AN_Rectum_LowerAmpulla": [
+     1,
+     0.13
+    ],
+    "AN_HipBone_L in AN_Uterine_Tube_L": [
+     2,
+     0.31
+    ],
+    "AN_HipBone_R in AN_Ovary_R": [
+     1,
+     0.06
+    ]
+   }
+  },
+  "clipping_at_rest": {
+   "AN_Ureter_L in AN_Kidney_L": [
+    69,
+    3.98
+   ],
+   "AN_Ureter_R in AN_Kidney_R": [
+    104,
+    3.99
+   ],
+   "AN_Ovary_L in AN_Uterine_Tube_L": [
+    14,
+    0.64
+   ],
+   "AN_Ovary_R in AN_Uterine_Tube_R": [
+    9,
+    0.57
+   ],
+   "AN_Uterine_Tube_L in AN_Ovary_L": [
+    9,
+    0.83
+   ],
+   "AN_Uterine_Tube_L in AN_Suspensory_Ligament_L": [
+    23,
+    1.32
+   ],
+   "AN_Uterine_Tube_R in AN_Ovary_R": [
+    7,
+    0.73
+   ],
+   "AN_Uterine_Tube_R in AN_Suspensory_Ligament_R": [
+    23,
+    1.23
+   ],
+   "AN_Ovarian_Ligament_L in AN_Bladder": [
+    21,
+    0.64
+   ],
+   "AN_Suspensory_Ligament_L in AN_Uterine_Tube_L": [
+    19,
+    1.52
+   ],
+   "AN_Ovarian_Ligament_R in AN_Bladder": [
+    32,
+    0.9
+   ],
+   "AN_Suspensory_Ligament_R in AN_Uterine_Tube_R": [
+    18,
+    1.47
+   ],
+   "AN_AnalCanal in AN_Rectum_LowerAmpulla": [
+    27,
+    0.43
+   ],
+   "AN_HipBone_L in AN_Uterine_Tube_L": [
+    7,
+    1.82
+   ],
+   "AN_HipBone_R in AN_Uterine_Tube_R": [
+    13,
+    2.13
+   ],
+   "AN_HipBone_R in AN_Sacrum": [
+    17,
+    0.83
+   ],
+   "AN_Sacrum in AN_HipBone_R": [
+    53,
+    0.87
+   ]
+  }
+ }
+}
