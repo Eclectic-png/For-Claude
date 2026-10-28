@@ -45,9 +45,10 @@ Controls: select **`Pelvic_Controls`** -> Custom Properties: **Bladder_Fill**, *
   (and the introitus cut) when merging.
 - **Vagina, accuracy pass: DONE** - portio ~9-12 mm into the canal (was ~2.5; the fornices are the recess round it),
   squarer lower walls, 2 mm rectovaginal septum, rugae. Needs build_pelvis re-run (done; ~13 min) then build_vagina.
-  The user saw the rectum dented / compressed by an extra posterior-fornix pocket past the cervix (tried twice): the
-  pocket is off (`VAG_UP_MM` 40) and the rectum / ampulla are back where they were (ampulla moved 13.7 mm, 13.5
-  before). Details and what was tried in HANDOFF.md "Vagina".
+  The user saw the rectum dented / compressed (a posterior-fornix pocket, then the old way of making room): the
+  pocket is off (`VAG_UP_MM` 40) and the bowel now moves back as whole sections (the atlas is male - its rectum sat
+  in the vault), keeping the ampulla's own shape and volume. The bowel seams, open up to 4 mm since the pelvis build
+  began, are welded / snapped shut. Details and what was tried in HANDOFF.md "Vagina".
 - Anal canal: now held shut its whole length, opening only over the last 5 mm into the rectum
   (`ANUS_CANAL_OPENLEN`, build5_passage); build_pelvis was re-run on it (report updated).
 
@@ -55,8 +56,9 @@ Controls: select **`Pelvic_Controls`** -> Custom Properties: **Bladder_Fill**, *
 1. ~~The vagina~~ (first pass + accuracy pass done; limits in HANDOFF.md: short H recesses).
 2. **The vulva** rebuild (rudimentary now); then re-cut the urethral meatus (`URETHRA_MEATUS` /
    `URETHRA_MEATUS_FROM`) and bring the clitoris closer (meatus is ~43 mm behind the hood now, real ~25-30).
-3. Smaller: the lower ampulla's folds where it is pushed back for the vagina (151 self-intersecting face pairs, 140 near the anus;
-   relax / remesh), broad ligament / peritoneum. (Septum done: 2 mm.)
+3. Smaller: broad ligament / peritoneum; the vagina's own Rectum_Fill key (a full rectum should push its back wall
+   forward - the vagina has no keys yet); the rectosigmoid seam vs the uterus (<= 4 mm in part-filled bladder states).
+   (Done: septum 2 mm, the ampulla's flattening and folds, the bowel seams.)
 4. Later: the male version.
 
 ## Working notes (user preferences learned)

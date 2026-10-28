@@ -65,21 +65,29 @@ blender -b out/blend/Hips_urinary.blend --python scripts/build_vagina.py -- $PWD
   The pierce and the
   uterus' tilt pivot are measured from `P_hold` (the old os, vault centre + 2 mm), not the os - measured from the
   deeper os the pivot moved 8 mm and the full bladder's tilt dropped 22 -> 18 deg (uterus 2.2 mm into it).
-  bowel_room also pushes coarse bowel faces off the placeholder's vertices (expanders). Bowel moved for the vagina:
-  ampulla 13.7 mm (13.5 before the pass), rectum 3.5, canal 4.0; rectum + ampulla 119.6 ml at rest (113.5). Tried and
-  dropped: a posterior fornix past the cervix - 48 mm (folded the ampulla into the rectum at rest, 3.5 mm, touched the
-  bladder), 44 mm at the vault's full 11 mm back thickness with a 2.5 mm septum (ampulla pushed 21.5 mm, dented round
-  the vault: the user saw the vagina "impose on the rectum"), 44 mm as a thin pocket with a 2 mm septum (16.7 mm, the
-  ampulla's front wall still folded at the midline: "compressing the rectum even more"); spreading each push round the
-  bowel as a whole (Gaussian of the strongest nearby push, then make_room again: fewer folds, but the lower ampulla
-  squeezed thin and the rectum moved far more than needed). Contacts against the previous build: rest no worse
-  (vagina 0.11 mm into the canal at 1 point), seams within 0.0001 mm, uterus tilt 21-22 deg, the full-bladder uterus
-  contact gone; the rectosigmoid seam pressed into the uterus moved from the colon's side (3.25 mm) to the rectum's
-  (1 vertex, 3.3-3.6 mm in the bladder states - a held seam vertex against the held uterus: the polish cannot move
-  either); one placeholder vertex flagged 3.28 mm in the bladder at half fill does not reproduce on the saved file.
-- Known (pre-existing, a little worse): the coarse lower ampulla (371 faces) folds where build_pelvis pushes it back
-  for the vagina - 2 self-intersecting face pairs before build_pelvis, 122 after the first pass (111 within 30 mm of
-  the anus), 151 now (140; the 11 away from the anus as before). Worth a relax / remesh of that region.
+  bowel_room also pushes coarse bowel faces off the placeholder's vertices (expanders).
+- The bowel goes where a woman's lies (the atlas is male: its lower rectum / ampulla sat where the vagina goes, ~20 mm
+  into the vault). Each horizontal section moves straight back (`REC_SHIFT_DIR` +y, toward the sacrum - there is
+  45-68 mm free behind the vagina) as a whole, by what clears the vagina plus the septum there (a Gaussian envelope
+  over height, `REC_SHIFT_SIGMA_MM` 20), fading toward the anus (lowest 12 mm still); make_room then settles only what
+  is left. Moved: ampulla ~10 mm, rectum ~10, canal top 8, sigmoid 1. The ampulla keeps its shape: 5.0 ml body (5.2
+  original; make_room alone had pushed only the walls it touched and flattened it to 3.4, half its depth, 151 folded
+  face pairs - now 6). Rectum + ampulla 122.6 ml at rest (125.2 original), 323.5 full.
+- Bowel seams (sigmoid - rectum - ampulla - canal) were open: the rectum (world frame) and the ampulla (atlas
+  frame) came back from float32 round trips just over make_room's 1e-7 weld tolerance and were moved independently -
+  1.5-1.8 mm at the rectum-ampulla seam in every state, 3.9 mm colon-rectum with both full. `urinary_lib.WELD_TOL`
+  (20 um) in make_room / weld_union, and `urinary_lib.snap_seam` shuts each seam in the Basis and key by key (mean
+  offsets; a key only one side has holds the seam still) after the vagina step, each bowel_room and before the bakes
+  (`report["bowel_seams_snapped_mm"]`: gaps before each snap, now <= 0.0001 mm). Now 0 in every state except
+  colon-rectum 0.7 mm with both full.
+- The filling rectum grows round the uterus too (`obst_r`): welded shut, the reservoir had pressed up to 9.5 mm into
+  it. Contacts against the build before this pass: rest identical; 4 entries over 1 mm in fill states (5 before),
+  deepest 3.96 mm - the rectosigmoid seam into the uterus at bladder 0.25 (was 3.25 on the colon's side).
+- Tried and dropped for the bowel: make_room alone (flattened ampulla, above); a posterior-fornix pocket past the
+  cervix (48 mm, 44 mm at full thickness, 44 mm thin - each dented the ampulla, the user saw the rectum compressed);
+  2.5 mm septum (4 mm more push); spreading each push round the bowel (Gaussian of the strongest nearby push: lower
+  ampulla squeezed thin); shifting sections square to the vagina's axis (ran down into the perineum, rectum carried
+  31 mm, ampulla stretched).
 - Limits / next: the H's recesses are still short; the introitus must be re-cut after the vulva rebuild (as the
   meatus).
 - Tried and dropped (so not repeated): leaving the skin straight up then turning (rings on the inside of the turn
