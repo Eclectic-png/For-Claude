@@ -88,7 +88,7 @@ def extents(P, centre=(0.0, 0.0)):
     out = []
     for ax, sg in ((0, 1), (0, -1), (1, 1), (1, -1)):
         other = P[:, 1 - ax]; along = P[:, ax] * sg
-        band = np.abs(other) < max(0.0015, 0.25 * np.abs(along).max())
+        band = np.abs(other) < 0.0006
         out.append(float(along[band & (along > 0)].max()) if np.any(band & (along > 0)) else 0.0)
     return out                                      # [+x, -x, +y, -y]
 
@@ -101,11 +101,19 @@ def sweep(centre_line, frames, rings2d):
     return np.array(out)
 
 
-def frames_along(C, xref):
-    """(x, y) frames along a polyline C: x = xref made square to the tangent, y = x cross tangent"""
+def tangents(C):
     C = np.asarray(C, float); out = []
     for j in range(len(C)):
-        t = C[min(j + 1, len(C) - 1)] - C[max(j - 1, 0)]; t /= np.linalg.norm(t)
+        t = C[min(j + 1, len(C) - 1)] - C[max(j - 1, 0)]; out.append(t / np.linalg.norm(t))
+    return np.array(out)
+
+
+def frames_along(C, xref, normals=None):
+    """(x, y) frames of ring planes along a polyline C: x = xref made square to the plane's normal (default: the
+    tangent), y = x cross normal"""
+    C = np.asarray(C, float); out = []; TT = tangents(C) if normals is None else np.asarray(normals, float)
+    for j in range(len(C)):
+        t = TT[j] / np.linalg.norm(TT[j])
         x = np.asarray(xref, float) - t * (np.asarray(xref, float) @ t); x /= np.linalg.norm(x)
         y = np.cross(x, t); out.append((x, y / np.linalg.norm(y)))
     return out
@@ -157,3 +165,13 @@ def keys_restore(ob, snap):
         kb.data.foreach_set("co", np.array(co, np.float32).ravel())
     me.update()
     return n_new
+
+
+def reach_y_at(P, x0, centre=(0.0, 0.0), half=0.0006):
+    """the section's reach up (+y) and down (-y) from the centre's height, among points within `half` of x = x0"""
+    if P is None or len(P) == 0:
+        return None
+    Q = P - np.asarray(centre); Q = Q[np.abs(Q[:, 0] - x0) < half]
+    if len(Q) == 0 or Q[:, 1].max() <= 0 or Q[:, 1].min() >= 0:
+        return None
+    return float(Q[:, 1].max()), float(-Q[:, 1].min())

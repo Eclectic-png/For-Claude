@@ -7,6 +7,46 @@ first (`Hips.blend`), a male version later. Done: the digestive system (esophagu
 **Current: the female pelvis - `scripts/build_pelvis.py` (was `build_urinary.py`): urinary system, female bony pelvis,
 internal reproductive organs (first pass), built on build5_passage's output.**
 
+**Vagina (first pass, DONE 2026-10-28) - `scripts/build_vagina.py` + `scripts/vagina_lib.py`:** a separate, swappable
+step run on build_pelvis' output (`out/blend/Hips_urinary.blend` -> `out/blend/Hips_vagina.blend`):
+```
+blender -b out/blend/Hips_urinary.blend --python scripts/build_vagina.py -- $PWD/out/blend/Hips_vagina.blend out/urinary/vagina
+```
+(~1 min). `VAG_STOP=lumen` saves after the lumen only (quick shape checks).
+- `AN_Vagina` (lumen = mucosa, `AN_Vagina_Lining` = a copy of the canal lining, "lining" 0 at the skin -> 0.3 pale pink
+  by 8 mm; lit inside, AO / AO_in baked): 52 rings x 96 points, 66 mm long (real). Cross-sections from the ring model in
+  vagina_lib (four arm blocks, see its docstring): introitus = sagittal slit (13.2 mm real, lips 0.02 mm) -> "+" ->
+  H (lateral recesses' T-bars, 10-34 mm) -> transverse slit -> open vault round the cervix (fitted ring by ring to the
+  placeholder's section: walls ~3.5 mm at the sides, 3 mm front / back, 1.5 mm where the cervix passes, and to the
+  cervix's section with 1.5 mm clearance). Rings: parallel to the slit's plane for the first 4 mm (stacked, they cannot
+  cross), square to a smooth cubic centre line from 12 mm on; centred on the placeholder's section (front / back only).
+  A guard shortens any arm within 0.4 mm of the placeholder.
+- Skin: `urinary_lib.cut_meatus` with the new `slit_uv` (the lumen's own first ring, so no blend zone folds) and
+  `ref_radius` (the preparation weld must not reach the meatus: its tip vertices are < 5 um apart across the lips -
+  that weld had eaten 6-12 of the meatus' 32 points); slit centred y 23 mm (body), patch y 17.25 - 28.7, 0.55 mm clear
+  of the meatus' patch; the build stops if the meatus loop changes. cut_meatus now also removes the loose edges it
+  leaves and falls back to the nearest corner when a zero-area source triangle gave NaN UVs (a black speck).
+- Cervix: `open_junction(AN_Vagina, AN_Uterus, sides=(0,))` - the os opens into the vault (shared loop, r 4.6 mm);
+  the uterus' shape keys are carried over (`vagina_lib.keyed_snapshot / keys_restore`, barycentric over the old
+  Basis): seam 0.0000 mm at rest / bladder full / rectum full / both full.
+- `AN_Vagina_Wall`: the placeholder's surface minus its bottom cap (rendered, tinted organ material). The placeholder
+  itself stays (hidden): build_pelvis' neighbours were fitted round it and none moves into it, so the vagina has no
+  shape keys of its own.
+- Checks (`out/urinary/vagina_report.json`): skin seam 0.0002 mm; open loops lumen [96 skin, 175 cervix], wall [24
+  bottom, 186 cervix]; 0 lumen points outside the wall (closest 0.08 mm, body); urethra wall 2.3 mm away; 0
+  self-intersections; Hips 0 non-manifold, only its 5 openings (waist / legs, anus, meatus, introitus). Closest
+  neighbour in any state: lower ampulla 1.1 mm (rectum full).
+- Renders (`out/urinary/`): `vagina_sections.png` (`scripts/tools/vagxs.py`; slices by the ring planes stored on the
+  object, `ring_planes`), `vagina_midline.png`, `vagina_cutaway.png` / `vagina_below_before_after.png`
+  (`scripts/tools/pelvis_cut.py`: `below` / `cut` modes, `PCUT_ONLY`, `PCUT_HIDE`).
+- Limits / next: the cervix protrudes only ~2.5 mm into the vault (the uterus sits where build_pelvis put it; a deeper
+  portio needs it a few mm lower / further back); the H's recesses are short (the placeholder is thin at its sides);
+  no rugae; the introitus must be re-cut after the vulva rebuild (as the meatus).
+- Tried and dropped (so not repeated): leaving the skin straight up then turning (rings on the inside of the turn
+  crossed); an oblique start with rings square to the path (they cut back through the slit); blending out of
+  cut_meatus' default slit (its points crowd the tips, the ring model's the middle: the surface doubled over); a
+  Catmull-Rom centre line through the placeholder's start (up to 30 deg turn per ring).
+
 **Urinary system, state (details under "Urinary system" below):**
 1. Kidneys / ureters / adrenals from the atlas, in `Internal_Fit` under `Internal_Fit_Xform`. The atlas ureter already
    carries the renal pelvis + calyces inside the kidney; the kidney wall is opened where the pelvis leaves it at the

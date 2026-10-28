@@ -1,0 +1,131 @@
+{
+ "introitus": {
+  "centre_body": [
+   0.0,
+   0.023,
+   0.78434
+  ],
+  "half_mm": 4.2,
+  "length_real_mm": 13.2,
+  "edges_split": 507,
+  "welded": 0,
+  "fins_removed": 0,
+  "faces_removed": 933,
+  "faces_added": 1551,
+  "winding_votes": 157,
+  "loose_edges_removed": 7,
+  "slit_plane_tilt_deg": 27.6
+ },
+ "lumen_guard_shrinks": 160,
+ "lumen": {
+  "rings": 53,
+  "points_per_ring": 96,
+  "length_mm": 68.0,
+  "envelope_from_mm": 4.0,
+  "envelope_gaps_filled": 0,
+  "cervix_from_mm": 45.5,
+  "vault_rings_s_rx_ryf_ryb_mm": [
+   [
+    41.0,
+    10.74,
+    4.38,
+    4.38
+   ],
+   [
+    44.0,
+    11.19,
+    5.35,
+    5.35
+   ],
+   [
+    47.0,
+    11.62,
+    7.16,
+    6.11
+   ],
+   [
+    50.0,
+    11.95,
+    6.91,
+    6.38
+   ],
+   [
+    53.0,
+    12.5,
+    6.66,
+    6.59
+   ],
+   [
+    56.0,
+    12.99,
+    6.4,
+    6.7
+   ],
+   [
+    59.0,
+    12.73,
+    6.15,
+    6.57
+   ],
+   [
+    62.0,
+    11.6,
+    5.9,
+    6.21
+   ],
+   [
+    65.0,
+    9.37,
+    5.65,
+    5.33
+   ],
+   [
+    68.0,
+    2.25,
+    1.1,
+    -0.4
+   ]
+  ]
+ },
+ "lumen_dome_mm": 0.0,
+ "cervix_join": {
+  "curve_mm": 32.6,
+  "patch_radius_mm": 17.9,
+  "killed_faces": 184,
+  "inflate_mm": 0.0,
+  "uterus_new_vertices": 0,
+  "opening": [
+   {
+    "edges": 175,
+    "perimeter_mm": 32.6,
+    "mean_radius_mm": 5.2
+   }
+  ]
+ },
+ "wall": {
+  "bottom_cap_faces_removed": 40
+ },
+ "ao_mean": {
+  "AN_Vagina.AO": 0.131,
+  "AN_Vagina.AO_in": 0.24,
+  "AN_Vagina_Wall.AO": 0.648,
+  "AN_Vagina_Wall.AO_in": 0.171
+ },
+ "checks": {
+  "skin_seam_mm": 0.00018,
+  "lumen_open_loops": [
+   96,
+   175
+  ],
+  "wall_open_loops": [
+   24,
+   186
+  ],
+  "lumen_outside_wall_points": 0,
+  "outside_at_mm": [],
+  "outside_dist_mm": 0,
+  "wall_bottom_at_mm": 4.0,
+  "lumen_wall_clearance_min_mm": 0.08,
+  "urethra_wall_clearance_min_mm": 2.27
+ }
+}

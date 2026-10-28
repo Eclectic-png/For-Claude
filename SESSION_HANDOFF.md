@@ -37,13 +37,17 @@ Controls: select **`Pelvic_Controls`** -> Custom Properties: **Bladder_Fill**, *
 - Other states <= ~1.4 mm, a few isolated spots up to ~3.5 mm (rectosigmoid seam pressed into the uterus).
 - Tubes / ovaries touch the hip bone by <= ~0.9 mm in some states.
 
+## Update 2026-10-28
+- **Vagina, first pass: DONE** as a separate, swappable step: `scripts/build_vagina.py` on build_pelvis' output ->
+  `out/blend/Hips_vagina.blend` (~1 min; see HANDOFF.md "Vagina"). `AN_Vagina` (collapsed lumen: introitus slit ->
+  H -> transverse slit -> vault round the cervix, os opening into it) + `AN_Vagina_Wall`; one cut in the skin. The
+  user has not said whether their full-body model already has a vaginal canal - if it does, delete these two objects
+  (and the introitus cut) when merging.
+- Anal canal: now held shut its whole length, opening only over the last 5 mm into the rectum
+  (`ANUS_CANAL_OPENLEN`, build5_passage); build_pelvis was re-run on it (report updated).
+
 ## Next steps (agreed order)
-1. **The vagina** - replace the `AN_Vagina_Space` placeholder with a real organ: opening through the skin at the
-   introitus dimple, walls with a collapsed lumen, fornices round the cervix, lit inside.
-   **Open question (user, deferred):** the user's full-body original model (not in this repo - `Hips.blend` is
-   only a hip cut-out) may already have a vaginal canal. If it does, building a second one would clash when
-   merging back. Either get that model into `drive/` and build around its canal, or build the vagina as one
-   separate, swappable object joined to the skin at a single cut.
+1. ~~The vagina~~ (first pass done; limits in HANDOFF.md: shallow cervix in the vault, short H recesses, no rugae).
 2. **The vulva** rebuild (rudimentary now); then re-cut the urethral meatus (`URETHRA_MEATUS` /
    `URETHRA_MEATUS_FROM`) and bring the clitoris closer (meatus is ~43 mm behind the hood now, real ~25-30).
 3. Smaller: thicker rectovaginal septum (~1 mm now, real 2-4), broad ligament / peritoneum.

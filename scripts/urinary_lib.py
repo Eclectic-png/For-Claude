@@ -401,9 +401,10 @@ def point_in_poly(pt, poly):
     return inside_
 
 
-def cut_meatus(skin, M, t_ap, e_lat, K, half, lip, reg_u, reg_v, step=0.00022):
+def cut_meatus(skin, M, t_ap, e_lat, K, half, lip, reg_u, reg_v, step=0.00022, slit_uv=None, ref_radius=None):
     """open a slit of K vertices (half-length `half` along t_ap, lips `lip` apart, vertex k at angle 2 pi k / K:
-    u = half cos, v = -lip/2 sin) in the skin round M; the skin within |u| < reg_u, |v| < reg_v is re-triangulated
+    u = half cos, v = -lip/2 sin; or exactly the K chart points `slit_uv` [(u, v)], e.g. a tube's own first ring)
+    in the skin round M; the skin within |u| < reg_u, |v| < reg_v is re-triangulated
     (constrained Delaunay in the chart, extra points every `step`), new vertices on the original surface, UVs
     sampled on the same side of the midline seam, every existing shape key carried over (= Basis there).
     Returns (slit vertex indices in order, chart, {new vertex index: (u, v)}, report)."""
@@ -412,7 +413,9 @@ def cut_meatus(skin, M, t_ap, e_lat, K, half, lip, reg_u, reg_v, step=0.00022):
     bm = bmesh.new(); bm.from_mesh(me)
     # refine the skin round M first (the region may sit on coarse faces): split long edges near M, a few passes;
     # bmesh interpolates UVs and shape keys on the new vertices, the surface itself does not change
-    R_ref = 2.0 * max(reg_u, reg_v); n_split = 0
+    # (ref_radius: how far round M the skin is prepared - refined, welded, cleaned; keep it clear of another slit
+    # already cut nearby, whose tip vertices sit closer than the weld distance across its lips)
+    R_ref = 2.0 * max(reg_u, reg_v) if ref_radius is None else ref_radius; n_split = 0
     for _ in range(4):
         long_ = [e for e in bm.edges if e.calc_length() > 2.2 * step and
                  min((v.co - Vector(M)).length for v in e.verts) < R_ref]
@@ -453,6 +456,9 @@ def cut_meatus(skin, M, t_ap, e_lat, K, half, lip, reg_u, reg_v, step=0.00022):
         tree, tris = samp[sd]; q, n, i, d = tree.find_nearest(p)
         (a, b, c), uvs = tris[i]
         w = barycentric_transform(q, a, b, c, Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1)))
+        if any(math.isnan(x) or math.isinf(x) for x in w):   # a zero-area source triangle: its nearest corner
+            j0 = min(range(3), key=lambda j: ((a, b, c)[j] - q).length)
+            return [uvs[j0][li].copy() for li in range(len(uv_layers))]
         return [sum((uvs[j][li] * w[j] for j in range(3)), Vector((0, 0))) for li in range(len(uv_layers))]
 
     # region: faces grown outward from the one under M while their centre lies inside the (u, v) box on the chart
@@ -501,6 +507,7 @@ def cut_meatus(skin, M, t_ap, e_lat, K, half, lip, reg_u, reg_v, step=0.00022):
     inreg = {v for v in uv_of if all(g in kill for g in v.link_faces)}
     rep["faces_removed"] = len(kill)
     normals_ref = {f: f.normal.copy() for f in bm.faces}
+    kill_edges = {e for f in kill for e in f.edges}
     bmesh.ops.delete(bm, geom=kill, context='FACES_ONLY')
     bmesh.ops.delete(bm, geom=[v for v in inreg if v.is_valid and not v.link_faces], context='VERTS')
     allloops = boundary_loops(bm)
@@ -510,7 +517,8 @@ def cut_meatus(skin, M, t_ap, e_lat, K, half, lip, reg_u, reg_v, step=0.00022):
         raise RuntimeError(f"meatus region: {len(loops)} boundary loops: {info}")
     outer = loops[0]; o2 = [uv_of[v] for v in outer]
     # slit + inner points
-    slit2 = [(half * math.cos(2 * math.pi * k / K), -lip / 2 * math.sin(2 * math.pi * k / K)) for k in range(K)]
+    slit2 = [(half * math.cos(2 * math.pi * k / K), -lip / 2 * math.sin(2 * math.pi * k / K)) for k in range(K)] \
+        if slit_uv is None else [(float(u_), float(v_)) for u_, v_ in slit_uv]
     pts = []
     nu, nv = int(reg_u / step), int(reg_v / step)
     allp = o2 + slit2
@@ -559,6 +567,9 @@ def cut_meatus(skin, M, t_ap, e_lat, K, half, lip, reg_u, reg_v, step=0.00022):
     if agree < 0:
         bmesh.ops.reverse_faces(bm, faces=created)
     rep["faces_added"] = len(created); rep["winding_votes"] = agree
+    # edges of the removed faces that the new triangulation did not reuse are left without faces: remove them
+    wire = [e for e in kill_edges if e.is_valid and not e.link_faces]
+    bmesh.ops.delete(bm, geom=wire, context='EDGES'); rep["loose_edges_removed"] = len(wire)
     for f in created:
         sd = 1 if f.calc_center_median().x >= 0 else -1
         for l in f.loops:
