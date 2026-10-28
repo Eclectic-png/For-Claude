@@ -617,7 +617,9 @@ def make_room(objs, M_to, M_from, expander_trees, pinned, rigid, gap=0.0015, dec
     for i, p in enumerate(P):
         kd.insert(Vector(p), i)
     kd.balance()
-    rep_idx = np.array([min(k_ for _, k_, _ in kd.find_range(Vector(p), 1e-7)) for p in P])
+    # (seams: within 20 um - objects stored in different frames come back from float32 round trips up to ~0.1 um
+    # apart, and at 1e-7 their two sides were moved independently and drifted open, up to 2 mm)
+    rep_idx = np.array([min(k_ for _, k_, _ in kd.find_range(Vector(p), WELD_TOL)) for p in P])
     uniq, inv = np.unique(rep_idx, return_inverse=True)
     X = P[uniq]
     Fo = [[[int(inv[i]) for i in f] for f in fl] for fl in F_all]      # faces per organ, union indices
@@ -959,7 +961,65 @@ def drive2(kb, ctl, props, expr):
     return fc
 
 
-def weld_union(objs, M_to, tol=1e-6):
+WELD_TOL = 2e-5                                   # vertices this close are one (a seam between two objects)
+
+
+def snap_seam(a, b, tol=0.003):
+    """close the seam between two objects that share an open boundary loop (each boundary vertex of b within `tol`
+    of one of a's): both sides go to their mean in the Basis (mesh and reference key) and, key by key, to the mean of
+    their offsets from their relative keys - so the seam stays shut in every state the same drivers make. A key only
+    one of them has holds the seam still. Returns the widest gap before (m) and the number of vertex pairs."""
+    def bnd(ob):
+        bm = bmesh.new(); bm.from_mesh(ob.data); ids = [v.index for v in bm.verts if v.is_boundary]; bm.free(); return ids
+    Ma, Mb = a.matrix_world, b.matrix_world; Ra, Rb = Ma.to_3x3(), Mb.to_3x3()
+    ia, ib = bnd(a), bnd(b)
+    if not ia or not ib:
+        return 0.0, 0
+    kd = kdtree.KDTree(len(ia))
+    for k, i in enumerate(ia):
+        kd.insert(Ma @ a.data.vertices[i].co, k)
+    kd.balance()
+    pairs = []
+    for j in ib:
+        co, k, d = kd.find(Mb @ b.data.vertices[j].co)
+        if d < tol:
+            pairs.append((ia[k], j, d))
+    if not pairs:
+        return 0.0, 0
+    worst = max(d for _, _, d in pairs)
+    ka = a.data.shape_keys.key_blocks if a.data.shape_keys else None
+    kb = b.data.shape_keys.key_blocks if b.data.shape_keys else None
+    ref_a = a.data.shape_keys.reference_key if ka else None; ref_b = b.data.shape_keys.reference_key if kb else None
+    Mai, Mbi = Ma.inverted(), Mb.inverted(); Rai, Rbi = Ra.inverted(), Rb.inverted()
+    # Basis: the mean, written to the mesh and the reference key
+    for i, j, _ in pairs:
+        m = ((Ma @ a.data.vertices[i].co) + (Mb @ b.data.vertices[j].co)) * 0.5
+        a.data.vertices[i].co = Mai @ m; b.data.vertices[j].co = Mbi @ m
+        if ref_a is not None:
+            ref_a.data[i].co = Mai @ m
+        if ref_b is not None:
+            ref_b.data[j].co = Mbi @ m
+    # keys, in order (a key's relative key is written before it): the mean offset where both have it, else none
+    names = ([k.name for k in ka][1:] if ka else []) + [k.name for k in (kb or [])][1:]
+    seen = set()
+    for nm in names:
+        if nm in seen:
+            continue
+        seen.add(nm)
+        A_ = ka.get(nm) if ka else None; B_ = kb.get(nm) if kb else None
+        for i, j, _ in pairs:
+            da = Ra @ (A_.data[i].co - A_.relative_key.data[i].co) if A_ is not None else None
+            db = Rb @ (B_.data[j].co - B_.relative_key.data[j].co) if B_ is not None else None
+            t = (da + db) * 0.5 if da is not None and db is not None else Vector((0, 0, 0))
+            if A_ is not None:
+                A_.data[i].co = A_.relative_key.data[i].co + Rai @ t
+            if B_ is not None:
+                B_.data[j].co = B_.relative_key.data[j].co + Rbi @ t
+    a.data.update(); b.data.update()
+    return worst, len(pairs)
+
+
+def weld_union(objs, M_to, tol=None):
     """one welded mesh (work frame) from several objects that share seams: X, faces, and per object the union index
     of each of its vertices"""
     P_all = []; F = []; owner = []; off = 0
@@ -970,6 +1030,7 @@ def weld_union(objs, M_to, tol=1e-6):
     for i, p in enumerate(P):
         kd.insert(Vector(p), i)
     kd.balance()
+    tol = WELD_TOL if tol is None else tol
     rep = np.array([min(k_ for _, k_, _ in kd.find_range(Vector(p), tol)) for p in P])
     uniq, inv = np.unique(rep, return_inverse=True)
     X = P[uniq]; Fu = []

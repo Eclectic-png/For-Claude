@@ -297,6 +297,17 @@ for n_ in BOWEL:
         kb_.data.foreach_set("co", K.astype(np.float32).ravel())
     ob.data.vertices.foreach_set("co", room_v[n_][0].astype(np.float32).ravel()); ob.data.update()
 bpy.context.view_layer.update()
+# the bowel's seams (sigmoid - rectum - ampulla - anal canal) shut exactly, in the Basis and every key, after every
+# step that moves the bowel (see urinary_lib.snap_seam; the room steps once let them drift up to 4 mm open)
+BOWEL_SEAMS = [("AN_Colon_Descending", "AN_Rectum"), ("AN_Rectum", "AN_Rectum_LowerAmpulla"),
+               ("AN_Rectum_LowerAmpulla", "AN_AnalCanal")]
+def snap_bowel(tag):
+    out_ = {}
+    for a_, b_ in BOWEL_SEAMS:
+        if a_ in O and b_ in O:
+            w_, n_ = U.snap_seam(O[a_], O[b_]); out_[f"{a_[3:]}-{b_[3:]}"] = [n_, round(w_ * 1000, 4)]
+    report.setdefault("bowel_seams_snapped_mm", {})[tag] = out_; bpy.context.view_layer.update()
+snap_bowel("vagina")
 print("VAGINA", json.dumps(report["vagina_space"]))
 bone_trees_v = bone_trees + [(vag_tree, 0.001)]
 done("vagina")
@@ -447,7 +458,7 @@ def bowel_room(tag, extra=()):
             K = np.array([tuple(d.co) for d in kb_.data]) + D; kb_.data.foreach_set("co", K.astype(np.float32).ravel())
         ob.data.vertices.foreach_set("co", room_g[n_][0].astype(np.float32).ravel()); ob.data.update()
     rep_["bowel_residual_mm"] = res_g
-    bpy.context.view_layer.update()
+    bpy.context.view_layer.update(); snap_bowel(tag)
 bowel_room("bowel_room")
 bone_trees_v = bone_trees + [(vag_tree, 0.001), (repro_tree, 0.0015)]
 # ---- how they move when the bladder / rectum fill: the cervix is held (in the vault, by its ligaments); the body
@@ -1260,6 +1271,9 @@ for st_, knames in POLISH:
     report["polish"][tag] = rep_; print("POLISH", tag, json.dumps(rep_))
 setc(0.0, 0.0, 0.0)
 done("keys")
+
+snap_bowel("final")                              # (the fill, settle and polish steps move each organ on its own)
+print("BOWEL_SEAMS", json.dumps(report["bowel_seams_snapped_mm"]))
 
 # ======================= 6. lighting: insides lit everywhere, smooth-lighting bakes =======================
 # new organs get the outer "AO" bake (at rest); every organ / bone material lights its inside and every object without
