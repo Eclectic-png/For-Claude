@@ -16,11 +16,11 @@
   "loose_edges_removed": 7,
   "slit_plane_tilt_deg": 27.6
  },
- "lumen_guard_shrinks": 170,
+ "lumen_guard_shrinks": 26,
  "lumen": {
-  "rings": 89,
+  "rings": 85,
   "points_per_ring": 96,
-  "length_mm": 71.8,
+  "length_mm": 67.0,
   "envelope_from_mm": 4.0,
   "envelope_gaps_filled": 0,
   "cervix_from_mm": 45.3,
@@ -58,89 +58,77 @@
    [
     46.7,
     11.55,
-    7.19,
-    6.01
+    7.43,
+    6.02
    ],
    [
     48.1,
     11.74,
-    6.7,
+    7.43,
     6.16
    ],
    [
     49.5,
     11.87,
-    6.22,
+    7.43,
     6.29
    ],
    [
     51.4,
     11.94,
-    5.73,
+    7.43,
     6.36
    ],
    [
     53.8,
     12.73,
-    5.25,
+    7.43,
     6.46
    ],
    [
     56.2,
-    12.95,
-    4.76,
+    12.94,
+    7.43,
     6.51
    ],
    [
     58.6,
-    12.83,
-    4.28,
+    12.8,
+    7.43,
     6.51
    ],
    [
     61.0,
-    12.01,
-    3.79,
+    11.92,
+    7.43,
     6.09
    ],
    [
     63.4,
-    10.85,
-    3.31,
+    10.83,
+    7.43,
     5.58
    ],
    [
     65.8,
-    8.66,
-    2.82,
+    8.61,
+    7.43,
     4.51
-   ],
-   [
-    68.2,
-    6.15,
-    2.34,
-    0.84
-   ],
-   [
-    70.6,
-    4.4,
-    0.35,
-    0.35
    ]
   ]
  },
- "lumen_dome_mm": 0.0,
+ "lumen_dome_mm": 0.5,
  "cervix_join": {
-  "curve_mm": 44.6,
-  "patch_radius_mm": 20.2,
-  "killed_faces": 478,
+  "curve_mm": 45.7,
+  "patch_radius_mm": 24.5,
+  "killed_faces": 512,
   "inflate_mm": 0.0,
   "uterus_new_vertices": 0,
   "opening": [
    {
-    "edges": 259,
-    "perimeter_mm": 44.6,
-    "mean_radius_mm": 7.0
+    "edges": 270,
+    "perimeter_mm": 45.7,
+    "mean_radius_mm": 7.1
    }
   ]
  },
@@ -148,26 +136,26 @@
   "bottom_cap_faces_removed": 40
  },
  "ao_mean": {
-  "AN_Vagina.AO": 0.107,
-  "AN_Vagina.AO_in": 0.109,
-  "AN_Vagina_Wall.AO": 0.636,
-  "AN_Vagina_Wall.AO_in": 0.24
+  "AN_Vagina.AO": 0.109,
+  "AN_Vagina.AO_in": 0.118,
+  "AN_Vagina_Wall.AO": 0.659,
+  "AN_Vagina_Wall.AO_in": 0.25
  },
  "checks": {
   "skin_seam_mm": 0.00018,
   "lumen_open_loops": [
    96,
-   259
+   270
   ],
   "wall_open_loops": [
    24,
-   204
+   206
   ],
   "lumen_outside_wall_points": 0,
   "outside_at_mm": [],
   "outside_dist_mm": 0,
   "wall_bottom_at_mm": 4.0,
-  "lumen_wall_clearance_min_mm": 0.22,
+  "lumen_wall_clearance_min_mm": 0.3,
   "urethra_wall_clearance_min_mm": 2.27
  }
 }
