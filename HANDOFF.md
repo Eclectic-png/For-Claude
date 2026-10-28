@@ -285,8 +285,9 @@ via gdown into `drive/` (the network policy must allow download.blender.org and 
 **Open questions for the user / possible next steps:**
 - Appendix was moved 21.9 mm to attach to the cecum >= 15 mm from the ileal entrance (not opened: dead end). The
   user may want a smaller move (e.g. `APPX_CLEAR` 12 mm) or a different attachment spot.
-- Canal: it opens from the star over the top 40 % (from ~15 mm); anatomically it could stay closed over the
-  sphincter's full height and open more sharply at the anorectal junction (offered, not done).
+- Canal (DONE later): now closed along its whole length and opens only over its last `ANUS_CANAL_OPENLEN` (5 mm)
+  into the junction ring (was: the top 40 %, from ~15 mm). Note the atlas' external sphincter ring is only ~4 mm
+  tall (8-12 mm up the canal; real one ~25-40 mm) - a possible future fix if the user wants it.
 - Lining colour at the canal mouth renders a little greyer than the rim skin (~180,141,142 vs 204,162,170); user
   hasn't asked to change it.
 - Only tract organs have lit insides; other atlas organs keep the flat backface colour.

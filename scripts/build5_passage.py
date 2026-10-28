@@ -1059,10 +1059,14 @@ def build_tube(name, ring_pts_list, exact_bot, exact_top):
 # and is collapsed at rest along its whole length (item 3): the closed slit is carried straight up for CANAL_COLL mm,
 # then the lumen is a closed STAR - an AP slit that lengthens, then lateral and diagonal arms (8 in all) growing in
 # between, the tissue between neighbouring arms being the anal columns. Walls LUMEN_HW mm from the arm's midline.
-# Over the top 40 % it eases out to the round junction ring the ampulla starts from. Every arm owns a fixed block of
+# Over its last CANAL_OPENLEN mm it opens out to the round junction ring the ampulla starts from. Every arm owns a fixed block of
 # N_SPOKE / 8 points (tip in the middle), so points never slide across an arm between rings, and point k always
 # sits near angle -pi + 2 pi k / N_SPOKE (the Open shape key can spread them round a circle).
 CANAL_COLL = float(os.environ.get("ANUS_CANAL_COLL", "2.0"))   # mm the skin's slit runs straight up
+# the canal is held shut along its whole length at rest (internal sphincter tone, puborectalis at the top) and
+# opens only at the anorectal junction, over its last CANAL_OPENLEN mm (was: the top 40 %, from ~15 mm). The atlas'
+# external sphincter ring is only ~4 mm tall (8-12 mm up), so it is not used as the limit.
+CANAL_OPENLEN = float(os.environ.get("ANUS_CANAL_OPENLEN", "5.0"))
 LUMEN_HW = 0.01                                                  # mm, half the gap between touching walls
 N_ARM = 8; SEC = N_SPOKE // N_ARM
 Lc = (J - H).length; _Lmm = Lc * 1000
@@ -1110,7 +1114,7 @@ def canal_ring(s_mm, N):
     """N_SPOKE points at s mm up the canal, then every (N_SPOKE / N)-th: the 2:1 steps keep their angles"""
     t = s_mm / _Lmm; ctr = H.lerp(J, t)
     w_ex = 1 - ss(CANAL_COLL, 3.5, s_mm)          # the skin's own slit, carried up
-    w_rd = ss(0.6 * _Lmm, _Lmm, s_mm)             # easing out to the round junction ring
+    w_rd = ss(_Lmm - CANAL_OPENLEN, _Lmm, s_mm)  # opening into the round junction ring (anorectal junction)
     st = star_2d(s_mm); pts = []
     for kk in range(N_SPOKE):
         th = -math.pi + 2 * math.pi * kk / N_SPOKE
