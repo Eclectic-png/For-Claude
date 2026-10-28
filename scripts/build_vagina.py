@@ -28,7 +28,7 @@ X_ = Vector((1, 0, 0))
 NECK = Vector(json.loads(os.environ.get("BLADDER_NECK", "[0.0, -0.080, 0.776]")))
 _va = math.radians(float(os.environ.get("VAG_DEG", "35")))
 VAG_A = Vector((0, math.cos(_va), math.sin(_va))); VAG_M = Vector((0, -math.sin(_va), math.cos(_va)))
-VAG_P = NECK - VAG_M * 0.005; VAG_HT = 0.005; VAG_UP = float(os.environ.get("VAG_UP_MM", "40")) / 1000
+VAG_P = NECK - VAG_M * 0.005; VAG_HT = 0.005; VAG_UP = float(os.environ.get("VAG_UP_MM", "48")) / 1000
 P1v = VAG_P - VAG_M * (VAG_HT + 0.004); P2v = P1v + VAG_A * VAG_UP
 _ib = Vector(json.loads(os.environ.get("VAG_INTROITUS", "[0.0, 0.0275, 0.7797]")))
 _skt = U.tree_in(hips, None, cap=False)

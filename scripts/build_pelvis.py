@@ -165,7 +165,6 @@ _h = _skt0.ray_cast(_ib - Vector((0, 0, 0.02)), Vector((0, 0, 1)), 0.04)
 INTRO = Mi @ (_h[0] if _h[0] is not None and (_h[0] - _ib).length < 0.005 else _ib)
 # behind the neck: on the bladder-base plane at the neck's height, VAG_HT + 1 mm behind it; then up its slope
 P1v = VAG_P - VAG_M * (VAG_HT + 0.004)
-P2v = P1v + VAG_A * VAG_UP
 def catmull(pts, n):
     P = [pts[0]] + pts + [pts[-1]]; out = []
     for i in range(1, len(P) - 2):
@@ -174,31 +173,34 @@ def catmull(pts, n):
             out.append(0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t ** 3))
     return out
 _t0 = (P1v - INTRO).normalized()
-vc = catmull([INTRO + _t0 * 0.010, P1v, P2v], 16)     # starts 10 mm inside the body (clear of the vestibule)
-# the reference run (VAG_VC_UP) fixes the vault's centre and the lower part's profile, in arc length
-_vc_ref = catmull([INTRO + _t0 * 0.010, P1v, P1v + VAG_A * VAG_VC_UP], 16)
-_L_ref = sum((a - b).length for a, b in zip(_vc_ref, _vc_ref[1:]))
-VC_REF = _vc_ref[int(0.86 * (len(_vc_ref) - 1))]
-_cum = [0.0]
-for a, b in zip(vc, vc[1:]):
-    _cum.append(_cum[-1] + (a - b).length)
-_L = _cum[-1]; S_VC = min(range(len(vc)), key=lambda j: (vc[j] - VC_REF).length); S_VC = _cum[S_VC]
+# the reference run (VAG_VC_UP) is the curve and profile the rest of the pelvis was fitted to: it is kept point for
+# point (its index fractions s_ too) and fixes the vault's centre; the extra length (VAG_UP - VAG_VC_UP) runs on
+# straight along its end tangent (VAG_A) past the cervix - the posterior fornix
+vc = catmull([INTRO + _t0 * 0.010, P1v, P1v + VAG_A * VAG_VC_UP], 16)     # starts 10 mm inside the body (clear of the vestibule)
+_n_ref = len(vc); _ds = (vc[-1] - vc[-2]).length
+_n_ext = int(round(max(0.0, VAG_UP - VAG_VC_UP) / _ds))
+vc = vc + [vc[-1] + VAG_A * (max(0.0, VAG_UP - VAG_VC_UP) * (k + 1) / _n_ext) for k in range(_n_ext)]
+P2v = vc[-1]
+VC_REF = vc[int(0.86 * (_n_ref - 1))]
+S_END = (len(vc) - 1) / (_n_ref - 1)             # 1 for the reference run
 bm = bmesh.new(); rings = []
 for j, c in enumerate(vc):
-    sa = _cum[j]; s_ = sa / _L_ref                  # the old fractions below the vault (unchanged there)
+    s_ = j / (_n_ref - 1)                         # > 1 past the reference run's top
     t_ = (vc[min(j + 1, len(vc) - 1)] - vc[max(j - 1, 0)]).normalized(); e2 = t_.cross(X_).normalized()
-    # narrower at the introitus; the vault widens into the fornices round the cervix from 20 mm below its centre,
-    # runs on past it (the posterior fornix) and is rounded off over its last part
-    r0 = S_VC + 0.010
-    rnd = math.sqrt(max(0.0, 1 - ((sa - r0) / (_L - r0)) ** 2)) * 0.8 + 0.2 if sa > r0 else 1.0
-    vlt = float(U.ss(S_VC - 0.020, S_VC - 0.001, sa))
-    w_ = (VAG_HW * (0.7 + 0.3 * float(U.ss(0.0, 0.2, s_))) * (1 - vlt) + VAULT_HW * vlt) * rnd
-    h_ = (VAG_HT * (0.6 + 0.4 * float(U.ss(0.0, 0.1, s_))) * (1 - vlt) + VAULT_HT * vlt) * rnd
+    # narrower at the introitus; the vault widens into the fornices round the cervix. Its front half (toward the
+    # bladder, -e2) is rounded off as in the reference run (from 0.82 of it); its back half and its width run on past
+    # the cervix - the posterior fornix - and are rounded off over the same span stretched to the new top
+    vlt = float(U.ss(0.55, 0.85, s_))
+    rnd_f = math.sqrt(max(0.0, 1 - (min(1.0, max(0.0, s_ - 0.82) / 0.18)) ** 2)) * 0.8 + 0.2 if s_ > 0.82 else 1.0
+    rnd_b = math.sqrt(max(0.0, 1 - (min(1.0, max(0.0, s_ - 0.82) / (S_END - 0.82))) ** 2)) * 0.8 + 0.2 if s_ > 0.82 else 1.0
+    w_ = (VAG_HW * (0.7 + 0.3 * float(U.ss(0.0, 0.2, s_))) * (1 - vlt) + VAULT_HW * vlt) * rnd_b
+    h0_ = VAG_HT * (0.6 + 0.4 * float(U.ss(0.0, 0.1, s_))) * (1 - vlt) + VAULT_HT * vlt
+    hf_, hb_ = h0_ * rnd_f, h0_ * rnd_b             # e2 points back (posterior): + back, - front
     q_ = VAG_SQ * (1 - vlt) + 2.0 * vlt            # squarer walls below the vault
     ring_ = []
     for a in np.linspace(0, 2 * math.pi, 24, endpoint=False):
         ca, sa_ = math.cos(a), math.sin(a)
-        ring_.append(bm.verts.new(c + X_ * (w_ * math.copysign(abs(ca) ** (2 / q_), ca)) + e2 * (h_ * math.copysign(abs(sa_) ** (2 / q_), sa_))))
+        ring_.append(bm.verts.new(c + X_ * (w_ * math.copysign(abs(ca) ** (2 / q_), ca)) + e2 * ((hb_ if sa_ > 0 else hf_) * math.copysign(abs(sa_) ** (2 / q_), sa_))))
     rings.append(ring_)
 for a_, b_ in zip(rings, rings[1:]):
     for k in range(24):
@@ -268,9 +270,10 @@ VC = VC_REF                                       # the vault's centre (as with 
 C_AX = VAG_M.copy()                               # cervix: square to the vagina (anteversion)
 B_AX = (Matrix.Rotation(UT_FLEX, 3, X_) @ C_AX).normalized()   # body: bent forward (anteflexion)
 N_AX = B_AX.cross(X_).normalized()                # the body's thickness direction (front - back)
-# the cervix: 30 mm, its lower ~12 mm (the portio) projecting into the vault - the external os UT_OS_MM along the
-# cervix' axis from the vault's centre (was +2: the portio barely showed; real 10-15 mm); the body sits 3 mm lower
-P_os = VC + C_AX * (float(os.environ.get("UT_OS_MM", "-6")) / 1000); P_io = VC + C_AX * 0.024
+# the cervix: its lower ~12 mm (the portio) projects into the vault - the external os UT_OS_MM along the cervix' axis
+# from the vault's centre (was +2: the portio barely showed; real 10-15 mm). The body stays where it was (the
+# internal os at +27 mm: moving it 3 mm lower pressed the empty bladder's neck out of shape), so the cervix is 33 mm
+P_os = VC + C_AX * (float(os.environ.get("UT_OS_MM", "-6")) / 1000); P_io = VC + C_AX * 0.027
 ut_el = [R.capsule_el(P_os, P_io + C_AX * 0.004, 0.0105),
          R.ellipsoid_el(P_io + B_AX * 0.020, B_AX, X_, (0.024, 0.021, 0.015)),
          R.ellipsoid_el(P_io + B_AX * 0.033, B_AX, X_, (0.012, 0.024, 0.014))]
