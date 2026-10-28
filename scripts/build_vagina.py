@@ -28,7 +28,7 @@ X_ = Vector((1, 0, 0))
 NECK = Vector(json.loads(os.environ.get("BLADDER_NECK", "[0.0, -0.080, 0.776]")))
 _va = math.radians(float(os.environ.get("VAG_DEG", "35")))
 VAG_A = Vector((0, math.cos(_va), math.sin(_va))); VAG_M = Vector((0, -math.sin(_va), math.cos(_va)))
-VAG_P = NECK - VAG_M * 0.005; VAG_HT = 0.005; VAG_UP = float(os.environ.get("VAG_UP_MM", "48")) / 1000
+VAG_P = NECK - VAG_M * 0.005; VAG_HT = 0.005; VAG_UP = float(os.environ.get("VAG_UP_MM", "44")) / 1000
 P1v = VAG_P - VAG_M * (VAG_HT + 0.004); P2v = P1v + VAG_A * VAG_UP
 _ib = Vector(json.loads(os.environ.get("VAG_INTROITUS", "[0.0, 0.0275, 0.7797]")))
 _skt = U.tree_in(hips, None, cap=False)
@@ -99,7 +99,8 @@ dense = np.array([tuple(p) for p in _bez] + [tuple(P1v.lerp(P2v, t)) for t in np
 seg = np.linalg.norm(np.diff(dense, axis=0), axis=1); cum = np.concatenate([[0.0], np.cumsum(seg)])
 S = []; s_ = 0.0
 while s_ < cum[-1]:                                # fine where the rugae run, coarser in the vault
-    S.append(s_); s_ += 0.0007 if s_ < 0.050 else 0.0012
+    S.append(s_); s_ += 0.0010 if s_ < 0.004 else float(os.environ.get("VAG_STEP_MM", "0.7")) / 1000 if s_ < 0.050 else 0.0012
+                                                   # (1 mm where the rings ease out of the curved slit: closer, they cross)
 S = np.array(S)
 C = np.stack([np.interp(S, cum, dense[:, k]) for k in range(3)], 1)
 # ring planes: parallel to the slit's plane at first (stacked, they cannot cross while the slit's long front / back
@@ -201,7 +202,7 @@ VT_S = np.array(VT_S)
 for _ in range(6):
     VT_S[1:-1] = np.minimum(VT_S[1:-1], 0.25 * VT_S[:-2] + 0.5 * VT_S[1:-1] + 0.25 * VT_S[2:])
 
-rings = []; params = []
+rings = []; params = []; RUG_Y = []; RUG_ON = []
 for j, s in enumerate(S):
     e = env[j]
     if j > last_env or e is None:
@@ -234,6 +235,8 @@ for j, s in enumerate(S):
     # rugae: transverse folds; the touching walls fold together (a corrugated slit), most in the midline columns
     # (fading to RUG_SIDE at the side recesses), over the lower part, fading in after the opening and before the vault
     a_r = RUG_A * float(U.ss(0.004, 0.009, s)) * (1 - float(U.ss(s_c0 - 0.018, s_c0 - 0.010, s))) * (1 - 0.35 * float(U.ss(0.02, 0.04, s)))
+    RUG_Y.append(a_r * math.sin(2 * math.pi * s / RUG_L) * (1 - w_ex)); RUG_ON.append(a_r > 0)   # (the ring's centre
+                                                                                                    # moves with the fold)
     if a_r > 0:
         xr = np.abs(P2[:, 0]) / max(np.abs(P2[:, 0]).max(), 1e-6)
         P2 = P2 + np.stack([np.zeros(len(P2)), a_r * (1 - (1 - RUG_SIDE) * xr ** 2) * math.sin(2 * math.pi * s / RUG_L)], 1)
@@ -258,7 +261,8 @@ for j in range(first_env + 2, NR):
             bad = any(_out(p_) for p_ in pts)
             if not bad:
                 break
-            ctr = SH[j] if j < len(SH) else np.zeros(2)
+            ctr = (SH[j] if j < len(SH) else np.zeros(2)) + np.array([0.0, RUG_Y[j]])   # (about the fold-shifted centre:
+                                                                                         # the arms' roots stay joined)
             rings[j][sl] = ctr + (rings[j][sl] - ctr) * 0.96; n_guard += 1
 report["lumen_guard_shrinks"] = n_guard
 report["lumen"] = {"rings": NR, "points_per_ring": N, "length_mm": round(float(S[NR - 1]) * 1000, 1),
@@ -278,10 +282,22 @@ for _d in (0.0015, 0.001, 0.0005, 0.0):            # the dome's top: as far up a
 tip = tip + _td * _d
 report["lumen_dome_mm"] = round(_d * 1000, 2)
 P3 = np.vstack([P3, tip[None]])
+# where the rugae run, triangles: each quad split from its outer corner on ring j to the inner one on ring j + 1
+# (outer: farther from the ring's centre) - the collapsed walls lie 0.04 mm apart and the folds twist their quads by
+# more than that; split by index, facing walls would take opposite diagonals and cross. Quads elsewhere
 faces = []
 for j in range(NR - 1):
     a, b = j * N, (j + 1) * N
-    faces += [(a + k, a + (k + 1) % N, b + (k + 1) % N, b + k) for k in range(N)]
+    if not (RUG_ON[j] or RUG_ON[j + 1]):
+        faces += [(a + k, a + (k + 1) % N, b + (k + 1) % N, b + k) for k in range(N)]
+        continue
+    rad = np.linalg.norm(np.asarray(rings[j]) - ((SH[j] if j < len(SH) else 0.0) + np.array([0.0, RUG_Y[j]])), axis=1)
+    for k in range(N):
+        k1 = (k + 1) % N
+        if rad[k] >= rad[k1]:
+            faces += [(a + k, a + k1, b + k1), (a + k, b + k1, b + k)]
+        else:
+            faces += [(a + k, a + k1, b + k), (a + k1, b + k1, b + k)]
 pole = NR * N; a = (NR - 1) * N
 faces += [(a + k, a + (k + 1) % N, pole) for k in range(N)]
 me = bpy.data.meshes.new("AN_Vagina"); me.from_pydata([tuple(p) for p in P3], [], faces); me.update()
@@ -296,7 +312,8 @@ for p in me.polygons:
     p.use_smooth = True
 bm = bmesh.new(); bm.from_mesh(me); bm.normal_update(); bm.faces.ensure_lookup_table()
 # normals out of the lumen (into the wall), like the other tubes: away from the centre line
-_c = Vector(tuple(C[NR // 2])); f_ = bm.faces[(NR // 2) * N]
+_c = Vector(tuple(C[NR // 2]))                    # (the test face: the one farthest out round that ring - unambiguous)
+f_ = max((f for f in bm.faces if all(v.index // N in (NR // 2, NR // 2 + 1) for v in f.verts)), key=lambda f: (f.calc_center_median() - _c).length)
 if f_.normal.dot(f_.calc_center_median() - _c) < 0:
     bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
 bm.to_mesh(me); bm.free(); me.update()

@@ -7,41 +7,68 @@ first (`Hips.blend`), a male version later. Done: the digestive system (esophagu
 **Current: the female pelvis - `scripts/build_pelvis.py` (was `build_urinary.py`): urinary system, female bony pelvis,
 internal reproductive organs (first pass), built on build5_passage's output.**
 
-**Vagina (first pass, DONE 2026-10-28) - `scripts/build_vagina.py` + `scripts/vagina_lib.py`:** a separate, swappable
+**Vagina (first pass + accuracy pass, DONE 2026-10-28) - `scripts/build_vagina.py` + `scripts/vagina_lib.py`:** a separate, swappable
 step run on build_pelvis' output (`out/blend/Hips_urinary.blend` -> `out/blend/Hips_vagina.blend`):
 ```
 blender -b out/blend/Hips_urinary.blend --python scripts/build_vagina.py -- $PWD/out/blend/Hips_vagina.blend out/urinary/vagina
 ```
 (~1 min). `VAG_STOP=lumen` saves after the lumen only (quick shape checks).
 - `AN_Vagina` (lumen = mucosa, `AN_Vagina_Lining` = a copy of the canal lining, "lining" 0 at the skin -> 0.3 pale pink
-  by 8 mm; lit inside, AO / AO_in baked): 52 rings x 96 points, 66 mm long (real). Cross-sections from the ring model in
+  by 8 mm; lit inside, AO / AO_in baked): 89 rings x 96 points, 72 mm long (real). Cross-sections from the ring model in
   vagina_lib (four arm blocks, see its docstring): introitus = sagittal slit (13.2 mm real, lips 0.02 mm) -> "+" ->
   H (lateral recesses' T-bars, 10-34 mm) -> transverse slit -> open vault round the cervix (fitted ring by ring to the
   placeholder's section: walls ~3.5 mm at the sides, 3 mm front / back, 1.5 mm where the cervix passes, and to the
   cervix's section with 1.5 mm clearance). Rings: parallel to the slit's plane for the first 4 mm (stacked, they cannot
   cross), square to a smooth cubic centre line from 12 mm on; centred on the placeholder's section (front / back only).
-  A guard shortens any arm within 0.4 mm of the placeholder.
+  A guard shortens any arm within 0.4 mm of the placeholder (about the ring's fold-shifted centre). Ring spacing 1 mm
+  for the first 4 mm (closer, the rings easing out of the curved slit cross), 0.7 mm to 50 mm, 1.2 mm in the vault.
+- Rugae (accuracy pass): transverse folds, the touching walls corrugated together (`VAG_RUGAE_MM` 0.6 mm, every
+  3.5 mm), most in the midline columns (0.4 at the side recesses), from 4-9 mm in to 10-18 mm short of the cervix.
+  The folds twist the wall quads by ~0.09 mm, more than the 0.04 mm between the collapsed walls, so where they run the
+  lumen is triangulated with each quad split from its outer corner (farther from the ring's centre) on ring j to the
+  inner one on ring j + 1 - facing walls then take the same diagonal (split by index they took opposite ones and
+  crossed: 147 pairs). Quads elsewhere.
+- Cervix / fornices (accuracy pass, build_pelvis): the portio projects ~10 mm into the canal (real 10-15; was ~2.5):
+  external os 5.8 mm past the vault's centre (`UT_OS_MM` -6, was +2), the lumen meeting the cervix 2.3-6.6 mm above
+  that centre (fornix loop 45 mm round, r 7.1 mm), the uterine body where it was (internal os at +27 mm: the cervix is
+  33 mm). The vault runs on past the cervix (`VAG_UP_MM` 44, was 40): a posterior fornix ~5 mm beyond its edge, deeper
+  than the anterior one; its front half is rounded off as before.
 - Skin: `urinary_lib.cut_meatus` with the new `slit_uv` (the lumen's own first ring, so no blend zone folds) and
   `ref_radius` (the preparation weld must not reach the meatus: its tip vertices are < 5 um apart across the lips -
   that weld had eaten 6-12 of the meatus' 32 points); slit centred y 23 mm (body), patch y 17.25 - 28.7, 0.55 mm clear
   of the meatus' patch; the build stops if the meatus loop changes. cut_meatus now also removes the loose edges it
   leaves and falls back to the nearest corner when a zero-area source triangle gave NaN UVs (a black speck).
-- Cervix: `open_junction(AN_Vagina, AN_Uterus, sides=(0,))` - the os opens into the vault (shared loop, r 4.6 mm);
+- Cervix: `open_junction(AN_Vagina, AN_Uterus, sides=(0,))` - the os opens into the vault;
   the uterus' shape keys are carried over (`vagina_lib.keyed_snapshot / keys_restore`, barycentric over the old
   Basis): seam 0.0000 mm at rest / bladder full / rectum full / both full.
 - `AN_Vagina_Wall`: the placeholder's surface minus its bottom cap (rendered, tinted organ material). The placeholder
   itself stays (hidden): build_pelvis' neighbours were fitted round it and none moves into it, so the vagina has no
   shape keys of its own.
-- Checks (`out/urinary/vagina_report.json`): skin seam 0.0002 mm; open loops lumen [96 skin, 175 cervix], wall [24
-  bottom, 186 cervix]; 0 lumen points outside the wall (closest 0.08 mm, body); urethra wall 2.3 mm away; 0
-  self-intersections; Hips 0 non-manifold, only its 5 openings (waist / legs, anus, meatus, introitus). Closest
-  neighbour in any state: lower ampulla 1.1 mm (rectum full).
+- Checks (`out/urinary/vagina_report.json`): skin seam 0.0002 mm; open loops lumen [96 skin, 253 cervix], wall [24
+  bottom, 192 cervix]; 0 lumen points outside the wall (closest 0.22 mm, body); urethra wall 2.3 mm away; 0
+  self-intersections; cervix seam 0.0000 mm in all four fill states; Hips 0 non-manifold, only its 5 openings (waist /
+  legs, anus, meatus, introitus); no NaN UVs.
 - Renders (`out/urinary/`): `vagina_sections.png` (`scripts/tools/vagxs.py`; slices by the ring planes stored on the
   object, `ring_planes`), `vagina_midline.png`, `vagina_cutaway.png` / `vagina_below_before_after.png`
-  (`scripts/tools/pelvis_cut.py`: `below` / `cut` modes, `PCUT_ONLY`, `PCUT_HIDE`).
-- Limits / next: the cervix protrudes only ~2.5 mm into the vault (the uterus sits where build_pelvis put it; a deeper
-  portio needs it a few mm lower / further back); the H's recesses are short (the placeholder is thin at its sides);
-  no rugae; the introitus must be re-cut after the vulva rebuild (as the meatus).
+  (`scripts/tools/pelvis_cut.py`: `below` / `cut` modes, `PCUT_ONLY`, `PCUT_HIDE`); accuracy pass:
+  `vagina_midline_before_after.png`, `vagina_vault_before_after.png` (cut-away of the vault, wall + lumen + uterus).
+- build_pelvis changes for the accuracy pass (placeholder `AN_Vagina_Space`): the 40 mm reference run (`VAG_VC_UP_MM`)
+  is kept point for point - its curve, index fractions and vault centre; an arc-length rewrite changed the lower
+  placeholder and broke the bladder-neck fill (`fill_annulus`: "loops cross") - and the extra length runs straight on
+  along its end tangent; lower walls a superellipse (`VAG_SQUARE` 2.6: fuller at the sides for the H's recesses);
+  rectovaginal septum `VAG_SEPTUM_MM` 2.5 (bowel kept that far off; was 2 / 1 mm; real 2-4). The pierce and the
+  uterus' tilt pivot are measured from `P_hold` (the old os, vault centre + 2 mm), not the os - measured from the
+  deeper os the pivot moved 8 mm and the full bladder's tilt dropped 22 -> 18 deg (uterus 2.2 mm into it).
+  bowel_room also pushes coarse bowel faces off the placeholder's vertices (expanders). Bowel moved for the vagina:
+  ampulla 21.5 mm (was 13.5), rectum 6.0, canal 4.8. Tried `VAG_UP_MM` 48 (posterior fornix ~9 mm): the fornix top
+  folded the ampulla into the rectum at rest (3.5 mm) and touched the bladder (2 mm); 44 was clean. Contacts against
+  the previous build: seams identical, the full-bladder uterus contact gone, a few ~1 mm contacts moved to the
+  part-filled states (worst 3.35 mm, rectum into uterus at bladder 0.25; was 3.25 colon into uterus).
+- Known (pre-existing, a little worse): the coarse lower ampulla (371 faces) folds where build_pelvis pushes it back
+  for the vagina - 2 self-intersecting face pairs before build_pelvis, 122 after the first pass, 160 now. Worth a
+  relax / remesh of that region.
+- Limits / next: the H's recesses are still short; the introitus must be re-cut after the vulva rebuild (as the
+  meatus).
 - Tried and dropped (so not repeated): leaving the skin straight up then turning (rings on the inside of the turn
   crossed); an oblique start with rings square to the path (they cut back through the slit); blending out of
   cut_meatus' default slit (its points crowd the tips, the ring model's the middle: the surface doubled over); a

@@ -16,89 +16,131 @@
   "loose_edges_removed": 7,
   "slit_plane_tilt_deg": 27.6
  },
- "lumen_guard_shrinks": 160,
+ "lumen_guard_shrinks": 209,
  "lumen": {
-  "rings": 53,
+  "rings": 89,
   "points_per_ring": 96,
-  "length_mm": 68.0,
+  "length_mm": 71.8,
   "envelope_from_mm": 4.0,
   "envelope_gaps_filled": 0,
-  "cervix_from_mm": 45.5,
+  "cervix_from_mm": 45.3,
   "vault_rings_s_rx_ryf_ryb_mm": [
    [
-    41.0,
-    10.74,
-    4.38,
-    4.38
+    39.7,
+    10.5,
+    3.98,
+    3.98
    ],
    [
-    44.0,
-    11.19,
-    5.35,
-    5.35
+    41.1,
+    10.71,
+    4.43,
+    4.43
    ],
    [
-    47.0,
-    11.62,
-    7.16,
-    6.11
+    42.5,
+    10.93,
+    4.87,
+    4.87
    ],
    [
-    50.0,
-    11.95,
-    6.91,
-    6.38
+    43.9,
+    11.14,
+    5.31,
+    5.31
    ],
    [
-    53.0,
-    12.5,
-    6.66,
-    6.59
+    45.3,
+    11.35,
+    7.22,
+    5.72
    ],
    [
-    56.0,
-    12.99,
-    6.4,
-    6.7
+    46.7,
+    11.55,
+    7.26,
+    6.01
    ],
    [
-    59.0,
+    48.1,
+    11.74,
+    6.93,
+    6.16
+   ],
+   [
+    49.5,
+    11.87,
+    6.6,
+    6.29
+   ],
+   [
+    51.4,
+    11.94,
+    6.27,
+    6.36
+   ],
+   [
+    53.8,
     12.73,
-    6.15,
-    6.57
+    5.94,
+    6.47
    ],
    [
-    62.0,
-    11.6,
-    5.9,
-    6.21
+    56.2,
+    12.95,
+    5.61,
+    6.54
    ],
    [
-    65.0,
-    9.37,
-    5.65,
-    5.33
+    58.6,
+    12.83,
+    5.28,
+    6.52
    ],
    [
-    68.0,
-    2.25,
-    1.1,
-    -0.4
+    61.0,
+    12.01,
+    4.95,
+    6.43
+   ],
+   [
+    63.4,
+    11.36,
+    4.62,
+    6.29
+   ],
+   [
+    65.8,
+    10.63,
+    4.29,
+    5.73
+   ],
+   [
+    68.2,
+    8.45,
+    3.96,
+    2.46
+   ],
+   [
+    70.6,
+    5.68,
+    1.36,
+    1.36
    ]
   ]
  },
  "lumen_dome_mm": 0.0,
  "cervix_join": {
-  "curve_mm": 32.6,
-  "patch_radius_mm": 17.9,
-  "killed_faces": 184,
+  "curve_mm": 45.0,
+  "patch_radius_mm": 20.2,
+  "killed_faces": 482,
   "inflate_mm": 0.0,
   "uterus_new_vertices": 0,
   "opening": [
    {
-    "edges": 175,
-    "perimeter_mm": 32.6,
-    "mean_radius_mm": 5.2
+    "edges": 253,
+    "perimeter_mm": 45.0,
+    "mean_radius_mm": 7.1
    }
   ]
  },
@@ -106,26 +148,26 @@
   "bottom_cap_faces_removed": 40
  },
  "ao_mean": {
-  "AN_Vagina.AO": 0.131,
-  "AN_Vagina.AO_in": 0.24,
-  "AN_Vagina_Wall.AO": 0.648,
-  "AN_Vagina_Wall.AO_in": 0.171
+  "AN_Vagina.AO": 0.106,
+  "AN_Vagina.AO_in": 0.116,
+  "AN_Vagina_Wall.AO": 0.662,
+  "AN_Vagina_Wall.AO_in": 0.243
  },
  "checks": {
   "skin_seam_mm": 0.00018,
   "lumen_open_loops": [
    96,
-   175
+   253
   ],
   "wall_open_loops": [
    24,
-   186
+   192
   ],
   "lumen_outside_wall_points": 0,
   "outside_at_mm": [],
   "outside_dist_mm": 0,
   "wall_bottom_at_mm": 4.0,
-  "lumen_wall_clearance_min_mm": 0.08,
+  "lumen_wall_clearance_min_mm": 0.22,
   "urethra_wall_clearance_min_mm": 2.27
  }
 }

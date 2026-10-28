@@ -151,7 +151,7 @@ skin_tree = U.tree_in(hips, Mi, cap=False)
 # sacrum; where it cannot go further it flattens); the anal canal stays (it is welded to the anus) and every shape key
 # of a moved organ moves with it. The bladder and ureters keep clear of it; the reproductive step builds the vagina in it.
 VAG_HW, VAG_HT = 0.013, 0.005
-VAG_UP = float(os.environ.get("VAG_UP_MM", "48")) / 1000   # past the neck up the bladder base to the vault top
+VAG_UP = float(os.environ.get("VAG_UP_MM", "44")) / 1000   # past the neck up the bladder base to the vault top
 # the vault's centre (where the cervix enters) stays where a 40 mm run put it (VAG_VC_UP_MM); the extra length runs on
 # past the cervix: the posterior fornix (~1 cm behind / above the portio, deeper than the anterior one)
 VAG_VC_UP = float(os.environ.get("VAG_VC_UP_MM", "40")) / 1000

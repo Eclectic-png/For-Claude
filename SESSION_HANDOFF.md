@@ -43,14 +43,18 @@ Controls: select **`Pelvic_Controls`** -> Custom Properties: **Bladder_Fill**, *
   H -> transverse slit -> vault round the cervix, os opening into it) + `AN_Vagina_Wall`; one cut in the skin. The
   user has not said whether their full-body model already has a vaginal canal - if it does, delete these two objects
   (and the introitus cut) when merging.
+- **Vagina, accuracy pass: DONE** - portio ~10 mm into the canal (was ~2.5), posterior fornix (~5 mm past the
+  cervix), squarer lower walls, 2.5 mm rectovaginal septum, rugae. Needs build_pelvis re-run (done; ~13 min) then
+  build_vagina. Details and what was tried in HANDOFF.md "Vagina".
 - Anal canal: now held shut its whole length, opening only over the last 5 mm into the rectum
   (`ANUS_CANAL_OPENLEN`, build5_passage); build_pelvis was re-run on it (report updated).
 
 ## Next steps (agreed order)
-1. ~~The vagina~~ (first pass done; limits in HANDOFF.md: shallow cervix in the vault, short H recesses, no rugae).
+1. ~~The vagina~~ (first pass + accuracy pass done; limits in HANDOFF.md: short H recesses).
 2. **The vulva** rebuild (rudimentary now); then re-cut the urethral meatus (`URETHRA_MEATUS` /
    `URETHRA_MEATUS_FROM`) and bring the clitoris closer (meatus is ~43 mm behind the hood now, real ~25-30).
-3. Smaller: thicker rectovaginal septum (~1 mm now, real 2-4), broad ligament / peritoneum.
+3. Smaller: the lower ampulla's folds where it is pushed back for the vagina (160 self-intersecting face pairs;
+   relax / remesh), broad ligament / peritoneum. (Septum done: 2.5 mm.)
 4. Later: the male version.
 
 ## Working notes (user preferences learned)
