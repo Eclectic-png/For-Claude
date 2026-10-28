@@ -239,13 +239,52 @@ def _pin_v(n_, P):
     if n_ == "AN_AnalCanal":
         return np.array([np.linalg.norm(_anus - p, axis=1).min() < 0.012 for p in P])
     return np.zeros(len(P), bool)
+# the atlas is a male body: its lower rectum / ampulla sit where the vagina goes. They go where a woman's lie, not
+# dented: every horizontal section moves straight back as a whole (front and back walls alike) by what clears
+# the vagina there plus the septum - the need of each bowel point inside (or within the septum of) the placeholder,
+# spread over height as a Gaussian envelope (REC_SHIFT_SIGMA_MM), so a shear that fades out into the sigmoid above
+# and toward the anus (its canal tilts back, its lowest 12 mm stay). make_room then settles only what is left (a
+# coarse face over the vagina, the bones). Pushing only where they touched left the ampulla's back wall behind: its
+# lower half was flattened to half its depth
+E_POST = Vector(json.loads(os.environ.get("REC_SHIFT_DIR", "[0, 1, 0]"))).normalized()   # straight back, toward
+                                                  # the sacrum (square to the vagina ran down into the perineum)
+REC_SIGMA = float(os.environ.get("REC_SHIFT_SIGMA_MM", "20")) / 1000
+_start_v = None; _prof = {}
+if REC_SIGMA > 0:
+    _Pb = {n_: np.array([tuple(Mi @ (O[n_].matrix_world @ v.co)) for v in O[n_].data.vertices]) for n_ in BOWEL}
+    _vo_t = U.tree_in(vag_space, Mi, cap=False)
+    _need_s, _need_t = [], []
+    for n_ in BOWEL:
+        for p in _Pb[n_]:
+            pv = Vector(p); hit = _vo_t.find_nearest(pv)
+            if hit[0] is None or hit[3] > VAG_SEPTUM + 0.004:
+                continue
+            ins = U.inside(vag_tree, pv)
+            if not ins and hit[3] >= VAG_SEPTUM:
+                continue
+            h_ = _vo_t.ray_cast(pv + E_POST * 1e-6, E_POST, 0.08) if ins else (None,)
+            t_ = (h_[3] + VAG_SEPTUM) if ins and h_[0] is not None else (VAG_SEPTUM - hit[3])
+            _need_s.append(pv.z); _need_t.append(t_)
+    _need_s, _need_t = np.array(_need_s), np.array(_need_t)
+    def _shift_at(s_):
+        return float((_need_t * np.exp(-((s_ - _need_s) / REC_SIGMA) ** 2)).max()) if len(_need_t) else 0.0
+    _start_v = {}
+    for n_ in BOWEL:
+        P_ = _Pb[n_]; ss_ = P_[:, 2]                 # horizontal sections move back together
+        T_ = np.array([_shift_at(x) for x in ss_])
+        wa_ = U.ss(0.012, 0.030, np.linalg.norm(P_[:, None, :] - _anus[None, :, :], axis=2).min(1))
+        Q_ = P_ + (T_ * wa_)[:, None] * np.array(E_POST)
+        Ml_ = (Mi @ O[n_].matrix_world).inverted(); _start_v[n_] = [tuple(Ml_ @ Vector(q)) for q in Q_]
+    _prof = {int(x): round(_shift_at(x / 1000) * 1000, 1) for x in range(720, 841, 10)}   # by height (atlas z, mm)
+    print("REC_SHIFT", json.dumps(_prof), "points", len(_need_t))
 room_v, res_v = U.make_room([O[n_] for n_ in BOWEL], Mi, Mw, [vag_tree], _pin_v,
                             U.Obstacles([(t_, 0.0008) for t_, _ in bone_trees], [(skin_tree, 0.003)], []),
-                            gap=VAG_SEPTUM, decay=0.996, iters=400, rounds=10, log=_vl, expanders=[(_vpts, _vnrm)])
+                            gap=VAG_SEPTUM, decay=0.996, iters=400, rounds=10, log=_vl, expanders=[(_vpts, _vnrm)],
+                            start=_start_v)
 _sk_w = U.tree_in(hips, None, cap=False)
 report["vagina_space"] = {"skin_clearance_mm": round(min(_sk_w.find_nearest(Mw @ Vector(p))[3] for p in _vpts) * 1000, 2),
                           "introitus_atlas": list(INTRO), "top_atlas": list(P2v), "length_mm": round(sum((a - b).length for a, b in zip(vc, vc[1:])) * 1000, 1),
-                          "bowel_moved_mm": {}, "residual_mm": res_v}
+                          "bowel_moved_mm": {}, "residual_mm": res_v, "bowel_shift_profile_mm": _prof}
 for n_ in BOWEL:
     ob = O[n_]; D = room_v[n_][0] - _before[n_]
     mv = float(np.linalg.norm(D, axis=1).max())
