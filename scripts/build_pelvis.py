@@ -274,6 +274,8 @@ N_AX = B_AX.cross(X_).normalized()                # the body's thickness directi
 # from the vault's centre (was +2: the portio barely showed; real 10-15 mm). The body stays where it was (the
 # internal os at +27 mm: moving it 3 mm lower pressed the empty bladder's neck out of shape), so the cervix is 33 mm
 P_os = VC + C_AX * (float(os.environ.get("UT_OS_MM", "-6")) / 1000); P_io = VC + C_AX * 0.027
+P_hold = VC + C_AX * 0.002                        # where the vault's roof holds the cervix (the os of the first runs):
+                                                  # the pierce and the tilt below are measured from it, not from the os
 ut_el = [R.capsule_el(P_os, P_io + C_AX * 0.004, 0.0105),
          R.ellipsoid_el(P_io + B_AX * 0.020, B_AX, X_, (0.024, 0.021, 0.015)),
          R.ellipsoid_el(P_io + B_AX * 0.033, B_AX, X_, (0.012, 0.024, 0.014))]
@@ -348,7 +350,7 @@ for s_ in "LR":
     sg = 1 if s_ == "L" else -1
     J["wall_" + s_] = T.open_junction(uterus, TUBE[s_], centre=Mw @ (CORN[s_] + X_ * sg * 0.008), sides=(0,))
     J["ostium_" + s_] = T.open_junction(TUBE[s_], ulumen, centre=Mw @ CORN[s_])
-J["vagina"] = T.open_junction(vag_space, uterus, centre=Mw @ (P_os + C_AX * 0.008), sides=(0,))
+J["vagina"] = T.open_junction(vag_space, uterus, centre=Mw @ (P_hold + C_AX * 0.008), sides=(0,))
 report["reproductive"]["joins"] = {k: {kk: v[kk] for kk in ("curve_mm", "patch_radius_mm", "killed_faces")} for k, v in J.items()}
 report["reproductive"]["uterus_dims_mm"] = [round(float(x) * 1000, 1) for x in (np.array([tuple(v.co) for v in ut_me.vertices]).max(0) - np.array([tuple(v.co) for v in ut_me.vertices]).min(0))]
 # the tubes' fimbriated ends, the ovaries and the suspensory ligaments lie against the pelvic side wall: they give
@@ -384,6 +386,9 @@ def bowel_room(tag, extra=()):
     _before = {n_: np.array([tuple(v.co) for v in O[n_].data.vertices]) for n_ in BOWEL + ["AN_Ureter_L", "AN_Ureter_R"]}
     _rp_pts = np.concatenate([np.array([tuple((Mi @ o_.matrix_world) @ v.co) for v in o_.data.vertices]) for o_ in REPRO_SOLID])
     _rp_nrm = np.concatenate([np.array([tuple(((Mi @ o_.matrix_world).to_3x3() @ v.normal).normalized()) for v in o_.data.vertices]) for o_ in REPRO_SOLID])
+    # (the vagina's room too: a coarse bowel face moved over its posterior fornix would swallow its vertices)
+    _rp_pts = np.concatenate([_rp_pts, np.array([tuple(v.co) for v in vag_space.data.vertices])])
+    _rp_nrm = np.concatenate([_rp_nrm, np.array([tuple(v.normal) for v in vag_space.data.vertices])])
     room_g, res_g = U.make_room([O[n_] for n_ in _before], Mi, Mw, [repro_tree], _pin_r,
                                 U.Obstacles([(t_, 0.0008) for t_, _ in bone_trees] + [(vag_tree, VAG_SEPTUM)] + list(extra), [(skin_tree, 0.003)], []),
                                 gap=0.002, decay=0.996, iters=400, rounds=10, expanders=[(_rp_pts, _rp_nrm)])
@@ -401,13 +406,13 @@ def bowel_room(tag, extra=()):
 bowel_room("bowel_room")
 bone_trees_v = bone_trees + [(vag_tree, 0.001), (repro_tree, 0.0015)]
 # ---- how they move when the bladder / rectum fill: the cervix is held (in the vault, by its ligaments); the body
-# tilts on it about a transverse axis at the isthmus (no turn below 10 mm up the cervix, all of it above 28 mm), the
+# tilts on it about a transverse axis at the isthmus (no turn below 10 mm above P_hold, all of it above 28 mm), the
 # tubes and ovaries follow part of the way (less the further they are from the uterus), each ligament between its two
 # ends (a pelvic-wall end stays). The turn at each stage is the least that clears the filling organ (repro_tilt),
 # stopped by bone; whatever is left is soft give (make_room).
 _ut_P = np.array([tuple(v.co) for v in uterus.data.vertices])
 _ut_tree = U.tree_in(uterus, Mi)
-_Pos = np.array(P_os); _Cax = np.array(C_AX); _piv = np.array(P_os + C_AX * 0.010)
+_Pos = np.array(P_hold); _Cax = np.array(C_AX); _piv = np.array(P_hold + C_AX * 0.010)
 def tilt_disp(P, th):
     P = np.atleast_2d(P); a = th * U.ss(0.010, 0.028, (P - _Pos) @ _Cax); rel = P - _piv
     c, s = np.cos(a), np.sin(a); q = rel.copy()
