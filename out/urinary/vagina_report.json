@@ -16,7 +16,7 @@
   "loose_edges_removed": 7,
   "slit_plane_tilt_deg": 27.6
  },
- "lumen_guard_shrinks": 209,
+ "lumen_guard_shrinks": 170,
  "lumen": {
   "rings": 89,
   "points_per_ring": 96,
@@ -58,89 +58,89 @@
    [
     46.7,
     11.55,
-    7.26,
+    7.19,
     6.01
    ],
    [
     48.1,
     11.74,
-    6.93,
+    6.7,
     6.16
    ],
    [
     49.5,
     11.87,
-    6.6,
+    6.22,
     6.29
    ],
    [
     51.4,
     11.94,
-    6.27,
+    5.73,
     6.36
    ],
    [
     53.8,
     12.73,
-    5.94,
-    6.47
+    5.25,
+    6.46
    ],
    [
     56.2,
     12.95,
-    5.61,
-    6.54
+    4.76,
+    6.51
    ],
    [
     58.6,
     12.83,
-    5.28,
-    6.52
+    4.28,
+    6.51
    ],
    [
     61.0,
     12.01,
-    4.95,
-    6.43
+    3.79,
+    6.09
    ],
    [
     63.4,
-    11.36,
-    4.62,
-    6.29
+    10.85,
+    3.31,
+    5.58
    ],
    [
     65.8,
-    10.63,
-    4.29,
-    5.73
+    8.66,
+    2.82,
+    4.51
    ],
    [
     68.2,
-    8.45,
-    3.96,
-    2.46
+    6.15,
+    2.34,
+    0.84
    ],
    [
     70.6,
-    5.68,
-    1.36,
-    1.36
+    4.4,
+    0.35,
+    0.35
    ]
   ]
  },
  "lumen_dome_mm": 0.0,
  "cervix_join": {
-  "curve_mm": 45.0,
+  "curve_mm": 44.6,
   "patch_radius_mm": 20.2,
-  "killed_faces": 482,
+  "killed_faces": 478,
   "inflate_mm": 0.0,
   "uterus_new_vertices": 0,
   "opening": [
    {
-    "edges": 253,
-    "perimeter_mm": 45.0,
-    "mean_radius_mm": 7.1
+    "edges": 259,
+    "perimeter_mm": 44.6,
+    "mean_radius_mm": 7.0
    }
   ]
  },
@@ -148,20 +148,20 @@
   "bottom_cap_faces_removed": 40
  },
  "ao_mean": {
-  "AN_Vagina.AO": 0.106,
-  "AN_Vagina.AO_in": 0.116,
-  "AN_Vagina_Wall.AO": 0.662,
-  "AN_Vagina_Wall.AO_in": 0.243
+  "AN_Vagina.AO": 0.107,
+  "AN_Vagina.AO_in": 0.109,
+  "AN_Vagina_Wall.AO": 0.636,
+  "AN_Vagina_Wall.AO_in": 0.24
  },
  "checks": {
   "skin_seam_mm": 0.00018,
   "lumen_open_loops": [
    96,
-   253
+   259
   ],
   "wall_open_loops": [
    24,
-   192
+   204
   ],
   "lumen_outside_wall_points": 0,
   "outside_at_mm": [],

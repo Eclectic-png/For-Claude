@@ -32,7 +32,8 @@ blender -b out/blend/Hips_urinary.blend --python scripts/build_vagina.py -- $PWD
   external os 5.8 mm past the vault's centre (`UT_OS_MM` -6, was +2), the lumen meeting the cervix 2.3-6.6 mm above
   that centre (fornix loop 45 mm round, r 7.1 mm), the uterine body where it was (internal os at +27 mm: the cervix is
   33 mm). The vault runs on past the cervix (`VAG_UP_MM` 44, was 40): a posterior fornix ~5 mm beyond its edge, deeper
-  than the anterior one; its front half is rounded off as before.
+  than the anterior one - a thin pocket (`POCKET_HT` 5.5 mm behind the centre line, `POCKET_HW` 10 mm half width);
+  the vault is rounded off as before.
 - Skin: `urinary_lib.cut_meatus` with the new `slit_uv` (the lumen's own first ring, so no blend zone folds) and
   `ref_radius` (the preparation weld must not reach the meatus: its tip vertices are < 5 um apart across the lips -
   that weld had eaten 6-12 of the meatus' 32 points); slit centred y 23 mm (body), patch y 17.25 - 28.7, 0.55 mm clear
@@ -51,22 +52,28 @@ blender -b out/blend/Hips_urinary.blend --python scripts/build_vagina.py -- $PWD
 - Renders (`out/urinary/`): `vagina_sections.png` (`scripts/tools/vagxs.py`; slices by the ring planes stored on the
   object, `ring_planes`), `vagina_midline.png`, `vagina_cutaway.png` / `vagina_below_before_after.png`
   (`scripts/tools/pelvis_cut.py`: `below` / `cut` modes, `PCUT_ONLY`, `PCUT_HIDE`); accuracy pass:
-  `vagina_midline_before_after.png`, `vagina_vault_before_after.png` (cut-away of the vault, wall + lumen + uterus).
+  `vagina_midline_before_after.png`, `vagina_vault_before_after.png` (cut-away of the vault, wall + lumen + uterus),
+  `vagina_rectum_before_after.png` (before the accuracy pass / full-thickness fornix + 2.5 mm septum / now).
 - build_pelvis changes for the accuracy pass (placeholder `AN_Vagina_Space`): the 40 mm reference run (`VAG_VC_UP_MM`)
   is kept point for point - its curve, index fractions and vault centre; an arc-length rewrite changed the lower
   placeholder and broke the bladder-neck fill (`fill_annulus`: "loops cross") - and the extra length runs straight on
   along its end tangent; lower walls a superellipse (`VAG_SQUARE` 2.6: fuller at the sides for the H's recesses);
-  rectovaginal septum `VAG_SEPTUM_MM` 2.5 (bowel kept that far off; was 2 / 1 mm; real 2-4). The pierce and the
+  rectovaginal septum `VAG_SEPTUM_MM` 2.0 (bowel kept that far off in both bowel passes; was 2 / 1 mm; real 2-4).
+  The pierce and the
   uterus' tilt pivot are measured from `P_hold` (the old os, vault centre + 2 mm), not the os - measured from the
   deeper os the pivot moved 8 mm and the full bladder's tilt dropped 22 -> 18 deg (uterus 2.2 mm into it).
   bowel_room also pushes coarse bowel faces off the placeholder's vertices (expanders). Bowel moved for the vagina:
-  ampulla 21.5 mm (was 13.5), rectum 6.0, canal 4.8. Tried `VAG_UP_MM` 48 (posterior fornix ~9 mm): the fornix top
-  folded the ampulla into the rectum at rest (3.5 mm) and touched the bladder (2 mm); 44 was clean. Contacts against
-  the previous build: seams identical, the full-bladder uterus contact gone, a few ~1 mm contacts moved to the
-  part-filled states (worst 3.35 mm, rectum into uterus at bladder 0.25; was 3.25 colon into uterus).
+  ampulla 16.7 mm (13.5 before the pass), rectum 4.5, canal 3.9. Tried and dropped: `VAG_UP_MM` 48 (posterior fornix
+  ~9 mm: folded the ampulla into the rectum at rest, 3.5 mm, and touched the bladder); the vault's full 11 mm back
+  thickness carried on past the cervix with a 2.5 mm septum (ampulla pushed 21.5 mm and dented round the vault - the
+  user saw the vagina "impose on the rectum"); spreading each push round the bowel as a whole (Gaussian of the
+  strongest nearby push, then make_room again: fewer folds, but the lower ampulla squeezed thin and the rectum moved
+  far more than needed). Contacts against the previous build: rest no worse, seams within 0.0001 mm, the full-bladder
+  uterus contact gone (tilt 22 deg), vagina-ampulla down to 1 point 0.1 mm, a few <= ~1 mm contacts in part-filled
+  states (worst 3.55 mm, colon into uterus at bladder 0.25; was 3.25).
 - Known (pre-existing, a little worse): the coarse lower ampulla (371 faces) folds where build_pelvis pushes it back
-  for the vagina - 2 self-intersecting face pairs before build_pelvis, 122 after the first pass, 160 now. Worth a
-  relax / remesh of that region.
+  for the vagina - 2 self-intersecting face pairs before build_pelvis, 122 after the first pass (111 within 30 mm of
+  the anus), 183 now (159). Worth a relax / remesh of that region.
 - Limits / next: the H's recesses are still short; the introitus must be re-cut after the vulva rebuild (as the
   meatus).
 - Tried and dropped (so not repeated): leaving the skin straight up then turning (rings on the inside of the turn
