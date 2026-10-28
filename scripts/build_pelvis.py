@@ -1058,7 +1058,10 @@ d_rim = np.array([_kr.find(Vector(p))[2] for p in Xr])
 mob_r = U.ss(0.008, 0.025, d_rim); mob_r[cen_r] = 0.0
 # on its own the full rectum does not move the bladder or the ureters (in a woman the vagina / uterus take that
 # push): they are solid for it; the bladder gives way only when both are full (5e)
-obst_r = U.Obstacles([(t_, 0.0035) for t_, _ in bone_trees] + [(vag_tree, 0.0015), (U.tree_in(bladder, Mi), 0.002)] +
+# (and the uterus: it stays for the full rectum - once the reservoir was welded shut, growing through it pressed
+# up to 9.5 mm into it, and the mixed bladder / rectum states kept up to 4 mm of that)
+obst_r = U.Obstacles([(t_, 0.0035) for t_, _ in bone_trees] + [(vag_tree, 0.0015), (U.tree_in(bladder, Mi), 0.002),
+                      (U.tree_in(uterus, Mi), 0.002)] +
                      [(U.tree_in(O["AN_Ureter_" + s_], Mi, cap=False), 0.0012) for s_ in "LR"], [(skin_tree, 0.005)], [])
 stages_r = [Xr]; report["rectum_fill"] = {"rest_ml": round(V_r0 * 1e6, 1), "stages_ml": []}
 for k in range(1, RS + 1):
