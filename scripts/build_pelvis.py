@@ -151,7 +151,13 @@ skin_tree = U.tree_in(hips, Mi, cap=False)
 # sacrum; where it cannot go further it flattens); the anal canal stays (it is welded to the anus) and every shape key
 # of a moved organ moves with it. The bladder and ureters keep clear of it; the reproductive step builds the vagina in it.
 VAG_HW, VAG_HT = 0.013, 0.005
-VAG_UP = float(os.environ.get("VAG_UP_MM", "40")) / 1000   # past the neck up the bladder base to the vault (~75 mm in all)
+VAG_UP = float(os.environ.get("VAG_UP_MM", "48")) / 1000   # past the neck up the bladder base to the vault top
+# the vault's centre (where the cervix enters) stays where a 40 mm run put it (VAG_VC_UP_MM); the extra length runs on
+# past the cervix: the posterior fornix (~1 cm behind / above the portio, deeper than the anterior one)
+VAG_VC_UP = float(os.environ.get("VAG_VC_UP_MM", "40")) / 1000
+VAG_SEPTUM = float(os.environ.get("VAG_SEPTUM_MM", "2.5")) / 1000   # bowel kept this far off the vagina at rest (real 2-4 mm)
+VAG_SQ = float(os.environ.get("VAG_SQUARE", "2.6"))   # superellipse exponent of the lower walls (2 = ellipse): thicker
+                                                      # at the sides, room for the H's lateral recesses
 VAULT_HW, VAULT_HT = 0.016, 0.011                # the vault round the cervix     # half width, half thickness (walls, collapsed), upper part length
 _ib = Vector(json.loads(os.environ.get("VAG_INTROITUS", "[0.0, 0.0275, 0.7797]")))     # body coords (the dimple)
 _sk0 = U.bm_in(hips); _skt0 = BVHTree.FromBMesh(_sk0); _sk0.free()
@@ -169,17 +175,31 @@ def catmull(pts, n):
     return out
 _t0 = (P1v - INTRO).normalized()
 vc = catmull([INTRO + _t0 * 0.010, P1v, P2v], 16)     # starts 10 mm inside the body (clear of the vestibule)
+# the reference run (VAG_VC_UP) fixes the vault's centre and the lower part's profile, in arc length
+_vc_ref = catmull([INTRO + _t0 * 0.010, P1v, P1v + VAG_A * VAG_VC_UP], 16)
+_L_ref = sum((a - b).length for a, b in zip(_vc_ref, _vc_ref[1:]))
+VC_REF = _vc_ref[int(0.86 * (len(_vc_ref) - 1))]
+_cum = [0.0]
+for a, b in zip(vc, vc[1:]):
+    _cum.append(_cum[-1] + (a - b).length)
+_L = _cum[-1]; S_VC = min(range(len(vc)), key=lambda j: (vc[j] - VC_REF).length); S_VC = _cum[S_VC]
 bm = bmesh.new(); rings = []
 for j, c in enumerate(vc):
-    s_ = j / (len(vc) - 1)
+    sa = _cum[j]; s_ = sa / _L_ref                  # the old fractions below the vault (unchanged there)
     t_ = (vc[min(j + 1, len(vc) - 1)] - vc[max(j - 1, 0)]).normalized(); e2 = t_.cross(X_).normalized()
-    # narrower at the introitus, rounded off at the top (the fornix)
-    rnd = math.sqrt(max(0.0, 1 - (max(0.0, s_ - 0.82) / 0.18) ** 2)) * 0.8 + 0.2 if s_ > 0.82 else 1.0
-    # the vault: the upper part widens into the fornices round the cervix (VAULT_HT / VAULT_HW at the top)
-    vlt = float(U.ss(0.55, 0.85, s_))
+    # narrower at the introitus; the vault widens into the fornices round the cervix from 20 mm below its centre,
+    # runs on past it (the posterior fornix) and is rounded off over its last part
+    r0 = S_VC + 0.010
+    rnd = math.sqrt(max(0.0, 1 - ((sa - r0) / (_L - r0)) ** 2)) * 0.8 + 0.2 if sa > r0 else 1.0
+    vlt = float(U.ss(S_VC - 0.020, S_VC - 0.001, sa))
     w_ = (VAG_HW * (0.7 + 0.3 * float(U.ss(0.0, 0.2, s_))) * (1 - vlt) + VAULT_HW * vlt) * rnd
     h_ = (VAG_HT * (0.6 + 0.4 * float(U.ss(0.0, 0.1, s_))) * (1 - vlt) + VAULT_HT * vlt) * rnd
-    rings.append([bm.verts.new(c + X_ * (w_ * math.cos(a)) + e2 * (h_ * math.sin(a))) for a in np.linspace(0, 2 * math.pi, 24, endpoint=False)])
+    q_ = VAG_SQ * (1 - vlt) + 2.0 * vlt            # squarer walls below the vault
+    ring_ = []
+    for a in np.linspace(0, 2 * math.pi, 24, endpoint=False):
+        ca, sa_ = math.cos(a), math.sin(a)
+        ring_.append(bm.verts.new(c + X_ * (w_ * math.copysign(abs(ca) ** (2 / q_), ca)) + e2 * (h_ * math.copysign(abs(sa_) ** (2 / q_), sa_))))
+    rings.append(ring_)
 for a_, b_ in zip(rings, rings[1:]):
     for k in range(24):
         bm.faces.new((a_[k], a_[(k + 1) % 24], b_[(k + 1) % 24], b_[k]))
@@ -213,7 +233,7 @@ def _pin_v(n_, P):
     return np.zeros(len(P), bool)
 room_v, res_v = U.make_room([O[n_] for n_ in BOWEL], Mi, Mw, [vag_tree], _pin_v,
                             U.Obstacles([(t_, 0.0008) for t_, _ in bone_trees], [(skin_tree, 0.003)], []),
-                            gap=0.002, decay=0.996, iters=400, rounds=10, log=_vl, expanders=[(_vpts, _vnrm)])
+                            gap=VAG_SEPTUM, decay=0.996, iters=400, rounds=10, log=_vl, expanders=[(_vpts, _vnrm)])
 _sk_w = U.tree_in(hips, None, cap=False)
 report["vagina_space"] = {"skin_clearance_mm": round(min(_sk_w.find_nearest(Mw @ Vector(p))[3] for p in _vpts) * 1000, 2),
                           "introitus_atlas": list(INTRO), "top_atlas": list(P2v), "length_mm": round(sum((a - b).length for a, b in zip(vc, vc[1:])) * 1000, 1),
@@ -244,11 +264,13 @@ done("vagina")
 # passage runs vagina -> os -> canal -> cavity -> tubes -> fimbriae. Real-size measures (atlas space).
 import repro_lib as R
 UT_FLEX = math.radians(float(os.environ.get("UT_FLEX_DEG", "35")))
-_nv = len(vc); VC = vc[int(0.86 * (_nv - 1))]   # the vault's centre
+VC = VC_REF                                       # the vault's centre (as with the 40 mm run)
 C_AX = VAG_M.copy()                               # cervix: square to the vagina (anteversion)
 B_AX = (Matrix.Rotation(UT_FLEX, 3, X_) @ C_AX).normalized()   # body: bent forward (anteflexion)
 N_AX = B_AX.cross(X_).normalized()                # the body's thickness direction (front - back)
-P_os = VC + C_AX * 0.002; P_io = P_os + C_AX * 0.025
+# the cervix: 30 mm, its lower ~12 mm (the portio) projecting into the vault - the external os UT_OS_MM along the
+# cervix' axis from the vault's centre (was +2: the portio barely showed; real 10-15 mm); the body sits 3 mm lower
+P_os = VC + C_AX * (float(os.environ.get("UT_OS_MM", "-6")) / 1000); P_io = VC + C_AX * 0.024
 ut_el = [R.capsule_el(P_os, P_io + C_AX * 0.004, 0.0105),
          R.ellipsoid_el(P_io + B_AX * 0.020, B_AX, X_, (0.024, 0.021, 0.015)),
          R.ellipsoid_el(P_io + B_AX * 0.033, B_AX, X_, (0.012, 0.024, 0.014))]
@@ -360,7 +382,7 @@ def bowel_room(tag, extra=()):
     _rp_pts = np.concatenate([np.array([tuple((Mi @ o_.matrix_world) @ v.co) for v in o_.data.vertices]) for o_ in REPRO_SOLID])
     _rp_nrm = np.concatenate([np.array([tuple(((Mi @ o_.matrix_world).to_3x3() @ v.normal).normalized()) for v in o_.data.vertices]) for o_ in REPRO_SOLID])
     room_g, res_g = U.make_room([O[n_] for n_ in _before], Mi, Mw, [repro_tree], _pin_r,
-                                U.Obstacles([(t_, 0.0008) for t_, _ in bone_trees] + [(vag_tree, 0.001)] + list(extra), [(skin_tree, 0.003)], []),
+                                U.Obstacles([(t_, 0.0008) for t_, _ in bone_trees] + [(vag_tree, VAG_SEPTUM)] + list(extra), [(skin_tree, 0.003)], []),
                                 gap=0.002, decay=0.996, iters=400, rounds=10, expanders=[(_rp_pts, _rp_nrm)])
     rep_ = report["reproductive"].setdefault(tag, {"bowel_moved_mm": {}})
     for n_ in _before:

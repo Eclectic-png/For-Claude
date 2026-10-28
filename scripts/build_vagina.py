@@ -98,8 +98,8 @@ _bez = [(1 - t) ** 3 * _B[0] + 3 * (1 - t) ** 2 * t * _B[1] + 3 * (1 - t) * t * 
 dense = np.array([tuple(p) for p in _bez] + [tuple(P1v.lerp(P2v, t)) for t in np.linspace(0, 1, 120)[1:]])
 seg = np.linalg.norm(np.diff(dense, axis=0), axis=1); cum = np.concatenate([[0.0], np.cumsum(seg)])
 S = []; s_ = 0.0
-while s_ < cum[-1]:
-    S.append(s_); s_ += 0.0010 if s_ < 0.020 else 0.0015
+while s_ < cum[-1]:                                # fine where the rugae run, coarser in the vault
+    S.append(s_); s_ += 0.0007 if s_ < 0.050 else 0.0012
 S = np.array(S)
 C = np.stack([np.interp(S, cum, dense[:, k]) for k in range(3)], 1)
 # ring planes: parallel to the slit's plane at first (stacked, they cannot cross while the slit's long front / back
@@ -171,6 +171,7 @@ SH[:, 0] = 0.0                                     # symmetric: no side shift (t
 for _ in range(4):                                 # placeholder's bottom made it jump); front / back smoothed
     SH[1:-1, 1] = 0.25 * SH[:-2, 1] + 0.5 * SH[1:-1, 1] + 0.25 * SH[2:, 1]
 WALL_LAT, WALL_AP = 0.0035, 0.003
+RUG_A = float(os.environ.get("VAG_RUGAE_MM", "0.6")) / 1000; RUG_L = 0.0035; RUG_SIDE = 0.4   # fold height, spacing
 SLIT_HALF_A = SLIT_HALF / SY_                      # atlas
 
 # ring 0 = the skin's slit, vertex for vertex (cut from RING0). The chart's v may run either way across: then the
@@ -230,6 +231,12 @@ for j, s in enumerate(S):
         P2 = H
     w_ex = 1 - U.ss(0.0, 0.002, s)             # the cut slit (on the curved skin) eases into the planar rings
     P2 = P2 * np.array([MIRX, 1.0])
+    # rugae: transverse folds; the touching walls fold together (a corrugated slit), most in the midline columns
+    # (fading to RUG_SIDE at the side recesses), over the lower part, fading in after the opening and before the vault
+    a_r = RUG_A * float(U.ss(0.004, 0.009, s)) * (1 - float(U.ss(s_c0 - 0.018, s_c0 - 0.010, s))) * (1 - 0.35 * float(U.ss(0.02, 0.04, s)))
+    if a_r > 0:
+        xr = np.abs(P2[:, 0]) / max(np.abs(P2[:, 0]).max(), 1e-6)
+        P2 = P2 + np.stack([np.zeros(len(P2)), a_r * (1 - (1 - RUG_SIDE) * xr ** 2) * math.sin(2 * math.pi * s / RUG_L)], 1)
     rings.append(ring0 * w_ex + (P2 + SH[j]) * (1 - w_ex))
     if os.environ.get("VAG_DEBUG") and j < 10:
         print("DBG ring", j, "s %.1f" % (s * 1000), "env", [round(x * 1000, 2) for x in e], "Lr %.2f Ll %.2f fb %.2f fbb %.2f Vh %.3f g %.3f" % (lr[0] * 1000, lr[1] * 1000, fb * 1000, fbb * 1000, Vh * 1000, g_ * 1000),
