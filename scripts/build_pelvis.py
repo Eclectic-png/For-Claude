@@ -153,11 +153,13 @@ skin_tree = U.tree_in(hips, Mi, cap=False)
 VAG_HW, VAG_HT = 0.013, 0.005
 VAG_UP = float(os.environ.get("VAG_UP_MM", "44")) / 1000   # past the neck up the bladder base to the vault top
 # the vault's centre (where the cervix enters) stays where a 40 mm run put it (VAG_VC_UP_MM); the extra length runs on
-# past the cervix: the posterior fornix (~1 cm behind / above the portio, deeper than the anterior one)
+# past the cervix: the posterior fornix (a thin pocket ~5 mm past its edge, deeper than the anterior one)
 VAG_VC_UP = float(os.environ.get("VAG_VC_UP_MM", "40")) / 1000
-VAG_SEPTUM = float(os.environ.get("VAG_SEPTUM_MM", "2.5")) / 1000   # bowel kept this far off the vagina at rest (real 2-4 mm)
+VAG_SEPTUM = float(os.environ.get("VAG_SEPTUM_MM", "2.0")) / 1000   # bowel kept this far off the vagina at rest (real 2-4 mm;
+                                                                     # 2.5 pushed the ampulla ~4 mm further back)
 VAG_SQ = float(os.environ.get("VAG_SQUARE", "2.6"))   # superellipse exponent of the lower walls (2 = ellipse): thicker
                                                       # at the sides, room for the H's lateral recesses
+POCKET_HW, POCKET_HT = 0.010, 0.0055             # the posterior fornix past the cervix (half width, depth behind)
 VAULT_HW, VAULT_HT = 0.016, 0.011                # the vault round the cervix     # half width, half thickness (walls, collapsed), upper part length
 _ib = Vector(json.loads(os.environ.get("VAG_INTROITUS", "[0.0, 0.0275, 0.7797]")))     # body coords (the dimple)
 _sk0 = U.bm_in(hips); _skt0 = BVHTree.FromBMesh(_sk0); _sk0.free()
@@ -187,15 +189,18 @@ bm = bmesh.new(); rings = []
 for j, c in enumerate(vc):
     s_ = j / (_n_ref - 1)                         # > 1 past the reference run's top
     t_ = (vc[min(j + 1, len(vc) - 1)] - vc[max(j - 1, 0)]).normalized(); e2 = t_.cross(X_).normalized()
-    # narrower at the introitus; the vault widens into the fornices round the cervix. Its front half (toward the
-    # bladder, -e2) is rounded off as in the reference run (from 0.82 of it); its back half and its width run on past
-    # the cervix - the posterior fornix - and are rounded off over the same span stretched to the new top
+    # narrower at the introitus; the vault widens into the fornices round the cervix and is rounded off as in the
+    # reference run (from 0.82 of it). Past it the posterior fornix runs on as a thin pocket behind the cervix' upper
+    # edge (POCKET_HT behind the centre line, POCKET_HW wide: two walls and a collapsed recess - the vault's full
+    # thickness there pushed the ampulla ~8 mm further back), rounded off over its own length
     vlt = float(U.ss(0.55, 0.85, s_))
     rnd_f = math.sqrt(max(0.0, 1 - (min(1.0, max(0.0, s_ - 0.82) / 0.18)) ** 2)) * 0.8 + 0.2 if s_ > 0.82 else 1.0
-    rnd_b = math.sqrt(max(0.0, 1 - (min(1.0, max(0.0, s_ - 0.82) / (S_END - 0.82))) ** 2)) * 0.8 + 0.2 if s_ > 0.82 else 1.0
-    w_ = (VAG_HW * (0.7 + 0.3 * float(U.ss(0.0, 0.2, s_))) * (1 - vlt) + VAULT_HW * vlt) * rnd_b
+    rnd_e = math.sqrt(max(0.0, 1 - (min(1.0, (s_ - 1.0) / (S_END - 1.0))) ** 2)) * 0.8 + 0.2 if s_ > 1.0 else 1.0
+    w0_ = VAG_HW * (0.7 + 0.3 * float(U.ss(0.0, 0.2, s_))) * (1 - vlt) + VAULT_HW * vlt
     h0_ = VAG_HT * (0.6 + 0.4 * float(U.ss(0.0, 0.1, s_))) * (1 - vlt) + VAULT_HT * vlt
-    hf_, hb_ = h0_ * rnd_f, h0_ * rnd_b             # e2 points back (posterior): + back, - front
+    pk_ = float(U.ss(0.86, 1.0, s_)) * rnd_e if S_END > 1.0 else 0.0   # the pocket (none in the reference run)
+    w_ = max(w0_ * rnd_f, POCKET_HW * pk_)
+    hf_, hb_ = h0_ * rnd_f, max(h0_ * rnd_f, POCKET_HT * pk_)   # e2 points back (posterior): + back, - front
     q_ = VAG_SQ * (1 - vlt) + 2.0 * vlt            # squarer walls below the vault
     ring_ = []
     for a in np.linspace(0, 2 * math.pi, 24, endpoint=False):
