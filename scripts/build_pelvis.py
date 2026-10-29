@@ -359,6 +359,43 @@ def snap_bowel(tag):
             w_, n_ = U.snap_seam(O[a_], O[b_]); out_[f"{a_[3:]}-{b_[3:]}"] = [n_, round(w_ * 1000, 4)]
     report.setdefault("bowel_seams_snapped_mm", {})[tag] = out_; bpy.context.view_layer.update()
 snap_bowel("vagina")
+# the anorectal junction: the canal's top flares forward into the ampulla (a horn); lined up with the slanted canal
+# it did not show, but once the canal was straightened it stood forward as a step - a dent just under the ring. The
+# front half of the canal's top quarter and of the ring is faired (Taubin passes - smoothing that does not shrink),
+# in the sagittal plane only: the canal is held shut as a sagittal slit, and smoothing across it pulled its two
+# walls through each other; its back (the anorectal angle) is left as it is. Every key moves with it
+JUNC_FAIR = int(os.environ.get("JUNCTION_FAIR_IT", "60"))
+JUNC_T = [float(x) for x in os.environ.get("JUNCTION_FAIR_T", "0.80,0.90").split(",")]   # the canal's open top only
+                                                  # (its shut walls, 0.02 mm apart, cross when faired)
+if JUNC_FAIR > 0:
+    JO = [O["AN_Rectum_LowerAmpulla"], O["AN_AnalCanal"]]
+    Xf, Ff, idf = U.weld_union(JO, Mi)
+    _cbf = U.bm_in(O["AN_AnalCanal"], Mi); _lpf = U.boundary_loops(_cbf)
+    _ring = np.array([tuple(v.co) for v in max(_lpf, key=lambda lp: sum(v.co.z for v in lp) / len(lp))])
+    _an_now = np.array([tuple(v.co) for v in min(_lpf, key=lambda lp: sum(v.co.z for v in lp) / len(lp))]); _cbf.free()
+    _kr = _kd_of(_ring)
+    _ka2, _kr2 = _kd_of(_an_now), _kr
+    _rc = _ring.mean(0); _rr = float(np.linalg.norm(_ring - _rc, axis=1).mean())
+    da_ = np.array([_ka2.find(Vector(p))[2] for p in Xf]); dr_ = np.array([_kr2.find(Vector(p))[2] for p in Xf])
+    in_canal = np.zeros(len(Xf), bool); in_canal[idf["AN_AnalCanal"]] = True
+    t_now = da_ / np.maximum(da_ + dr_, 1e-9)
+    front_ = np.clip(0.5 - ((Xf - _rc) @ np.array(E_POST)) / (2 * _rr), 0.0, 1.0)   # 1 at the front, 0 at the back
+    wf_ = (np.where(in_canal | (dr_ < 2e-5), U.ss(JUNC_T[0], JUNC_T[1], t_now), 0.0) * front_)[:, None]
+    Lf_ = U.laplacian_matrix(U.neighbours(len(Xf), Ff)); X0f = Xf.copy()
+    def _um2(X_):                                 # (sagittal plane only)
+        u_ = U.umbrella(X_, Lf_); u_[:, 0] = 0.0; return u_
+    for _ in range(JUNC_FAIR):
+        Xf = Xf + 0.5 * wf_ * _um2(Xf)
+        Xf = Xf - 0.53 * wf_ * _um2(Xf)
+    for ob in JO:
+        Mloc = (Mi @ ob.matrix_world).inverted()
+        new_ = np.array([tuple(Mloc @ Vector(p)) for p in Xf[idf[ob.name]]]); D = new_ - np.array([tuple(v.co) for v in ob.data.vertices])
+        for kb_ in (ob.data.shape_keys.key_blocks if ob.data.shape_keys else []):
+            K = np.array([tuple(d.co) for d in kb_.data]) + D; kb_.data.foreach_set("co", K.astype(np.float32).ravel())
+        ob.data.vertices.foreach_set("co", new_.astype(np.float32).ravel()); ob.data.update()
+    bpy.context.view_layer.update()
+    report["vagina_space"]["junction_faired_mm"] = round(float(np.linalg.norm(Xf - X0f, axis=1).max()) * 1000, 2)
+    snap_bowel("junction")
 print("VAGINA", json.dumps(report["vagina_space"]))
 bone_trees_v = bone_trees + [(vag_tree, 0.001)]
 done("vagina")
