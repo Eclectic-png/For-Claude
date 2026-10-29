@@ -67,27 +67,51 @@ blender -b out/blend/Hips_urinary.blend --python scripts/build_vagina.py -- $PWD
   deeper os the pivot moved 8 mm and the full bladder's tilt dropped 22 -> 18 deg (uterus 2.2 mm into it).
   bowel_room also pushes coarse bowel faces off the placeholder's vertices (expanders).
 - The bowel goes where a woman's lies (the atlas is male: its lower rectum / ampulla sat where the vagina goes, ~20 mm
-  into the vault). Each horizontal section moves straight back (`REC_SHIFT_DIR` +y, toward the sacrum - there is
-  45-68 mm free behind the vagina) as a whole, by what clears the vagina plus the septum there (a Gaussian envelope
-  over height, `REC_SHIFT_SIGMA_MM` 20), fading toward the anus (lowest 12 mm still); make_room then settles only what
-  is left. Moved: ampulla ~10 mm, rectum ~10, canal top 8, sigmoid 1. The ampulla keeps its shape: 5.0 ml body (5.2
-  original; make_room alone had pushed only the walls it touched and flattened it to 3.4, half its depth, 151 folded
-  face pairs - now 6). Rectum + ampulla 122.6 ml at rest (125.2 original), 323.5 full.
+  into the vault). In the vagina step, before make_room (`report["vagina_space"]["bowel_shift_profile_mm"]`):
+  - rectum, ampulla, sigmoid: each horizontal section moves straight back (`REC_SHIFT_DIR` +y, toward the sacrum -
+    45-68 mm free behind the vagina) as a whole, by what clears the vagina plus the septum at that height (a Gaussian
+    max-envelope over height, `REC_SHIFT_SIGMA_MM` 20). Needs come from both sides: bowel points cast along +y to the
+    vagina, and vagina vertices inside the bowel cast along -y to the bowel's wall (the coarse bowel's points alone
+    missed the vault's tip). Profile (atlas z, mm): 12 at 760, 19 at 780, 12.7 at 800, 2.6 at 820, 0.1 at 840.
+  - anal canal: slides by its own need only (`T_J`, the most any canal point needs: 8 mm), as a shear along its
+    length - per vertex t = d_anus / (d_anus + d_top), lowest 12 mm still (`REC_T0`), a soft start then linear to the
+    top. Its walls are 0.02 mm apart (shut): anything but a shear crosses them.
+  - the ampulla's lower end blends from the canal's slide at the anorectal ring to its height shift over
+    `REC_BLEND_MM` 12.
+  - repeated (`REC_SHIFT_ITERS` 8) with the overlaps left at the moved positions added in, until under 0.2 mm (2.98 ->
+    0 here): nothing is left for make_room to crush. `REC_SHIFT_ONLY` (dev) skips the settling.
+  - make_room then settles the rest with the canal held and the bones' vertices above the canal as expanders (the
+    coarse ampulla's faces otherwise let the sacrum's tip 1.3 mm in).
+  Moved (report `bowel_moved_mm`): ampulla 12.2, rectum 13.2, canal top 5.8, sigmoid 1.9. The ampulla keeps its shape:
+  5.1 ml body (5.2 original; make_room alone had flattened it to 3.4, half its depth, 151 folded face pairs). The
+  canal keeps its size: 6.9-7.0 x 6.5 mm across along the original axis (original 6.9 x 6.4-6.5), 30.4 mm long
+  (34.3: its top moved back, so it leans ~15 deg more; across its own new axis it measures 6.5-7.0 x 5.7-6.5, the
+  plane cutting it at a slant). Rectum + ampulla 122.9 ml at rest (125.2 original), 323.8 full. The anal canal's shut
+  walls cross in 391 face pairs (0 in the original, 667 in the build before this pass; 226 straight after the shift -
+  the settling and fill passes add the rest), hundredths of a mm, not visible.
 - Bowel seams (sigmoid - rectum - ampulla - canal) were open: the rectum (world frame) and the ampulla (atlas
   frame) came back from float32 round trips just over make_room's 1e-7 weld tolerance and were moved independently -
   1.5-1.8 mm at the rectum-ampulla seam in every state, 3.9 mm colon-rectum with both full. `urinary_lib.WELD_TOL`
   (20 um) in make_room / weld_union, and `urinary_lib.snap_seam` shuts each seam in the Basis and key by key (mean
   offsets; a key only one side has holds the seam still) after the vagina step, each bowel_room and before the bakes
   (`report["bowel_seams_snapped_mm"]`: gaps before each snap, now <= 0.0001 mm). Now 0 in every state except
-  colon-rectum 0.7 mm with both full.
+  colon-rectum 0.23 mm with both full.
 - The filling rectum grows round the uterus too (`obst_r`): welded shut, the reservoir had pressed up to 9.5 mm into
-  it. Contacts against the build before this pass: rest identical; 4 entries over 1 mm in fill states (5 before),
-  deepest 3.96 mm - the rectosigmoid seam into the uterus at bladder 0.25 (was 3.25 on the colon's side).
+  it. Contacts against the build before this pass: rest identical (bowel / vagina / bone clean); 3 entries over 1 mm in
+  fill states (5 before), deepest 3.9 mm - the rectosigmoid seam into the uterus at bladder 0.25 (was 3.25 on the
+  colon's side); uterus into bladder 1.7 / 2.95 mm (2 vertices) at bladder 0.75 / bladder 0.5 + rectum full in the
+  build's check, 0 / 0.95 mm re-measured on the saved file (the five-ray inside test near the bladder's capped
+  openings) - was 0.81.
 - Tried and dropped for the bowel: make_room alone (flattened ampulla, above); a posterior-fornix pocket past the
   cervix (48 mm, 44 mm at full thickness, 44 mm thin - each dented the ampulla, the user saw the rectum compressed);
   2.5 mm septum (4 mm more push); spreading each push round the bowel (Gaussian of the strongest nearby push: lower
   ampulla squeezed thin); shifting sections square to the vagina's axis (ran down into the perineum, rectum carried
-  31 mm, ampulla stretched).
+  31 mm, ampulla stretched). For the anal canal (the user saw each): the height profile on the canal (it fell short
+  near the junction - the settling dented it, "caves in"; an S); a smoothstep ramp (an S); one axis ramp (saturated:
+  a jog below the junction); sliding the canal by the ampulla's need (13.6 mm: the shear thinned it 20 %); turning it
+  about the anus instead (the vagina's back wall slopes the same way, so it slid along it: 37-44 deg, a C-curve, the
+  ampulla dragged); an S-bend (an S); fairing the junction (pulled the slit's walls through each other, rounded the
+  anorectal angle).
 - Limits / next: the H's recesses are still short; the introitus must be re-cut after the vulva rebuild (as the
   meatus).
 - Tried and dropped (so not repeated): leaving the skin straight up then turning (rings on the inside of the turn

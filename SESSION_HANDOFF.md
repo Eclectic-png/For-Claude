@@ -51,18 +51,25 @@ Controls: select **`Pelvic_Controls`** -> Custom Properties: **Bladder_Fill**, *
   began, are welded / snapped shut. Details and what was tried in HANDOFF.md "Vagina".
 - Anal canal: now held shut its whole length, opening only over the last 5 mm into the rectum
   (`ANUS_CANAL_OPENLEN`, build5_passage); build_pelvis was re-run on it (report updated).
+- Bowel for the female layout, finished (2026-10-29): rectum / ampulla move back as whole sections, the anal canal
+  slides by its own need (8 mm, a shear: it keeps its 6.9 x 6.5 mm size - the user saw it thinned when it slid by the
+  ampulla's 13.6), the ampulla blends between them; repeated until nothing overlaps; the sacrum kept out of the
+  ampulla. The user found the 2D midline section "super unnatural" (the coarse 371-face ampulla zigzags in a 2D cut);
+  they were sent solid 3D renders (`rectum_3d_before_after.png`) and asked to point at what still looks wrong - no
+  answer yet. If it is the ampulla's coarseness: subdivide / relax its interior (keep the seam loops).
 
 ## Next steps (agreed order)
 1. ~~The vagina~~ (first pass + accuracy pass done; limits in HANDOFF.md: short H recesses).
 2. **The vulva** rebuild (rudimentary now); then re-cut the urethral meatus (`URETHRA_MEATUS` /
    `URETHRA_MEATUS_FROM`) and bring the clitoris closer (meatus is ~43 mm behind the hood now, real ~25-30).
 3. Smaller: broad ligament / peritoneum; the vagina's own Rectum_Fill key (a full rectum should push its back wall
-   forward - the vagina has no keys yet); the rectosigmoid seam vs the uterus (<= 4 mm in part-filled bladder states).
-   (Done: septum 2 mm, the ampulla's flattening and folds, the bowel seams.)
+   forward - the vagina has no keys yet; the user noted this); the rectosigmoid seam vs the uterus (<= 4 mm in
+   part-filled bladder states). (Done: septum 2 mm, the ampulla's flattening and folds, the bowel seams, the anal
+   canal's size and shape, the sacrum in the ampulla.)
 4. Later: the male version.
 
 ## Working notes (user preferences learned)
-- Show before/after sections and close renders before committing to a full 27-minute build; the user judges
+- Show before/after sections and close renders before committing to a full build (~13 min now); the user judges
   shapes from the midline section and the view from below.
 - Keep the user's approved anus look (creases, cleft) intact; change only what was asked.
 - Commit and push after each step (a stop hook enforces it); GitHub pushes sometimes fail with a transient 500 -
