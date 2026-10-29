@@ -279,14 +279,20 @@ _start_v = None; _prof = {}
 if REC_SIGMA > 0:
     _Pb = {n_: np.array([tuple(Mi @ (O[n_].matrix_world @ v.co)) for v in O[n_].data.vertices]) for n_ in BOWEL}
     _vo_t = U.tree_in(vag_space, Mi, cap=False)
-    _need_s, _need_t, _need_c = [], [], []       # by height (above the canal); for the canal (its T_J)
+    _need_s, _need_t, _need_c = [], [], []       # by height (the rest of the bowel); for the junction (T_J)
     def _add_need(organ, at, z_, t_):
         if organ == "AN_AnalCanal":              # the canal eases off toward the anus: a point there needs T_J / w
             w_ = float(_w_canal(_t_canal(at))[0])
             if w_ >= 0.15:                       # (right at the anus it is left to the settling pass)
                 _need_c.append(t_ / max(w_, 0.25))
+                if os.environ.get("REC_DEBUG"):
+                    print("REC_DEBUG canal need %.1f w %.2f t %.2f" % (t_ * 1000, w_, float(_t_canal(at)[0])))
         else:
             _need_s.append(z_); _need_t.append(t_)
+            if _kd_tp.find(Vector(tuple(np.atleast_1d(at)[:3])))[2] < 0.0015:  # (the ampulla right at the ring)
+                _need_c.append(t_)
+                if os.environ.get("REC_DEBUG"):
+                    print("REC_DEBUG ring-near %s need %.1f dist %.1f" % (organ[3:], t_ * 1000, _kd_tp.find(Vector(tuple(np.atleast_1d(at)[:3])))[2] * 1000))
     for n_ in BOWEL:
         for p in _Pb[n_]:
             pv = Vector(p); hit = _vo_t.find_nearest(pv)
@@ -314,17 +320,81 @@ if REC_SIGMA > 0:
     _need_s, _need_t = np.array(_need_s), np.array(_need_t)
     def _shift_raw(z_):
         return float((_need_t * np.exp(-((z_ - _need_s) / REC_SIGMA) ** 2)).max()) if len(_need_t) else 0.0
-    T_J = max([_shift_raw(z_) for z_ in np.linspace(Z_J0, Z_J1, 7)] + _need_c)
-    def _shift_at(z_):
-        return T_J if z_ <= Z_J1 else max(_shift_raw(z_), T_J * (1 - float(U.ss(Z_J1, Z_J1 + 0.012, z_))))
+    # the junction moves only as far as the canal and the ampulla right at it need (the canal is barely in the
+    # vagina's way - its top ~2 mm in; the ampulla above it, at the vault, up to ~10 mm): taking the shift by height
+    # at the junction (the ampulla's) for the canal leaned it ~14 mm back and bent it
+    T_J = max(_need_c, default=0.0)
+    # the canal slides back with its top, each point by T_J times its share along the canal (0 at the anus ring, 1 at
+    # the junction ring, along each wall; nothing over its still lowest 12 mm, a short soft start, then straight - a
+    # shear, which keeps a straight wall straight). The vagina's back wall slopes up and back like the canal, so
+    # straight back is the way out of it: turning the canal moved its top along that wall and took a 37-44 deg turn
+    # (a lean, a C-curve, the ampulla dragged); sliding by the canal's own need (~6 mm) narrows it < 2% and shortens
+    # it to ~30 mm (a woman's anal canal is ~3 cm). The rest of the bowel slides with the ring next to it and blends
+    # into the by-height shift within REC_BLEND_MM of it
+    REC_BLEND = float(os.environ.get("REC_BLEND_MM", "8")) / 1000
+    _kring = _kd_of(_topP)
+    def _b_ring(P):                              # share of the by-height shift, off the canal
+        return U.ss(0.0, REC_BLEND, np.array([_kring.find(Vector(p_))[2] for p_ in np.atleast_2d(P)]))
+    def _disp(P, organ, T):
+        P = np.atleast_2d(P)
+        if organ == "AN_AnalCanal":
+            return (T * _w_canal(_t_canal(P)))[:, None] * np.array(E_POST)[None, :]
+        b_ = _b_ring(P)
+        return ((1 - b_) * T + b_ * np.array([_shift_raw(z_) for z_ in P[:, 2]]))[:, None] * np.array(E_POST)[None, :]
+    # then checked where it puts things: what still lies inside the vagina or within the septum of it (the bowel's
+    # points, and the vagina's points inside the moved bowel's faces) is added to the needs - the canal's to the
+    # junction's turn, the rest to its height - each divided by the share of that shift it gets, and solved again
+    # until clear. (The settling pass after a shift that fell short crushed the canal's top: turning, it moves up as
+    # well as back, which the first estimate does not see.)
+    _wc_P = {n_: (_w_canal(_t_canal(_Pb[n_])) if n_ == "AN_AnalCanal" else _b_ring(_Pb[n_])) for n_ in BOWEL}
+    REC_ITERS = int(os.environ.get("REC_SHIFT_ITERS", "8")); _hist = []
+    for it_ in range(REC_ITERS + 1):
+        Qd = {n_: _Pb[n_] + _disp(_Pb[n_], n_, T_J) for n_ in BOWEL}
+        if it_ == REC_ITERS:
+            break
+        add_J, add_s, add_t, worst = 0.0, [], [], 0.0
+        res_ = []                                # (organ, vertex, what is left)
+        for n_ in BOWEL:
+            for i_, q in enumerate(Qd[n_]):
+                qv = Vector(q); hit = _vo_t.find_nearest(qv)
+                if hit[0] is None or hit[3] > VAG_SEPTUM + 0.004:
+                    continue
+                ins = U.inside(vag_tree, qv)
+                if not ins and hit[3] >= VAG_SEPTUM - 1e-4:
+                    continue
+                h_ = _vo_t.ray_cast(qv + E_POST * 1e-6, E_POST, 0.08) if ins else (None,)
+                r_ = (h_[3] + VAG_SEPTUM) if ins and h_[0] is not None else (VAG_SEPTUM - hit[3]) / max(abs(hit[1].dot(E_POST)), 0.3)
+                res_.append((n_, i_, r_))
+        for n_ in BOWEL:                         # (the vagina's points inside a moved bowel organ)
+            Xq_, Tq_, _, _ = U.cap_holes(Qd[n_], [list(p.vertices) for p in O[n_].data.polygons])
+            tq_ = U.tree_np(Xq_, Tq_); to_ = U.tree_np(Qd[n_], [list(p.vertices) for p in O[n_].data.polygons])
+            kq_ = _kd_of(Qd[n_])
+            for qq in _vpts:
+                qv = Vector(qq); hit = to_.find_nearest(qv)
+                if hit[0] is None or hit[3] > 0.02 or not U.inside(tq_, qv):
+                    continue
+                h_ = to_.ray_cast(qv - E_POST * 1e-6, -E_POST, 0.08)
+                if h_[0] is not None:
+                    res_.append((n_, kq_.find(h_[0])[1], h_[3] + VAG_SEPTUM))
+        for n_, i_, r_ in res_:
+            w_ = float(_wc_P[n_][i_])
+            if n_ == "AN_AnalCanal":
+                if w_ >= 0.15:                   # (right at the anus: left to the settling pass)
+                    add_J = max(add_J, r_ / max(w_, 0.25)); worst = max(worst, r_)
+            else:                                # (the ampulla may slide further back than the ring it sits on)
+                z_ = float(_Pb[n_][i_][2])
+                add_s.append(z_); add_t.append(_shift_raw(z_) + r_ / max(w_, 0.5)); worst = max(worst, r_)
+        _hist.append(round(worst * 1000, 2))
+        if worst < 2e-4:
+            break
+        T_J += add_J
+        if add_s:
+            _need_s = np.concatenate([_need_s, add_s]); _need_t = np.concatenate([_need_t, add_t])
     _start_v = {}
     for n_ in BOWEL:
-        P_ = _Pb[n_]
-        D_ = (T_J * _w_canal(_t_canal(P_)) if n_ == "AN_AnalCanal" else np.array([_shift_at(z_) for z_ in P_[:, 2]]))
-        Q_ = P_ + D_[:, None] * np.array(E_POST)
-        Ml_ = (Mi @ O[n_].matrix_world).inverted(); _start_v[n_] = [tuple(Ml_ @ Vector(q)) for q in Q_]
-    _prof = {int(x): round(_shift_at(x / 1000) * 1000, 1) for x in range(760, 841, 10)}   # by height (atlas z, mm)
-    _prof["junction"] = round(T_J * 1000, 1)
+        Ml_ = (Mi @ O[n_].matrix_world).inverted(); _start_v[n_] = [tuple(Ml_ @ Vector(q)) for q in Qd[n_]]
+    _prof = {int(x): round(_shift_raw(x / 1000) * 1000, 1) for x in range(760, 841, 10)}   # by height (atlas z, mm)
+    _prof.update({"junction": round(T_J * 1000, 1), "left_after_each_pass_mm": _hist})
     print("REC_SHIFT", json.dumps(_prof), "points", len(_need_t) + len(_need_c))
 room_v, res_v = U.make_room([O[n_] for n_ in BOWEL], Mi, Mw, [vag_tree], _pin_v,
                             U.Obstacles([(t_, 0.0008) for t_, _ in bone_trees], [(skin_tree, 0.003)], []),
