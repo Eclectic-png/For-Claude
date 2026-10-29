@@ -392,10 +392,19 @@ if REC_SIGMA > 0:
     _prof = {int(x): round(_shift_raw(x / 1000) * 1000, 1) for x in range(760, 841, 10)}   # by height (atlas z, mm)
     _prof.update({"junction": round(T_J * 1000, 1), "left_after_each_pass_mm": _hist})
     print("REC_SHIFT", json.dumps(_prof), "points", len(_need_t) + len(_need_c))
-room_v, res_v = U.make_room([O[n_] for n_ in BOWEL], Mi, Mw, [vag_tree], _pin_v,
+# (the bones' vertices too, above the anal canal: moved back, the coarse ampulla lay on the sacrum and its tip came
+# through a face; lower down they nudged the shut canal, whose walls are 0.02 mm apart, through itself)
+_bone_ob = [O[n_] for n_ in ("AN_Sacrum", "AN_HipBone_L", "AN_HipBone_R") if n_ in O]
+_bpts = np.concatenate([np.array([tuple(Mi @ (o_.matrix_world @ v.co)) for v in o_.data.vertices]) for o_ in _bone_ob])
+_bnrm = np.concatenate([np.array([tuple(((Mi @ o_.matrix_world).to_3x3() @ v.normal).normalized()) for v in o_.data.vertices]) for o_ in _bone_ob])
+_bkeep = _bpts[:, 2] > Z_J1; _bpts, _bnrm = _bpts[_bkeep], _bnrm[_bkeep]
+# (the canal is held: the shift already put it clear, and the settling's spread pushes - the ampulla eased off the
+# sacrum - reached its shut walls, 0.02 mm apart, and crossed them)
+_pin_vs = (lambda n_, P: np.ones(len(P), bool) if n_ == "AN_AnalCanal" else _pin_v(n_, P)) if _start_v else _pin_v
+room_v, res_v = U.make_room([O[n_] for n_ in BOWEL], Mi, Mw, [vag_tree], _pin_vs,
                             U.Obstacles([(t_, 0.0008) for t_, _ in bone_trees], [(skin_tree, 0.003)], []),
-                            gap=VAG_SEPTUM, decay=0.996, iters=400, rounds=10, log=_vl, expanders=[(_vpts, _vnrm)],
-                            start=_start_v)
+                            gap=VAG_SEPTUM, decay=0.996, iters=400, rounds=10, log=_vl,
+                            expanders=[(np.concatenate([_vpts, _bpts]), np.concatenate([_vnrm, _bnrm]))], start=_start_v)
 if os.environ.get("REC_SHIFT_ONLY") and _start_v is not None:       # (development: the shift alone, no settling)
     room_v = {n_: [np.array(_start_v[n_])] for n_ in BOWEL}
 _sk_w = U.tree_in(hips, None, cap=False)
