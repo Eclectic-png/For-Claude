@@ -249,8 +249,20 @@ def _pin_v(n_, P):
 E_POST = Vector(json.loads(os.environ.get("REC_SHIFT_DIR", "[0, 1, 0]"))).normalized()   # straight back, toward
                                                   # the sacrum (square to the vagina ran down into the perineum)
 REC_SIGMA = float(os.environ.get("REC_SHIFT_SIGMA_MM", "20")) / 1000
-REC_RAMP = [float(x) / 1000 for x in os.environ.get("REC_SHIFT_ANUS_MM", "12,30").split(",")]   # the shift eases in
-                                                                                                  # over this far from the anus
+# the anal canal moves as one tube hinged at the anus: below its top (the anorectal junction, Z_J) every point takes
+# the junction's shift, eased in steadily along the canal from its still lowest 12 mm to the junction - by height
+# alone, its slanted middle (next to the vagina's lowest part) was pushed further back than its top: an S in its
+# front wall
+_cb2 = U.bm_in(O["AN_AnalCanal"], Mi); _lp2 = U.boundary_loops(_cb2)
+_top = max(_lp2, key=lambda lp: sum(v.co.z for v in lp) / len(lp)); _top_c = sum((v.co for v in _top), Vector()) / len(_top)
+_cb2.free()
+Z_J = _top_c.z; L_J = float(np.linalg.norm(_anus - np.array(_top_c), axis=1).min())
+REC_RAMP = [float(x) / 1000 for x in os.environ.get("REC_SHIFT_ANUS_MM", f"12,{L_J * 1000:.1f}").split(",")]
+def _ramp(d, a=0.5):
+    """0 -> 1 from REC_RAMP[0] to [1] from the anus: a soft start (no corner above the still part), then straight - a
+    smoothstep grew faster than the canal slants in its middle and put an S in the canal's front wall"""
+    t = np.clip((np.asarray(d, float) - REC_RAMP[0]) / (REC_RAMP[1] - REC_RAMP[0]), 0.0, 1.0)
+    return np.where(t < a, t * t / (2 * a), t - a / 2) / (1 - a / 2)
 _start_v = None; _prof = {}
 if REC_SIGMA > 0:
     _Pb = {n_: np.array([tuple(Mi @ (O[n_].matrix_world @ v.co)) for v in O[n_].data.vertices]) for n_ in BOWEL}
@@ -270,10 +282,10 @@ if REC_SIGMA > 0:
             # the shift eases off toward the anus, so a point there needs its slice to move further: the need is
             # divided by the easing (a shift that fell short there left the settling pass to dent the canal's
             # front wall where it meets the ampulla); right at the anus it is left to the settling pass
-            w_ = float(U.ss(REC_RAMP[0], REC_RAMP[1], float(np.linalg.norm(_anus - np.array(p), axis=1).min())))
+            w_ = float(_ramp(float(np.linalg.norm(_anus - np.array(p), axis=1).min())))
             if w_ < 0.15:
                 continue
-            _need_s.append(pv.z); _need_t.append(t_ / max(w_, 0.25))
+            _need_s.append(max(pv.z, Z_J)); _need_t.append(t_ / max(w_, 0.25))
     # and from the vagina's side: the bowel is coarse - its faces cross the vagina between its vertices - so where a
     # vertex of the vagina lies inside a bowel organ (or within the septum of it), that organ's wall in front of it
     # must pass behind it: the need is the run forward to that wall plus the septum
@@ -286,18 +298,19 @@ if REC_SIGMA > 0:
             h_ = _bo.ray_cast(qv - E_POST * 1e-6, -E_POST, 0.08)
             if h_[0] is None:
                 continue
-            w_ = float(U.ss(REC_RAMP[0], REC_RAMP[1], float(np.linalg.norm(_anus - np.array(h_[0]), axis=1).min())))
+            w_ = float(_ramp(float(np.linalg.norm(_anus - np.array(h_[0]), axis=1).min())))
             if w_ < 0.15:
                 continue
-            _need_s.append(qv.z); _need_t.append((h_[3] + VAG_SEPTUM) / max(w_, 0.25))
+            _need_s.append(max(qv.z, Z_J)); _need_t.append((h_[3] + VAG_SEPTUM) / max(w_, 0.25))
     _need_s, _need_t = np.array(_need_s), np.array(_need_t)
     def _shift_at(s_):
         return float((_need_t * np.exp(-((s_ - _need_s) / REC_SIGMA) ** 2)).max()) if len(_need_t) else 0.0
     _start_v = {}
     for n_ in BOWEL:
-        P_ = _Pb[n_]; ss_ = P_[:, 2]                 # horizontal sections move back together
+        P_ = _Pb[n_]; ss_ = np.maximum(P_[:, 2], Z_J)   # horizontal sections move back together (below the junction:
+                                                         # its shift)
         T_ = np.array([_shift_at(x) for x in ss_])
-        wa_ = U.ss(REC_RAMP[0], REC_RAMP[1], np.linalg.norm(P_[:, None, :] - _anus[None, :, :], axis=2).min(1))
+        wa_ = _ramp(np.linalg.norm(P_[:, None, :] - _anus[None, :, :], axis=2).min(1))
         Q_ = P_ + (T_ * wa_)[:, None] * np.array(E_POST)
         Ml_ = (Mi @ O[n_].matrix_world).inverted(); _start_v[n_] = [tuple(Ml_ @ Vector(q)) for q in Q_]
     _prof = {int(x): round(_shift_at(x / 1000) * 1000, 1) for x in range(720, 841, 10)}   # by height (atlas z, mm)
