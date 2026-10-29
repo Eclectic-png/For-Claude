@@ -1,0 +1,902 @@
+"""build5_rise_region: build5_rise plus an optional longer rebuilt region behind the anus (ANUS_BACK_REACH, default
+off = identical to build5_rise): the cut region D and the outer rings of the anus mesh reach further toward the coccyx,
+so the fill and the along-cleft levelling spread the climb behind the anus over a longer distance.
+build5_rise: build5_adapted with the funnel turned into a rise - the surface climbs towards the centre (same
+smoothstep profile, straight out of the body along n), and no sink at the very centre.
+build5_adapted: the user's build5, unchanged except for three fixes (each marked "adapted:"):
+  1. the region rebuilt is cut narrow, in surface coordinates, so the fill no longer flattens the cheek walls;
+  2. that also stops the fill bridging the cleft, which made the anus stand up like a lump;
+  3. the rings are laid out in arc length over the skin, so the edges ride up the cheek walls.
+Plus portability only: ANATOMY_REF env var, report path, texture lookup by file name.
+Detail pass on the anus of Hips.blend:
+skin crease smoothing, high-detail pucker rebuild, pigment moved from texture to an editable shader mask,
+internal fit raised 1 cm, anatomically angled anal canal + lower rectal ampulla, sphincter re-seated."""
+import bpy, bmesh, math, sys, json, os
+import numpy as np
+from mathutils import Vector, Matrix
+
+OUT = sys.argv[-1]          # folder for report / optional save path
+SAVE_AS = sys.argv[-2]      # "INPLACE" or a .blend path
+REF = os.environ.get("ANATOMY_REF", r"C:\Users\Parker\Anatomy Project\anatomy_ref.blend")
+report = {}
+
+
+def ss(e0, e1, x):
+    t = min(max((x - e0) / (e1 - e0), 0.0), 1.0)
+    return t * t * (3 - 2 * t)
+
+
+def r4(v):
+    return [round(float(x), 4) for x in v]
+
+
+hips = bpy.data.objects["Hips"]; me = hips.data
+assert hips.matrix_world == Matrix.Identity(4)
+
+# ======================= 1. local frame at the anus =======================
+O = Vector((0.0, 0.0565, 0.790))                 # on the cleft floor, centre of the new anus
+bm = bmesh.new(); bm.from_mesh(me)
+pig_layer = bm.verts.layers.float.get("anus_pigment") or bm.verts.layers.float.new("anus_pigment")  # before taking refs
+bm.verts.ensure_lookup_table(); bm.faces.ensure_lookup_table()
+bm.normal_update()
+ann = np.array([tuple(v.co) for v in bm.verts if 0.010 < (v.co - O).length < 0.016])
+c = ann.mean(0); _, V = np.linalg.eigh((ann - c).T @ (ann - c))
+n = Vector(V[:, 0]); n.x = 0.0; n.normalize()
+if n.z > 0:
+    n = -n                                        # outward: down / back
+u = (Vector((0, 1, 0)) - n * n.y).normalized()    # along the cleft, towards the back
+bv = n.cross(u)                                   # lateral
+if bv.x < 0:
+    bv = -bv
+
+
+def to_local(p):
+    d = p - O
+    return d.dot(u), d.dot(bv), d.dot(n)
+
+
+# ======================= 2. Taubin-smooth the cleft crease =======================
+def r_eff(p):
+    a, b, h = to_local(p)
+    return math.sqrt((a * (2.2 if a < 0 else 1.0)) ** 2 + b * b + h * h)
+
+
+region = [v for v in bm.verts if not v.is_boundary and r_eff(v.co) < 0.035]
+wt = {v: 1.0 - ss(0.022, 0.035, r_eff(v.co)) for v in region}
+# build5_rise: behind the anus this pass only raised the cleft floor (~1.3 mm), which tilted the back half of the anus
+# up ~19 deg; it is needed in front (perineum side), where it hides the original's low-poly facets and crease. Fade it
+# out behind the anus between TAUBIN_BACK[0] and [1] mm (ANUS_TAUBIN_BACK="a0,a1"; "0,0" = off: as build5)
+TAUBIN_BACK = [float(x) for x in os.environ.get("ANUS_TAUBIN_BACK", "0,0").split(",")]   # off: faded, the original's facets show behind the anus
+if TAUBIN_BACK[1] > 0:
+    wt = {v: w_ * (1 - ss(TAUBIN_BACK[0], TAUBIN_BACK[1], to_local(v.co)[0] * 1000)) for v, w_ in wt.items()}
+# build5_rise: this pass (from build7) raises the cleft floor behind the anus ~1.3 mm above the original, which
+# left a steep climb ("cliff") at the back edge of the rebuilt anus. ANUS_TAUBIN = number of passes (build5: 20)
+TAUBIN_ITERS = int(os.environ.get("ANUS_TAUBIN", "20"))
+for _ in range(TAUBIN_ITERS):
+    for f in (0.5, -0.53):
+        new = {}
+        for v in region:
+            nb = [e.other_vert(v).co for e in v.link_edges]
+            avg = sum(nb, Vector()) / len(nb)
+            new[v] = v.co + (avg - v.co) * (f * wt[v])
+        for v, p in new.items():
+            v.co = p
+for v in bm.verts:                                # keep the mesh exactly mirror-symmetric on the midline
+    if abs(v.co.x) < 1e-5:
+        v.co.x = 0.0
+bm.normal_update()
+
+# (build5_rise: ported from build8 - the low-poly cheek walls made the toon light/shadow cut zigzag)
+# ======================= 2c. refine the cleft =======================
+# The body is a low-poly game mesh: across its big triangles the toon shader's hard light/shadow cut comes out as a
+# zigzag along the cheek walls, and the strip joining the dense pucker to it gets long thin triangles (white slivers).
+# Split every cleft edge into 4 and put the new vertices on the Phong surface of the original triangles (curved by the
+# vertex normals): old vertices stay put, so the silhouette is unchanged.
+from mathutils.bvhtree import BVHTree
+from mathutils.interpolate import poly_3d_calc
+REFINE_CUTS = 3
+A_FRONT, A_BACK = 45, 80         # mm along the cleft: towards the perineum / up towards the coccyx
+
+# the cleft floor curves away from the local frame further up (19 mm off at 45 mm, 56 mm at 75 mm), so the region
+# follows a sampled midline floor profile instead of a fixed height band
+_t = BVHTree.FromBMesh(bm); _fa, _fh = [], []
+for a_mm in range(-A_FRONT - 10, A_BACK + 11, 5):
+    P = O + u * (a_mm / 1000)
+    hit = _t.ray_cast(P - n * 0.08, n, 0.2)[0]
+    if hit is not None:
+        _fa.append(a_mm); _fh.append((hit - O).dot(n) * 1000)
+
+
+def cleft_floor_h(a_mm):
+    return float(np.interp(a_mm, _fa, _fh))
+
+
+def cleft_coords(p):
+    a, b, h = (x * 1000 for x in to_local(p))
+    return a, b, h - cleft_floor_h(a)
+
+
+def in_refine(p):
+    a, b, hr = cleft_coords(p)
+    return -A_FRONT < a < A_BACK and abs(b) < 28 and -15 < hr < 30
+
+
+old = bm.copy(); bmesh.ops.triangulate(old, faces=old.faces[:]); old.faces.ensure_lookup_table(); old.normal_update()
+old_tree = BVHTree.FromBMesh(old)
+
+
+def phong_old(p, alpha=0.75):
+    loc, _, fi, _ = old_tree.find_nearest(p)
+    vs = [l.vert for l in old.faces[fi].loops]
+    ws = poly_3d_calc([v.co for v in vs], loc)
+    q = Vector()
+    for w_, v in zip(ws, vs):
+        q += (loc - v.normal * (loc - v.co).dot(v.normal)) * w_
+    return loc.lerp(q, alpha)
+
+
+before = set(bm.verts)
+ref_edges = [e for e in bm.edges if not e.is_boundary and all(in_refine(v.co) for v in e.verts)]
+bmesh.ops.subdivide_edges(bm, edges=ref_edges, cuts=REFINE_CUTS, use_grid_fill=True)
+refined_new = [v for v in bm.verts if v not in before]
+for v in refined_new:
+    v.co = phong_old(v.co)
+    if abs(v.co.x) < 2e-5:
+        v.co.x = 0.0
+old.free()
+bm.verts.ensure_lookup_table(); bm.faces.ensure_lookup_table(); bm.normal_update()
+report["refined_edges"] = len(ref_edges); report["refine_new_verts"] = len(refined_new)
+
+# ======================= 3. region to rebuild + smooth base surface (old pucker faired away) =======================
+from mathutils.bvhtree import BVHTree
+from mathutils.interpolate import poly_3d_calc
+
+# adapted: the region is cut in surface coordinates (a along the cleft, s = arc length across it), a fixed margin
+# outside the outer ring. The projected ellipse (9.8 x 8 mm) reached far up the steep cheek walls: the fill flattened
+# them and bridged the cleft, so the anus stood up like a lump.
+H0 = 0.007                       # ray origin height above the cleft floor (in the air of the cleft)
+D_AP, D_LAT = 8.6 + 1.2, 0.75 * 8.6 + 1.2     # outer ring semi-axes + margin, mm
+# region: reach of the anus mesh's outer ring behind the centre (toward the coccyx), mm along the cleft. The outer
+# rings (past the creases and the pigment) are stretched on the back half only, into a half-ellipse BACK_REACH long, and
+# D grows with it (same 1.2 mm margin), so the fill and the levelling spread the climb behind the anus over a longer
+# span. <= 8.6 = off (build5_rise)
+BACK_REACH = float(os.environ.get("ANUS_BACK_REACH", "0"))
+EXT = max(0.0, BACK_REACH - 8.6)
+D_AP_B = D_AP + EXT
+report["back_reach_mm"] = round(8.6 + EXT, 2)
+_cur = BVHTree.FromBMesh(bm)
+
+
+def surf_coords(p, tree=_cur):
+    """(a, s) in mm of a point on the skin: s = arc length across the cleft from the midline (signed by side)"""
+    a = to_local(p)[0]
+    C = O + u * a + n * H0; q = p - C
+    x_, y_ = q.dot(bv), -q.dot(n)
+    sg = 1.0 if x_ >= 0 else -1.0; phi_v = math.atan2(abs(x_), y_)
+    step = math.radians(0.5); phi = 0.0; prev = None; acc = 0.0
+    while True:
+        last = phi >= phi_v
+        ph = min(phi, phi_v)
+        hit = tree.ray_cast(C, -n * math.cos(ph) + bv * (sg * math.sin(ph)), 0.05)[0]
+        if hit is None:
+            return a * 1000, sg * 1e9
+        if prev is not None:
+            acc += (hit - prev).length
+        if last:
+            return a * 1000, sg * acc * 1000
+        prev = hit; phi += step
+
+
+def in_D(p):
+    a, b, h = to_local(p)
+    if not -0.0115 < a < 0.0115 + EXT / 1000 or abs(b) > 0.012 or not -0.008 < h < 0.02:
+        return False
+    a_mm, s_mm = surf_coords(p)
+    return (a_mm / (D_AP_B if a_mm > 0 else D_AP)) ** 2 + (s_mm / D_LAT) ** 2 < 1.0
+
+
+seed = min(bm.verts, key=lambda v: (v.co - O).length)
+D = set(); stack = [seed]
+while stack:
+    v = stack.pop()
+    if v in D or v.is_boundary or not in_D(v.co):
+        continue
+    D.add(v); stack += [e.other_vert(v) for e in v.link_edges]
+
+report["D_a_range_mm"] = [round(min(to_local(v.co)[0] for v in D) * 1000, 1), round(max(to_local(v.co)[0] for v in D) * 1000, 1)]
+# base = copy of the skin where D is replaced by a biharmonic (C1-smooth) fill of the cleft
+base = bm.copy(); base.verts.ensure_lookup_table(); base.faces.ensure_lookup_table()
+Didx = sorted(v.index for v in D); col = {i: k for k, i in enumerate(Didx)}
+rows_idx = set(Didx) | {e.other_vert(bm.verts[i]).index for i in Didx for e in bm.verts[i].link_edges}
+Am = []; Bm = []
+for i in rows_idx:
+    vi = base.verts[i]; nb = [e.other_vert(vi) for e in vi.link_edges]
+    row = np.zeros(len(Didx)); rhs = np.zeros(3)
+    if i in col: row[col[i]] += 1.0
+    else: rhs -= np.array(vi.co)
+    for w_ in nb:
+        if w_.index in col: row[col[w_.index]] -= 1.0 / len(nb)
+        else: rhs += np.array(w_.co) / len(nb)
+    Am.append(row); Bm.append(rhs)
+# minimise |Lx|^2 over the rows -> stack Laplacian rows and solve the normal equations of L^T L (biharmonic)
+Am = np.array(Am); Bm = np.array(Bm)
+Xs, *_ = np.linalg.lstsq(Am, Bm, rcond=None)
+for i in Didx:
+    base.verts[i].co = Vector(Xs[col[i]])
+for v in base.verts:
+    if abs(v.co.x) < 2e-5: v.co.x = 0.0
+base.normal_update()
+if os.environ.get("ANUS_DEBUG_BASE"):            # region: keep a copy of the filled base for inspection
+    _dm = bpy.data.meshes.new("DebugBase"); base.to_mesh(_dm)
+    _do = bpy.data.objects.new("DebugBase", _dm); bpy.context.scene.collection.objects.link(_do); _do.hide_render = True
+base_tree = BVHTree.FromBMesh(base)
+# adapted: the rings now lie on the real cheek walls (coarse game-mesh triangles), so cast onto a Phong-curved copy
+# of the base: it passes through the original vertices and matches how that skin looks smooth-shaded
+btri = base.copy(); bmesh.ops.triangulate(btri, faces=btri.faces[:]); btri.faces.ensure_lookup_table()
+btri.normal_update()
+btri_tree = BVHTree.FromBMesh(btri)
+
+
+def phong(p, fi, alpha=0.75):
+    vs = [l.vert for l in btri.faces[fi].loops]
+    ws = poly_3d_calc([v.co for v in vs], p)
+    q = Vector()
+    for w_, v in zip(ws, vs):
+        q += (p - v.normal * (p - v.co).dot(v.normal)) * w_
+    return p.lerp(q, alpha)
+
+
+def cast(C, dr):
+    hit, nrm, fi, _ = btri_tree.ray_cast(C, dr, 0.05)
+    return (None, nrm) if hit is None else (phong(hit, fi), nrm)
+
+
+def surf_point(a_mm, s_mm):
+    """point on the (Phong-curved) base at AP coordinate a and signed lateral arc length s (mm)"""
+    P0 = O + u * (a_mm / 1000); C = P0 + n * H0
+    sg = 1.0 if s_mm >= 0 else -1.0; target = abs(s_mm) / 1000
+    step = math.radians(0.25); phi = 0.0; prev = None; acc = 0.0
+    while True:
+        dr = -n * math.cos(phi) + bv * (sg * math.sin(phi))
+        hit, nrm = cast(C, dr)
+        assert hit is not None and nrm.dot(dr) < 0, (a_mm, s_mm, math.degrees(phi))
+        if prev is None:
+            if target == 0.0:
+                hit.x = 0.0
+                return hit
+        else:
+            seg = (hit - prev).length
+            if acc + seg >= target:
+                ph = phi - step * (1 - (target - acc) / seg)
+                return cast(C, -n * math.cos(ph) + bv * (sg * math.sin(ph)))[0]
+            acc += seg
+        prev = hit; phi += step
+        assert phi < math.radians(150), (a_mm, s_mm)
+
+# side-aware UV sampler (the UV layout has a seam on the midline)
+side_trees = {}
+for s in (1, -1):
+    faces = [f for f in base.faces if s * f.calc_center_median().x >= -1e-6]
+    side_trees[s] = (BVHTree.FromPolygons([v.co for v in base.verts], [[v.index for v in f.verts] for f in faces]), faces)
+base_uv = {lay.name: base.loops.layers.uv[lay.name] for lay in bm.loops.layers.uv.values()}
+
+
+def sample_uv(p, side, lname):
+    tree_, faces = side_trees[side]
+    _, _, idx, _ = tree_.find_nearest(p)
+    f = faces[idx]; ws = poly_3d_calc([v.co for v in f.verts], p)
+    uv = Vector((0.0, 0.0))
+    for w_, l in zip(ws, f.loops):
+        uv += l[base_uv[lname]].uv * w_
+    return uv
+
+
+# remember surviving UVs of the rim (per side) before deleting
+uv_layers = list(bm.loops.layers.uv.values())
+bmesh.ops.delete(bm, geom=list(D), context='VERTS')
+bm.verts.ensure_lookup_table()
+hole = [v for v in bm.verts if v.is_boundary and (v.co - O).length < 0.03]
+start = hole[0]; L = [start]; prev = None; cur = start
+while True:
+    nxt = [e.other_vert(cur) for e in cur.link_edges if e.is_boundary and e.other_vert(cur) != prev][0]
+    if nxt == start:
+        break
+    prev, cur = cur, nxt; L.append(cur)
+report["deleted_verts"] = len(D); report["hole_loop"] = len(L)
+
+# ======================= 4/5. new pucker draped on the base: squeezed by the cheeks, creases, AP slit =======================
+RINGS = [0.9, 1.4, 2.0, 2.7, 3.5, 4.4, 5.4, 6.5, 7.6, 8.6]          # mm (AP); lateral is squeezed
+# rings inside the entrance, so the dip into the centre can curve smoothly (build5 had only the pole there, which can
+# only make a straight cone); the creases don't reach inside 0.9 mm, so they are unaffected
+RINGS = sorted([0.06, 0.15, 0.3, 0.45, 0.6, 0.75] + RINGS + [1.15, 1.65, 2.35])   # + finer steps over the shoulder,
+# which otherwise bent only at build5's 0.9 / 1.4 / 2.0 mm rings and showed corners
+# extra rings over the outer creases: with 288 spokes but build5's ~1 mm ring steps the faces there were long thin
+# slivers, and the toon light/shadow cut followed them (crease ends split into streaks). RING_STEP mm, 0 = off
+RING_STEP = float(os.environ.get("ANUS_RING_STEP", "0"))
+if RING_STEP > 0:
+    _extra = [round(2.35 + RING_STEP * k, 3) for k in range(1, int((6.9 - 2.35) / RING_STEP) + 1)]
+    RINGS = sorted(set(RINGS) | {r_ for r_ in _extra if all(abs(r_ - q) > RING_STEP / 3 for q in RINGS)})
+# region: extra rings between 7.6 and 8.6 (no creases, ~no pigment there) that the back half stretches over the longer
+# reach, ~BACK_STEP mm apart on the back midline (they sit 1 / (K + 1) mm apart in front)
+BACK_STEP = float(os.environ.get("ANUS_BACK_STEP", "1.1"))
+R_STRETCH = 7.6
+if EXT > 0:
+    _K = max(1, int(round((8.6 - R_STRETCH + EXT) / BACK_STEP)) - 1)
+    RINGS = sorted(set(RINGS) | {round(R_STRETCH + (8.6 - R_STRETCH) * k / (_K + 1), 4) for k in range(1, _K + 1)})
+    report["back_ext_rings"] = _K
+SQUEEZE = 0.75
+FOLD_W = [1.2, 0.8, 1.0, 0.75, 1.05, 0.85, 1.2, 0.85, 1.05, 0.75, 1.0, 0.8]
+SIG = float(os.environ.get("ANUS_SIG", "0.06")); R_FOLD = 7.2   # rad, a crease's angular half-width (build5: 0.09; user picked 0.06)
+# crease width: build5's fixed angular width made each crease's real width grow with r, so the grooves took ~2/3 of
+# the circumference all the way out. Past R_W the angular width now shrinks as (R_W / r)^K, so the creases still
+# narrow into the centre but stay slim further out (K = 0: build5's behaviour)
+R_W = 1.5
+CREASE_TAPER = float(os.environ.get("ANUS_CREASE_TAPER", "0.0"))
+N_SPOKE = 288                    # build5: 72 (5 deg apart) - the slimmer creases need finer spokes to stay clean
+# rise: build5's 2 mm funnel profile turned upside down - the surface climbs towards the centre and fades to nothing
+# at the outer ring
+RISE = float(os.environ.get("ANUS_RISE", "0.2"))   # mm (0.5 and up read as an unnatural dome)
+CREASE_SCALE = float(os.environ.get("ANUS_CREASE_SCALE", "2.0"))   # x build5's crease depth (user's pick; 1x read too faint
+                                 # once the anus follows the curved cleft and cheek walls)
+ENTRANCE_DIP = 0.0               # mm the pole drops below the rise (build5: 0.6 - on a rise it read as an abrupt sink)
+# the user's sketch: gentle shoulders rising towards the centre that roll over and curve down into a narrow plunge.
+# D * (1 - sqrt(r / R_DIP))^2 starts with zero slope at R_DIP (no corner), steepens inwards and is near vertical at
+# the centre
+DIP = float(os.environ.get("ANUS_DIP", "1.5"))      # mm at the centre
+R_DIP = 2.5                      # mm where the roll-over begins
+
+
+def crease(theta, r=0.0):
+    sig = SIG * min(1.0, R_W / max(r, 1e-9)) ** CREASE_TAPER
+    s = 0.0
+    for i, w in enumerate(FOLD_W):
+        dt = (theta - 2 * math.pi * i / 12 + math.pi) % (2 * math.pi) - math.pi
+        s += w * math.exp(-dt * dt / (2 * sig * sig))
+    return s
+
+
+def fold_amp(r):
+    t = min(max((r - 0.9) / (R_FOLD - 0.9), 0.0), 1.0)
+    return 0.42 * math.sin(math.pi * t) ** 0.8
+
+
+def layout(r, theta):
+    """(a, s) in mm on the base for ring r, angle theta; region: rings past R_STRETCH stretched along the cleft on the
+    back half, so the outer ring is a half-ellipse 8.6 + EXT long behind the centre"""
+    a = r * math.cos(theta)
+    b = r * math.sin(theta) * SQUEEZE * (0.45 + 0.55 * ss(0.9, 5.0, r))
+    if EXT > 0 and a > 0:
+        a += EXT * math.cos(theta) * min(max((r - R_STRETCH) / (8.6 - R_STRETCH), 0.0), 1.0)
+    return a, b
+
+
+def base_point(r, theta):
+    # adapted: same a and (squeezed) lateral offsets as before, but the lateral one is now arc length over the skin,
+    # so the sides climb the cheek walls instead of being projected flat across the cleft
+    return surf_point(*layout(r, theta))
+
+
+rings = []; new_faces = []; info = {}
+for r in RINGS:
+    S = N_SPOKE if r < 7.0 else (N_SPOKE // 2 if r < 7.6 + 1e-9 else N_SPOKE // 4)   # 2:1 steps to the join with the skin
+    ring = []
+    for k in range(S):
+        th = 2 * math.pi * k / S
+        v = bm.verts.new(base_point(r, th)); info[v] = (r, th); ring.append(v)
+    rings.append(ring)
+pole = bm.verts.new(base_point(0.0, 0.0)); info[pole] = (0.0, 0.0)
+for k in range(N_SPOKE):
+    new_faces.append(bm.faces.new((rings[0][k], rings[0][(k + 1) % N_SPOKE], pole)))
+for ri in range(len(rings) - 1):
+    A_, B_ = rings[ri], rings[ri + 1]
+    if len(A_) == len(B_):
+        S = len(A_)
+        for k in range(S):
+            new_faces.append(bm.faces.new((A_[k], B_[k], B_[(k + 1) % S], A_[(k + 1) % S])))
+    else:
+        nA, nB = len(A_), len(B_)
+        for k in range(nB):
+            new_faces.append(bm.faces.new((A_[2 * k], B_[k], A_[2 * k + 1])))
+            new_faces.append(bm.faces.new((A_[2 * k + 1], B_[k], B_[(k + 1) % nB], A_[(2 * k + 2) % nA])))
+bm.normal_update()
+if sum(f.normal.dot(n) for f in new_faces) < 0:
+    for f in new_faces:
+        f.normal_flip()
+bm.normal_update()
+base_pos = {v: v.co.copy() for v in info}
+# level along the cleft (the "cliff" fix): the narrow fill sits low near the original pit and then climbs steeply in a
+# narrow band at the back edge to meet the cleft floor rising toward the coccyx. Smooth the heights ALONG the cleft
+# only (edge weights (da / length)^2, so nothing diffuses across the cleft and the walls keep their shape), on the cleft
+# floor (fading out up the walls), with the outer ring held fixed: the climb spreads over the whole anus.
+# ANUS_LEVEL = smoothing iterations (0 = off)
+LEVEL_ITERS = int(os.environ.get("ANUS_LEVEL", "3000"))
+_lay = {v: layout(r, th) for v, (r, th) in info.items()}
+_vl = list(info); _vi = {v: i for i, v in enumerate(_vl)}
+_E = np.array(sorted({tuple(sorted((_vi[e.verts[0]], _vi[e.verts[1]]))) for f in new_faces for e in f.edges
+                      if e.verts[0] in _vi and e.verts[1] in _vi}))
+_L = np.array([_lay[v] for v in _vl])
+_d = _L[_E[:, 1]] - _L[_E[:, 0]]
+_w = (_d[:, 0] ** 2) / np.maximum((_d ** 2).sum(1), 1e-12)          # 1 for an edge along the cleft, 0 across it
+_h0 = np.array([to_local(base_pos[v])[2] * 1000 for v in _vl]); _h = _h0.copy()
+_mob = np.array([(1 - ss(3.0, 6.0, abs(_lay[v][1]))) * (info[v][0] < 8.6) for v in _vl])
+# region: the extra rings sit ~0.1 mm apart where the back stretch is short (front half, sides): there they are held
+# out of the sweeps (beta = 0) and afterwards take the 7.6 mm ring's change faded linearly to 0 at the outer ring, as
+# the single 7.6 -> 8.6 mm face did before (held at the base they made a fold 0.1 mm outside the 7.6 mm ring, seen as
+# a sharp outline). Where the stretch is long (beta = 1, back) they join the sweeps fully.
+_beta = np.ones(len(_vl))
+if EXT > 0:
+    _beta = np.array([ss(0.15, 0.5, math.cos(info[v][1])) if info[v][0] > R_STRETCH else 1.0 for v in _vl])
+    _mob *= _beta
+# region: ANUS_SOFT_BACK = mm before the back end of the stretched rings over which the heights are pulled back toward
+# the base (screened sweeps), so the climb eases into the cleft floor instead of meeting it at an angle
+SOFT_B = float(os.environ.get("ANUS_SOFT_BACK", "0")); SOFT_K = float(os.environ.get("ANUS_SOFT_K", "0.05"))
+_kap = np.zeros(len(_vl))
+if EXT > 0 and SOFT_B > 0:
+    _t0 = 1 - SOFT_B / (8.6 - R_STRETCH + EXT)
+    _kap = np.array([SOFT_K * ss(_t0, 1.0, (info[v][0] - R_STRETCH) / (8.6 - R_STRETCH)) * (_lay[v][0] > 0)
+                     * (info[v][0] > R_STRETCH) for v in _vl])
+_W = np.zeros(len(_vl)); np.add.at(_W, _E[:, 0], _w); np.add.at(_W, _E[:, 1], _w)
+# region: ANUS_LEVEL_MODE=linear is the converged form of that smoothing, worked out directly: along each line of
+# constant lateral offset s the height runs straight from the outer ring's front point to its back point (by real
+# a, so the dense centre rings don't bunch the slope toward the coarse outer ones), blended into the base by the same
+# lateral fade. The jacobi sweeps (default) stop far short of that: the 288-spoke centre rings barely move, which
+# leaves a pit at the centre and pushes the climb to the back edge. ANUS_SOFT_FRONT / ANUS_SOFT_BACK = mm over which
+# the slope eases from the skin's own slope at the outer ring into the straight run (no kink at the ends)
+LEVEL_MODE = os.environ.get("ANUS_LEVEL_MODE", "jacobi")
+SOFT_F = float(os.environ.get("ANUS_SOFT_FRONT", "0"))
+if LEVEL_MODE == "linear":
+    _out = [v for v in rings[-1]]
+    _oa = np.array([_lay[v][0] for v in _out]); _os = np.array([_lay[v][1] for v in _out])
+    _oh = np.array([_h0[_vi[v]] for v in _out])
+
+    def _hb(a_mm, s_mm):
+        return to_local(surf_point(a_mm, s_mm))[2] * 1000
+    _DA = 0.5
+    _om = np.array([(_hb(a_ + _DA, s_) - _hb(a_ - _DA, s_)) / (2 * _DA) for a_, s_ in zip(_oa, _os)])   # base slope dh/da
+    _fr = _oa < 0; _bk = ~_fr
+
+    def _side(mask):
+        o = np.argsort(_os[mask])
+        return _os[mask][o], _oa[mask][o], _oh[mask][o], _om[mask][o]
+    _F = _side(_fr | (np.abs(_oa) < 1e-9)); _B = _side(_bk | (np.abs(_oa) < 1e-9))
+    _hl = _h0.copy()
+    for i, v in enumerate(_vl):
+        if _mob[i] <= 0:
+            continue
+        a_, s_ = _lay[v]
+        af, hf, mf = (float(np.interp(s_, _F[0], q)) for q in _F[1:])
+        ab, hb, mb = (float(np.interp(s_, _B[0], q)) for q in _B[1:])
+        span = ab - af
+        if span < 1e-6:
+            continue
+        lf, lb = min(SOFT_F, 0.35 * span), min(SOFT_B, 0.35 * span)
+        m = (hb - hf - 0.5 * (mf * lf + mb * lb)) / (span - 0.5 * (lf + lb))
+        x = min(max(a_ - af, 0.0), span)
+        # integral of the slope: mf -> m over [0, lf], m, m -> mb over [span - lb, span]
+        hx = hf
+        if lf > 0:
+            t = min(x, lf); hx += mf * t + (m - mf) * t * t / (2 * lf)
+        hx += m * max(0.0, min(x, span - lb) - lf)
+        if lb > 0 and x > span - lb:
+            t = x - (span - lb); hx += m * t + (mb - m) * t * t / (2 * lb)
+        _hl[i] = hx
+    _h = _h0 + _mob * (_hl - _h0)
+    report["level_mode"] = "linear"
+else:
+    for _ in range(LEVEL_ITERS):
+        _acc = np.zeros(len(_vl))
+        np.add.at(_acc, _E[:, 0], _w * (_h[_E[:, 1]] - _h[_E[:, 0]])); np.add.at(_acc, _E[:, 1], _w * (_h[_E[:, 0]] - _h[_E[:, 1]]))
+        _h += 0.5 * _mob * _acc / np.maximum(_W, 1e-9) + _kap * (_h0 - _h)
+if EXT > 0:
+    _r76 = {round(info[v][1], 9): _vi[v] for v in rings[RINGS.index(R_STRETCH)]}
+    for i, v in enumerate(_vl):
+        r_, th_ = info[v]
+        if r_ > R_STRETCH and r_ < 8.6 and _beta[i] < 1:
+            j = _r76[round(th_, 9)]
+            _h[i] = _h0[i] + _beta[i] * (_h[i] - _h0[i]) + (1 - _beta[i]) * (_h[j] - _h0[j]) * (8.6 - r_) / (8.6 - R_STRETCH)
+report["level_change_mm"] = [round(float((_h - _h0).min()), 2), round(float((_h - _h0).max()), 2)]
+if os.environ.get("ANUS_DEBUG_LEVEL"):          # region: dump the levelling (layout, heights before / after, r, theta)
+    np.savez(os.environ["ANUS_DEBUG_LEVEL"], L=_L, h0=_h0, h=_h, E=_E, w=_w, mob=_mob,
+             rt=np.array([info[v] for v in _vl]))
+for v in _vl:
+    base_pos[v] = base_pos[v] + n * ((_h[_vi[v]] - _h0[_vi[v]]) / 1000)
+# relief along the (smooth) base normal: radial creases; the closed centre keeps rising with the surface (no sink at
+# the end). The rise goes straight out of the body (along n): along the surface normal it would push the steep
+# cheek walls sideways into the cleft.
+for v, (r, th) in info.items():
+    relief = CREASE_SCALE * fold_amp(r) * (0.15 - crease(th, r))
+    if v is pole:
+        relief = -ENTRANCE_DIP
+    rise = RISE * (1 - ss(0, R_FOLD, r)) - DIP * (1 - min(r / R_DIP, 1.0) ** 0.5) ** 2
+    v.co = base_pos[v] + v.normal * (relief / 1000) + n * (rise / 1000)
+    # region: the pigment fades by the unstretched-equivalent radius, so it keeps its place on the skin
+    r_pig = math.hypot(_lay[v][0], _lay[v][1] / SQUEEZE) if (EXT > 0 and r > R_STRETCH) else r
+    v[pig_layer] = min(1.0, (1 - ss(3.0, 8.5, r_pig)) * (1 + 0.1 * crease(th, r) * fold_amp(r) / 0.42))
+
+outer = rings[-1]
+outer_edges = [bm.edges.get((outer[k], outer[(k + 1) % len(outer)])) for k in range(len(outer))]
+L_edges = [bm.edges.get((L[k], L[(k + 1) % len(L)])) for k in range(len(L))]
+bridge_faces = bmesh.ops.bridge_loops(bm, edges=outer_edges + L_edges)["faces"]
+for f in bridge_faces:                          # wind consistently with the surviving skin
+    for e in f.edges:
+        others = [g for g in e.link_faces if g is not f and g not in bridge_faces]
+        if others:
+            g = others[0]
+            fa = [l.vert for l in f.loops]; gv = [l.vert for l in g.loops]
+            same = ((fa.index(e.verts[1]) - fa.index(e.verts[0])) % len(fa) == 1) == \
+                   ((gv.index(e.verts[1]) - gv.index(e.verts[0])) % len(gv) == 1)
+            if same:
+                f.normal_flip()
+            break
+for f in new_faces + bridge_faces:
+    f.smooth = True; f.material_index = 0
+bm.normal_update()
+
+# UVs: sample the faired base on the same side of the midline seam as the face
+for f in new_faces + bridge_faces:
+    side = 1 if f.calc_center_median().x >= 0 else -1
+    for l in f.loops:
+        v = l.vert
+        if v in info:
+            p = base_pos[v]
+        else:                                      # rim vertex: keep its own surviving UV from the same side
+            same = [ll for ll in v.link_loops if ll.face not in new_faces and ll.face not in bridge_faces
+                    and (1 if ll.face.calc_center_median().x >= 0 else -1) == side]
+            if same:
+                for lay in uv_layers:
+                    l[lay].uv = same[0][lay].uv
+                continue
+            p = v.co
+        for lay in uv_layers:
+            l[lay].uv = sample_uv(p, side, lay.name)
+
+# light blend of the bridge strip
+strip = (set(L) | set(outer)) - {v for v in L if v.is_boundary and v not in L}
+for _ in range(3):
+    for fct in (0.5, -0.53):
+        new = {v: v.co + (sum((e.other_vert(v).co for e in v.link_edges), Vector()) / len(v.link_edges) - v.co) * fct
+               for v in strip}
+        for v, p in new.items():
+            v.co = p
+for v in bm.verts:                                 # only the midline spokes of the new rings sit on the mirror plane
+    if (abs(math.sin(info[v][1])) < 1e-9) if v in info else abs(v.co.x) < 2e-5:   # (by distance, the dense
+        v.co.x = 0.0                                   # centre rings would fold)
+bm.normal_update()
+ring0 = [v.co.copy() for v in rings[RINGS.index(0.9)]]   # the canal still opens at build5's 0.9 mm ring
+A = sum(ring0, Vector()) / len(ring0)
+widths = [abs(v.co.x) for v in rings[-1]]
+report["new_verts"] = len(info); report["degenerate_faces"] = sum(1 for f in bm.faces if f.calc_area() < 1e-12)
+report["anus_centre_A"] = r4(A); report["boundary_edges_total"] = sum(e.is_boundary for e in bm.edges)
+report["pucker_outer_lateral_halfwidth_mm"] = round(max(widths) * 1000, 1)
+report["pucker_surface_span_mm"] = {
+    "AP": round((rings[-1][0].co - rings[-1][len(rings[-1]) // 2].co).length * 1000, 1),
+    "lateral_over_surface": round(sum((rings[-1][k].co - rings[-1][k + 1].co).length
+                                      for k in range(len(rings[-1]) // 4, 3 * len(rings[-1]) // 4)) * 1000, 1)}
+bm.verts.ensure_lookup_table()
+refined_ids = [v.index for v in bm.verts if in_refine(v.co)]
+bm.to_mesh(me); me.update(); bm.free(); base.free()
+# (build5_rise: ported from build8) the body's custom split normals don't fit the refined / rebuilt cleft: automatic
+# normals there
+if me.has_custom_normals:
+    keep = [tuple(c.vector) for c in me.corner_normals]
+    reg = set(refined_ids)
+    me.normals_split_custom_set([(0.0, 0.0, 0.0) if l.vertex_index in reg else keep[i] for i, l in enumerate(me.loops)])
+    me.update()
+
+
+def cleft_nm_off(p):             # 1 over the refined cleft, fading to 0 before the edge of the refined region
+    a, b, hr = cleft_coords(p)
+    fa = 1 - (ss(A_BACK - 18, A_BACK - 3, a) if a > 0 else ss(A_FRONT - 17, A_FRONT - 3, -a))
+    return fa * (1 - ss(16, 26, abs(b))) * ss(-14, -8, hr) * (1 - ss(22, 29, hr))
+
+
+if "cleft_nm_off" in me.attributes:
+    me.attributes.remove(me.attributes["cleft_nm_off"])
+_nm = me.attributes.new("cleft_nm_off", 'FLOAT', 'POINT')
+_nm.data.foreach_set("value", [cleft_nm_off(v.co) for v in me.vertices])
+
+# ======================= 6. remove the old pigment dot from the textures =======================
+SPOT = (0.1566, 0.5109); RUV = 0.0098
+for name in ["cf_m_body_MT_CT.png", "cf_m_body_MT_DT.png", "cf_m_body_CM.png", "cf_m_body_DM.png",
+             "cf_m_body_LM.png", "cf_m_body_NMP_CNV.png", "cf_m_body_NMPD_CNV.png"]:
+    im = bpy.data.images.get(name) or next(i for i in bpy.data.images  # datablock may be named without the cf_m_ prefix
+                                             if i.filepath.replace("\\", "/").split("/")[-1] == name)
+    w, h = im.size
+    px = np.array(im.pixels[:]).reshape(h, w, 4)
+    cx, cy, R = SPOT[0] * w, SPOT[1] * h, RUV * w
+    yy, xx = np.mgrid[0:h, 0:w]
+    dist = np.hypot(xx + 0.5 - cx, yy + 0.5 - cy)
+    inside = dist < R
+    ring_ = (dist > R) & (dist < R + max(2, R * 0.3))
+    diff = np.abs(px[inside, :3].mean(0) - px[ring_, :3].mean(0)).max()
+    if diff < 0.01:
+        report.setdefault("textures_untouched", []).append(name); continue
+    out = px.copy()
+    for x in range(int(cx - R) - 1, int(cx + R) + 2):
+        dx = x + 0.5 - cx
+        if abs(dx) >= R:
+            continue
+        hh = math.sqrt(R * R - dx * dx)
+        y0, y1 = int(math.floor(cy - hh - 1)), int(math.ceil(cy + hh + 1))
+        for y in range(y0 + 1, y1):
+            t = (y - y0) / (y1 - y0)
+            fill = px[y0, x] * (1 - t) + px[y1, x] * t
+            k = ss(0.8, 1.0, math.hypot(dx, y + 0.5 - cy) / R)
+            out[y, x] = fill * (1 - k) + px[y, x] * k
+    im.pixels = out.ravel(); im.update(); im.pack()
+    report.setdefault("textures_inpainted", []).append([name, round(float(diff), 3)])
+
+# ======================= 7. pigment as an editable shader layer =======================
+def srgb2lin(c):
+    return tuple(x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4 for x in c)
+
+
+mat = bpy.data.materials["Body"]; nt = mat.node_tree
+for nd in [x for x in nt.nodes if x.name.startswith("AnusPig")]:
+    nt.nodes.remove(nd)
+gen, shd = nt.nodes["Gentex"], nt.nodes["Shader"]
+frame = nt.nodes.new("NodeFrame"); frame.name = "AnusPig_Frame"; frame.label = "Anus pigment (edit colours / strength here)"
+attr = nt.nodes.new("ShaderNodeAttribute"); attr.name = "AnusPig_Mask"; attr.attribute_name = "anus_pigment"
+attr.attribute_type = 'GEOMETRY'
+stren = nt.nodes.new("ShaderNodeMath"); stren.name = "AnusPig_Strength"; stren.label = "Strength"
+stren.operation = 'MULTIPLY'; stren.inputs[1].default_value = 1.0; stren.use_clamp = True
+nt.links.new(attr.outputs["Fac"], stren.inputs[0])
+cols = {"maintex": ("Lit colour", (0.98, 0.66, 0.71)), "darktex": ("Shadow colour", (0.84, 0.55, 0.61))}
+x0, y0 = shd.location.x - 520, shd.location.y + 420
+for i, (sock, (lab, rgb)) in enumerate(cols.items()):
+    out_s = gen.outputs[f"Body {sock}"]; in_s = shd.inputs[f"Body {sock}"]
+    for lk in list(out_s.links):
+        if lk.to_socket == in_s:
+            nt.links.remove(lk)
+    col = nt.nodes.new("ShaderNodeRGB"); col.name = f"AnusPig_{sock}_Colour"; col.label = lab
+    col.outputs[0].default_value = (*srgb2lin(rgb), 1.0)
+    mix = nt.nodes.new("ShaderNodeMix"); mix.name = f"AnusPig_{sock}_Mix"; mix.data_type = 'RGBA'
+    assert mix.inputs[6].type == 'RGBA' and mix.inputs[7].type == 'RGBA'
+    nt.links.new(stren.outputs[0], mix.inputs[0]); nt.links.new(out_s, mix.inputs[6])
+    nt.links.new(col.outputs[0], mix.inputs[7]); nt.links.new(mix.outputs[2], in_s)
+    col.location = (x0, y0 - 220 * i); mix.location = (x0 + 220, y0 - 220 * i)
+    col.parent = frame; mix.parent = frame
+attr.location = (x0 - 420, y0); stren.location = (x0 - 210, y0); attr.parent = frame; stren.parent = frame
+
+# (build5_rise: ported from build8; diagnosed on this build - with the map off the spiky shadow edge and the
+# streaky crease ends both disappear)
+# body normal map off over the rebuilt cleft: the 1024 px map is magnified ~15x here and still carries the old
+# cleft/anus shape, so under the toon cut it draws texel-sized spikes (sawtooth pigment edge, white sliver above the
+# anus). The refined geometry (2c) carries the shape instead. Drives RawShade's own "Use Normals?" input.
+for nd in [x for x in nt.nodes if x.name.startswith("CleftNM")]:
+    nt.nodes.remove(nd)
+rs = nt.nodes["RawShade"]; use_nm = rs.inputs["Use Normals?"]
+nframe = nt.nodes.new("NodeFrame"); nframe.name = "CleftNM_Frame"; nframe.label = "Body normal map off in the cleft"
+nma = nt.nodes.new("ShaderNodeAttribute"); nma.name = "CleftNM_Mask"; nma.attribute_name = "cleft_nm_off"
+nma.attribute_type = 'GEOMETRY'
+nms = nt.nodes.new("ShaderNodeMath"); nms.name = "CleftNM_Strength"; nms.label = "Strength (1 = normal map fully off)"
+nms.operation = 'MULTIPLY'; nms.inputs[1].default_value = 1.0; nms.use_clamp = True
+nmi = nt.nodes.new("ShaderNodeMath"); nmi.name = "CleftNM_UseNormals"; nmi.label = "Use Normals?"
+nmi.operation = 'MULTIPLY_ADD'; nmi.inputs[1].default_value = -float(use_nm.default_value)
+nmi.inputs[2].default_value = float(use_nm.default_value)          # = original * (1 - mask)
+nt.links.new(nma.outputs["Fac"], nms.inputs[0]); nt.links.new(nms.outputs[0], nmi.inputs[0])
+nt.links.new(nmi.outputs[0], use_nm)
+nma.location = (rs.location.x - 640, rs.location.y - 260); nms.location = (rs.location.x - 430, rs.location.y - 260)
+nmi.location = (rs.location.x - 220, rs.location.y - 260)
+for nd in (nma, nms, nmi):
+    nd.parent = nframe
+
+# ======================= 8. internals: raise fit 1 cm, re-seat sphincter =======================
+E = bpy.data.objects["Internal_Fit_Xform"]
+E.location = (0.0, 0.0736, 0.252)
+col_fit = bpy.data.collections["Internal_Fit"]
+for nm in ["AN_AnalSphincter", "AN_AnalCanal", "AN_Rectum_LowerAmpulla"]:
+    ob = bpy.data.objects.get(nm)
+    if ob:
+        mesh = ob.data; bpy.data.objects.remove(ob)
+        if mesh and mesh.users == 0:
+            bpy.data.meshes.remove(mesh)
+with bpy.data.libraries.load(REF) as (src, dst):
+    dst.objects = ["AN_AnalSphincter"]
+sph = dst.objects[0]; col_fit.objects.link(sph); sph.parent = E
+bpy.context.view_layer.update()
+
+# ======================= 9. anal canal + lower ampulla =======================
+P = np.array([tuple(v.co) for v in me.vertices])
+navel_c = P[(np.abs(P[:, 0]) < 0.002) & (P[:, 1] < 0) & (P[:, 2] > 0.90) & (P[:, 2] < 0.95)]
+navel = Vector(navel_c[navel_c[:, 1].argmax()])
+d = (navel - A).normalized()
+L_CANAL = 0.025
+J = A + d * L_CANAL
+
+rect = bpy.data.objects["AN_Rectum"]; Mr = rect.matrix_world.copy()
+sac = bpy.data.objects["AN_Sacrum"]
+_sb = bmesh.new(); _sb.from_mesh(sac.data); _sb.transform(sac.matrix_world); bone_tree = BVHTree.FromBMesh(_sb)
+GAP = 0.005                                     # clearance between rectum and sacrum/coccyx (mesorectal fat)
+
+
+def band_push(points, z_of, fixed_w):
+    """forward (-y) shift per 3 mm height band so every band clears the bone by GAP; returns per-point shift"""
+    gaps = [bone_tree.find_nearest(p)[3] for p in points]
+    zs = np.array([z_of(p) for p in points]); bins = np.floor(zs / 0.003).astype(int)
+    need = {}
+    for bi, g in zip(bins, gaps):
+        need[bi] = max(need.get(bi, 0.0), GAP - g)
+    keys = np.array(sorted(need)); vals = np.array([max(0.0, need[k]) for k in keys])
+    sm = np.array([max(vals[i], (vals * np.exp(-((keys - keys[i]) * 3.0) ** 2 / (2 * 4.0 ** 2))).max())
+                   for i in range(len(keys))])      # spread the push over ~4 mm of height
+    lut = dict(zip(keys, sm))
+    return [lut[b] * fixed_w(p) for b, p in zip(bins, points)]
+
+
+# 1) lower rectum (atlas) clears the sacrum/coccyx; fades out before the junction with the colon
+rmesh = rect.data; Mi_r = Mr.inverted()
+for _ in range(3):
+    W = [Mr @ v.co for v in rmesh.vertices]
+    sh_ = band_push(W, lambda p: p.z, lambda p: 1 - ss(0.862, 0.876, p.z))
+    for v, p, s in zip(rmesh.vertices, W, sh_):
+        v.co = Mi_r @ (p - Vector((0, s, 0)))
+rmesh.update()
+_rg = min(bone_tree.find_nearest(Mr @ v.co)[3] for v in rmesh.vertices if (Mr @ v.co).z < 0.86)
+report["rectum_gap_to_bone_below_860mm_mm"] = round(_rg * 1000, 1)
+
+rb = bmesh.new(); rb.from_mesh(rect.data); rb.transform(Mr)
+loops = []; seen = set()
+for e in rb.edges:
+    if not e.is_boundary or e in seen:
+        continue
+    st = [e]; comp = []
+    while st:
+        x = st.pop()
+        if x in seen:
+            continue
+        seen.add(x); comp.append(x)
+        for vv in x.verts:
+            st += [y for y in vv.link_edges if y.is_boundary and y not in seen]
+    loops.append(comp)
+low = max(loops, key=len)                          # the clean cut rim at the bottom of the rectum
+vs = {v for e in low for v in e.verts}
+s0 = next(iter(vs)); order = [s0]; prev = None; cur = s0
+while True:
+    nx = [e.other_vert(cur) for e in cur.link_edges if e in low and e.other_vert(cur) != prev]
+    if not nx or nx[0] == s0:
+        break
+    prev, cur = cur, nx[0]; order.append(cur)
+rect_ring = [v.co.copy() for v in order]
+Rc = sum(rect_ring, Vector()) / len(rect_ring)
+Pr = np.array([tuple(p) for p in rect_ring]); _, Vr = np.linalg.eigh((Pr - Pr.mean(0)).T @ (Pr - Pr.mean(0)))
+nr = Vector(Vr[:, 0]); nr = nr if nr.z > 0 else -nr
+rb.free()
+
+# bezier for the ampulla from J (anorectal junction) up into the rectum rim
+L2 = (Rc - J).length
+T0 = Vector((0.0, math.sin(math.radians(35)), math.cos(math.radians(35))))
+B0, B1, B2, B3 = J, J + T0 * L2 * 0.4, Rc - nr * L2 * 0.35, Rc
+
+
+def bez(t):
+    s = 1 - t
+    return B0 * s ** 3 + B1 * 3 * s * s * t + B2 * 3 * s * t * t + B3 * t ** 3
+
+
+def bez_t(t):
+    s = 1 - t
+    return ((B1 - B0) * 3 * s * s + (B2 - B1) * 6 * s * t + (B3 - B2) * 3 * t * t).normalized()
+
+
+X = Vector((1, 0, 0))
+
+
+def frame_at(T):
+    e1 = (X - T * X.dot(T)).normalized(); return e1, T.cross(e1)
+
+
+def ring_fn(pts, ctr, T):
+    e1, e2 = frame_at(T); arr = []
+    for p in pts:
+        q = p - ctr; q = q - T * q.dot(T)
+        arr.append((math.atan2(q.dot(e2), q.dot(e1)), q.length))
+    arr.sort(); th = np.array([x for x, _ in arr]); rr = np.array([x for _, x in arr])
+    th = np.concatenate([th - 2 * np.pi, th, th + 2 * np.pi]); rr = np.concatenate([rr, rr, rr])
+    return lambda t: float(np.interp(t, th, rr))
+
+
+f_bot = ring_fn(ring0, A, d); f_top = ring_fn(rect_ring, Rc, nr)
+NS = 36
+
+
+def canal_r(th, t):   # collapsed canal: slit at the verge, ~3.2 mm with anal columns higher up, 4 mm at the junction
+    rc = (3.2 + 0.8 * ss(0.5, 1.0, t)) * (1 + 0.15 * ss(0.4, 0.8, t) * math.cos(8 * th)) / 1000
+    return f_bot(th) * (1 - ss(0, 0.3, t)) + rc * ss(0, 0.3, t)
+
+
+def build_tube(name, ring_pts_list, exact_bot, exact_top):
+    tb = bmesh.new()
+    loops_v = [[tb.verts.new(p) for p in exact_bot]] + [[tb.verts.new(p) for p in rp] for rp in ring_pts_list] + \
+              [[tb.verts.new(p) for p in exact_top]]
+    for lv in loops_v:
+        for k in range(len(lv)):
+            tb.edges.new((lv[k], lv[(k + 1) % len(lv)]))
+    for a_, b_ in zip(loops_v[:-1], loops_v[1:]):
+        ea = [tb.edges.get((a_[k], a_[(k + 1) % len(a_)])) for k in range(len(a_))]
+        eb = [tb.edges.get((b_[k], b_[(k + 1) % len(b_)])) for k in range(len(b_))]
+        bmesh.ops.bridge_loops(tb, edges=ea + eb)
+    bmesh.ops.recalc_face_normals(tb, faces=tb.faces)
+    tb.normal_update()
+    f = tb.faces[len(tb.faces) // 2]; cc = f.calc_center_median()
+    axis_pts = [sum(lv_, Vector()) / len(lv_) for lv_ in [[v.co for v in lv] for lv in loops_v]]
+    near_c = min(axis_pts, key=lambda q: (q - cc).length)
+    if f.normal.dot(cc - near_c) < 0:
+        bmesh.ops.reverse_faces(tb, faces=tb.faces)
+    for f in tb.faces:
+        f.smooth = True
+    mesh = bpy.data.meshes.new(name); tb.to_mesh(mesh); tb.free()
+    ob = bpy.data.objects.new(name, mesh); col_fit.objects.link(ob)
+    mesh.materials.append(rect.data.materials[0])
+    return ob
+
+
+canal_rings = []
+for i in range(1, 9):
+    t = i / 9; ctr = A.lerp(J, t); e1, e2 = frame_at(d)
+    canal_rings.append([ctr + (e1 * math.cos(th) + e2 * math.sin(th)) * canal_r(th, t)
+                        for th in (-math.pi + 2 * math.pi * k / NS for k in range(NS))])
+e1, e2 = frame_at(d)
+J_ring = [J + (e1 * math.cos(th) + e2 * math.sin(th)) * canal_r(th, 1.0)
+          for th in (-math.pi + 2 * math.pi * k / NS for k in range(NS))]
+canal = build_tube("AN_AnalCanal", canal_rings, ring0, J_ring)
+
+amp_rings = []
+for i in range(1, 8):
+    t = i / 8; ctr = bez(t); T = bez_t(t); e1, e2 = frame_at(T); w = ss(0.0, 1.0, t)
+    ring_ = []
+    for k in range(NS):
+        th = -math.pi + 2 * math.pi * k / NS
+        rr = canal_r(th, 1.0) * (1 - w) + f_top(th) * w
+        ring_.append(ctr + (e1 * math.cos(th) + e2 * math.sin(th)) * rr)
+    amp_rings.append(ring_)
+# 2) intermediate ampulla rings also clear the coccyx (junction ring and rectum rim stay put)
+for _ in range(3):
+    need = []
+    for ring_ in amp_rings:
+        need.append(max(0.0, max(GAP - bone_tree.find_nearest(p)[3] for p in ring_)))
+    need = [max(need[i], max(need[j] * math.exp(-((i - j) ** 2) / 2.0) for j in range(len(need))))
+            for i in range(len(need))]
+    amp_rings = [[p - Vector((0, s * math.sin(math.pi * (i + 1) / 8) ** 0.5, 0)) for p in ring_]
+                 for i, (ring_, s) in enumerate(zip(amp_rings, need))]
+amp = build_tube("AN_Rectum_LowerAmpulla", amp_rings, J_ring, rect_ring)
+
+# sphincter (external anal sphincter ring) around the lower canal
+Ps = np.array([tuple(sph.matrix_world @ v.co) for v in sph.data.vertices]); sc_ = Vector(Ps.mean(0))
+_, Vs = np.linalg.eigh((Ps - Ps.mean(0)).T @ (Ps - Ps.mean(0))); sax = Vector(Vs[:, 0])
+sax = sax if sax.dot(d) > 0 else -sax
+rot = sax.rotation_difference(d).to_matrix().to_4x4()
+tgt = A + d * (0.4 * L_CANAL)
+Mnew = Matrix.Translation(tgt) @ rot @ Matrix.Translation(-sc_) @ sph.matrix_world
+sph.data.transform(sph.matrix_world.inverted() @ Mnew); sph.data.update()
+
+# ======================= 10. anatomical checks =======================
+sac = bpy.data.objects["AN_Sacrum"]
+Sw = np.array([tuple(sac.matrix_world @ v.co) for v in sac.data.vertices]); coccyx = Vector(Sw[Sw[:, 2].argmin()])
+hipL = bpy.data.objects["AN_HipBone_L"]; hipR = bpy.data.objects["AN_HipBone_R"]
+Hw = np.vstack([[tuple(o.matrix_world @ v.co) for v in o.data.vertices] for o in (hipL, hipR)])
+med = Hw[np.abs(Hw[:, 0]) < 0.004]; symph_low = Vector(med[med[:, 2].argmin()])
+tub = Hw[Hw[:, 2].argmin()]
+pcl_z_at_J = symph_low.z + (coccyx.z - symph_low.z) * (J.y - symph_low.y) / (coccyx.y - symph_low.y)
+amp_dir = bez_t(0.0)
+sb = bmesh.new(); sb.from_mesh(sac.data); sb.transform(sac.matrix_world); stree = BVHTree.FromBMesh(sb)
+report["min_gap_ampulla_to_sacrum_coccyx_mm"] = round(min(stree.find_nearest(amp.matrix_world @ v.co)[3]
+                                                         for v in amp.data.vertices) * 1000, 1)
+report["min_gap_canal_to_coccyx_mm"] = round(min(stree.find_nearest(canal.matrix_world @ v.co)[3]
+                                                 for v in canal.data.vertices) * 1000, 1)
+sb.free()
+report.update({
+    "navel": r4(navel), "canal_axis": r4(d), "canal_length_mm": round(L_CANAL * 1000, 1),
+    "canal_angle_from_vertical_deg": round(math.degrees(math.acos(d.z)), 1),
+    "anorectal_angle_deg": round(math.degrees((A - J).angle(amp_dir)), 1),
+    "junction_J": r4(J), "junction_to_coccyx_tip_mm": round((J - coccyx).length * 1000, 1),
+    "junction_vs_pubococcygeal_line_mm": round((J.z - pcl_z_at_J) * 1000, 1),
+    "anus_vs_ischial_tuberosity_height_mm": round((A.z - tub[2]) * 1000, 1),
+    "coccyx_tip": r4(coccyx), "symphysis_low": r4(symph_low), "ampulla_len_mm": round(L2 * 1000, 1),
+})
+print("REPORT", json.dumps(report))
+json.dump(report, open(os.path.join(OUT, "report.json"), "w"), indent=1)
+if SAVE_AS == "INPLACE":
+    bpy.ops.wm.save_mainfile()
+else:
+    bpy.ops.wm.save_as_mainfile(filepath=SAVE_AS, relative_remap=False)

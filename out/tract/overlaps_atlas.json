@@ -1,0 +1,1161 @@
+[
+ {
+  "organ": "AN_Esophagus",
+  "inside": "AN_Stomach",
+  "components": [
+   {
+    "faces": 118,
+    "area_mm2": 507.5,
+    "depth_mm": 9.9,
+    "centre": [
+     0.0179,
+     -0.1173,
+     1.1232
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Stomach",
+  "inside": "AN_Esophagus",
+  "components": [
+   {
+    "faces": 101,
+    "area_mm2": 297.1,
+    "depth_mm": 5.44,
+    "centre": [
+     0.0144,
+     -0.1126,
+     1.1288
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Stomach",
+  "inside": "AN_Duodenum",
+  "components": [
+   {
+    "faces": 165,
+    "area_mm2": 512.7,
+    "depth_mm": 5.79,
+    "centre": [
+     -0.0211,
+     -0.1477,
+     1.0653
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Duodenum",
+  "inside": "AN_Stomach",
+  "components": [
+   {
+    "faces": 69,
+    "area_mm2": 376.0,
+    "depth_mm": 3.64,
+    "centre": [
+     -0.021,
+     -0.1512,
+     1.0664
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Duodenum",
+  "inside": "AN_Jejunum",
+  "components": [
+   {
+    "faces": 1,
+    "area_mm2": 7.9,
+    "depth_mm": 0.51,
+    "centre": [
+     0.0213,
+     -0.1396,
+     1.02
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Jejunum",
+  "inside": "AN_Duodenum",
+  "components": []
+ },
+ {
+  "organ": "AN_Jejunum",
+  "inside": "AN_Ileum",
+  "components": [
+   {
+    "faces": 42,
+    "area_mm2": 856.6,
+    "depth_mm": 5.49,
+    "centre": [
+     -0.043,
+     -0.1594,
+     0.9425
+    ]
+   },
+   {
+    "faces": 5,
+    "area_mm2": 103.2,
+    "depth_mm": 2.46,
+    "centre": [
+     0.0201,
+     -0.1733,
+     0.918
+    ]
+   },
+   {
+    "faces": 23,
+    "area_mm2": 94.6,
+    "depth_mm": 2.32,
+    "centre": [
+     0.0611,
+     -0.1594,
+     0.9113
+    ]
+   },
+   {
+    "faces": 4,
+    "area_mm2": 92.4,
+    "depth_mm": 1.68,
+    "centre": [
+     0.0613,
+     -0.1582,
+     0.9112
+    ]
+   },
+   {
+    "faces": 3,
+    "area_mm2": 56.0,
+    "depth_mm": 2.52,
+    "centre": [
+     0.0462,
+     -0.1631,
+     0.9178
+    ]
+   },
+   {
+    "faces": 4,
+    "area_mm2": 53.9,
+    "depth_mm": 2.04,
+    "centre": [
+     0.0158,
+     -0.1733,
+     0.919
+    ]
+   },
+   {
+    "faces": 5,
+    "area_mm2": 44.4,
+    "depth_mm": 1.07,
+    "centre": [
+     0.0381,
+     -0.17,
+     0.9155
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 19.9,
+    "depth_mm": 2.2,
+    "centre": [
+     0.0251,
+     -0.1695,
+     0.9178
+    ]
+   },
+   {
+    "faces": 2,
+    "area_mm2": 14.6,
+    "depth_mm": 1.7,
+    "centre": [
+     0.0394,
+     -0.17,
+     0.9163
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 13.7,
+    "depth_mm": 0.43,
+    "centre": [
+     -0.0315,
+     -0.1683,
+     0.9431
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 13.3,
+    "depth_mm": 2.63,
+    "centre": [
+     0.0084,
+     -0.1759,
+     0.9175
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 12.9,
+    "depth_mm": 1.57,
+    "centre": [
+     0.0085,
+     -0.1771,
+     0.9177
+    ]
+   },
+   {
+    "faces": 2,
+    "area_mm2": 10.9,
+    "depth_mm": 0.54,
+    "centre": [
+     0.0568,
+     -0.1607,
+     0.9145
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 9.5,
+    "depth_mm": 2.06,
+    "centre": [
+     0.0144,
+     -0.1657,
+     0.9191
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 3.4,
+    "depth_mm": 0.99,
+    "centre": [
+     0.0521,
+     -0.1558,
+     0.9163
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Ileum",
+  "inside": "AN_Jejunum",
+  "components": [
+   {
+    "faces": 36,
+    "area_mm2": 846.9,
+    "depth_mm": 5.84,
+    "centre": [
+     -0.0396,
+     -0.1626,
+     0.9446
+    ]
+   },
+   {
+    "faces": 11,
+    "area_mm2": 150.8,
+    "depth_mm": 1.75,
+    "centre": [
+     0.0517,
+     -0.1627,
+     0.9162
+    ]
+   },
+   {
+    "faces": 12,
+    "area_mm2": 139.6,
+    "depth_mm": 1.76,
+    "centre": [
+     0.0539,
+     -0.1611,
+     0.9158
+    ]
+   },
+   {
+    "faces": 12,
+    "area_mm2": 87.4,
+    "depth_mm": 1.56,
+    "centre": [
+     0.0224,
+     -0.1729,
+     0.919
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 45.2,
+    "depth_mm": 4.17,
+    "centre": [
+     0.0048,
+     -0.1685,
+     0.9181
+    ]
+   },
+   {
+    "faces": 2,
+    "area_mm2": 36.1,
+    "depth_mm": 2.29,
+    "centre": [
+     0.0052,
+     -0.1734,
+     0.9181
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 25.3,
+    "depth_mm": 6.58,
+    "centre": [
+     0.0809,
+     -0.1392,
+     0.9124
+    ]
+   },
+   {
+    "faces": 2,
+    "area_mm2": 18.7,
+    "depth_mm": 0.9,
+    "centre": [
+     -0.0312,
+     -0.168,
+     0.9396
+    ]
+   },
+   {
+    "faces": 2,
+    "area_mm2": 10.0,
+    "depth_mm": 0.92,
+    "centre": [
+     0.0647,
+     -0.1615,
+     0.9109
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 8.3,
+    "depth_mm": 4.18,
+    "centre": [
+     -0.0406,
+     -0.1567,
+     0.9312
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 8.2,
+    "depth_mm": 1.52,
+    "centre": [
+     0.0154,
+     -0.1707,
+     0.9174
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 6.7,
+    "depth_mm": 1.88,
+    "centre": [
+     0.0032,
+     -0.1669,
+     0.9186
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 6.2,
+    "depth_mm": 0.37,
+    "centre": [
+     0.0249,
+     -0.1676,
+     0.9175
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 5.6,
+    "depth_mm": 0.46,
+    "centre": [
+     0.0589,
+     -0.162,
+     0.9121
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 4.2,
+    "depth_mm": 0.55,
+    "centre": [
+     0.0586,
+     -0.1549,
+     0.9116
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Ileum",
+  "inside": "AN_Cecum",
+  "components": [
+   {
+    "faces": 76,
+    "area_mm2": 715.2,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0673,
+     -0.1273,
+     0.8812
+    ]
+   },
+   {
+    "faces": 57,
+    "area_mm2": 414.0,
+    "depth_mm": 5.92,
+    "centre": [
+     -0.0705,
+     -0.1337,
+     0.8809
+    ]
+   },
+   {
+    "faces": 21,
+    "area_mm2": 271.6,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0709,
+     -0.1149,
+     0.9061
+    ]
+   },
+   {
+    "faces": 6,
+    "area_mm2": 137.2,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0572,
+     -0.1265,
+     0.9058
+    ]
+   },
+   {
+    "faces": 3,
+    "area_mm2": 60.0,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0728,
+     -0.1243,
+     0.8831
+    ]
+   },
+   {
+    "faces": 5,
+    "area_mm2": 47.0,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0675,
+     -0.1128,
+     0.9198
+    ]
+   },
+   {
+    "faces": 9,
+    "area_mm2": 39.1,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0678,
+     -0.1086,
+     0.9127
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 35.9,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0741,
+     -0.1307,
+     0.8846
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 26.9,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0683,
+     -0.124,
+     0.9118
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 23.3,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.072,
+     -0.1365,
+     0.885
+    ]
+   },
+   {
+    "faces": 2,
+    "area_mm2": 17.7,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0612,
+     -0.1108,
+     0.908
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 15.6,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0659,
+     -0.1357,
+     0.8915
+    ]
+   },
+   {
+    "faces": 3,
+    "area_mm2": 13.3,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0659,
+     -0.1234,
+     0.9159
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 11.9,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0678,
+     -0.141,
+     0.8808
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 11.3,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0652,
+     -0.1096,
+     0.9148
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 11.1,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0523,
+     -0.1233,
+     0.8996
+    ]
+   },
+   {
+    "faces": 4,
+    "area_mm2": 8.9,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0728,
+     -0.1096,
+     0.9212
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 8.9,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0708,
+     -0.122,
+     0.9072
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 8.0,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0754,
+     -0.1381,
+     0.8794
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 6.1,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0766,
+     -0.1155,
+     0.9188
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 4.0,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0758,
+     -0.1087,
+     0.918
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 3.7,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0678,
+     -0.1304,
+     0.8936
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 3.3,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0695,
+     -0.1159,
+     0.9223
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 3.0,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.075,
+     -0.1136,
+     0.9217
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 2.5,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0745,
+     -0.1105,
+     0.9216
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 2.1,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0722,
+     -0.1132,
+     0.9231
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Cecum",
+  "inside": "AN_Ileum",
+  "components": [
+   {
+    "faces": 38,
+    "area_mm2": 510.4,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0612,
+     -0.1285,
+     0.8869
+    ]
+   },
+   {
+    "faces": 21,
+    "area_mm2": 271.6,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0709,
+     -0.1149,
+     0.9061
+    ]
+   },
+   {
+    "faces": 6,
+    "area_mm2": 137.2,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0572,
+     -0.1265,
+     0.9058
+    ]
+   },
+   {
+    "faces": 11,
+    "area_mm2": 61.6,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0757,
+     -0.1251,
+     0.8764
+    ]
+   },
+   {
+    "faces": 3,
+    "area_mm2": 60.0,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0728,
+     -0.1243,
+     0.8831
+    ]
+   },
+   {
+    "faces": 5,
+    "area_mm2": 47.0,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0675,
+     -0.1128,
+     0.9198
+    ]
+   },
+   {
+    "faces": 9,
+    "area_mm2": 39.1,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0678,
+     -0.1086,
+     0.9127
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 35.9,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0741,
+     -0.1307,
+     0.8846
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 26.9,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0683,
+     -0.124,
+     0.9118
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 23.3,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.072,
+     -0.1365,
+     0.885
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 21.2,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0719,
+     -0.133,
+     0.8725
+    ]
+   },
+   {
+    "faces": 2,
+    "area_mm2": 17.7,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0612,
+     -0.1108,
+     0.908
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 15.6,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0659,
+     -0.1357,
+     0.8915
+    ]
+   },
+   {
+    "faces": 3,
+    "area_mm2": 13.3,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0659,
+     -0.1234,
+     0.9159
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 12.5,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.071,
+     -0.1258,
+     0.8736
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 11.3,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0652,
+     -0.1096,
+     0.9148
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 11.1,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0523,
+     -0.1233,
+     0.8996
+    ]
+   },
+   {
+    "faces": 4,
+    "area_mm2": 8.9,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0728,
+     -0.1096,
+     0.9212
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 8.9,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0708,
+     -0.122,
+     0.9072
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 8.5,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0774,
+     -0.1362,
+     0.8753
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 6.1,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0766,
+     -0.1155,
+     0.9188
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 4.0,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0758,
+     -0.1087,
+     0.918
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 3.7,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0678,
+     -0.1304,
+     0.8936
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 3.3,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0695,
+     -0.1159,
+     0.9223
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 3.0,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.075,
+     -0.1136,
+     0.9217
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 2.9,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0767,
+     -0.1336,
+     0.8712
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 2.5,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0745,
+     -0.1105,
+     0.9216
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 2.1,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0722,
+     -0.1132,
+     0.9231
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 1.9,
+    "depth_mm": 0.0,
+    "centre": [
+     -0.0784,
+     -0.1318,
+     0.8713
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Cecum",
+  "inside": "AN_Colon_Ascending",
+  "components": [
+   {
+    "faces": 60,
+    "area_mm2": 597.7,
+    "depth_mm": 8.81,
+    "centre": [
+     -0.0723,
+     -0.1149,
+     0.9139
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Colon_Ascending",
+  "inside": "AN_Cecum",
+  "components": [
+   {
+    "faces": 61,
+    "area_mm2": 439.8,
+    "depth_mm": 6.36,
+    "centre": [
+     -0.0676,
+     -0.1191,
+     0.9084
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Cecum",
+  "inside": "AN_Appendix",
+  "components": []
+ },
+ {
+  "organ": "AN_Appendix",
+  "inside": "AN_Cecum",
+  "components": []
+ },
+ {
+  "organ": "AN_Ileum",
+  "inside": "AN_Colon_Ascending",
+  "components": [
+   {
+    "faces": 60,
+    "area_mm2": 597.7,
+    "depth_mm": 8.81,
+    "centre": [
+     -0.0723,
+     -0.1149,
+     0.9139
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Colon_Ascending",
+  "inside": "AN_Ileum",
+  "components": [
+   {
+    "faces": 61,
+    "area_mm2": 439.8,
+    "depth_mm": 6.36,
+    "centre": [
+     -0.0676,
+     -0.1191,
+     0.9084
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Colon_Ascending",
+  "inside": "AN_Colon_Transverse",
+  "components": [
+   {
+    "faces": 9,
+    "area_mm2": 618.1,
+    "depth_mm": 1.2,
+    "centre": [
+     -0.0772,
+     -0.1357,
+     1.038
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Colon_Transverse",
+  "inside": "AN_Colon_Ascending",
+  "components": [
+   {
+    "faces": 7,
+    "area_mm2": 490.1,
+    "depth_mm": 0.98,
+    "centre": [
+     -0.0738,
+     -0.1331,
+     1.0387
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Colon_Transverse",
+  "inside": "AN_Colon_Descending",
+  "components": [
+   {
+    "faces": 8,
+    "area_mm2": 299.7,
+    "depth_mm": 0.66,
+    "centre": [
+     0.0698,
+     -0.1122,
+     1.0507
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 132.8,
+    "depth_mm": 0.74,
+    "centre": [
+     0.0882,
+     -0.1304,
+     1.0407
+    ]
+   },
+   {
+    "faces": 1,
+    "area_mm2": 40.1,
+    "depth_mm": 0.17,
+    "centre": [
+     0.0729,
+     -0.1244,
+     1.0327
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Colon_Descending",
+  "inside": "AN_Colon_Transverse",
+  "components": [
+   {
+    "faces": 2,
+    "area_mm2": 157.8,
+    "depth_mm": 0.35,
+    "centre": [
+     0.0665,
+     -0.1212,
+     1.0319
+    ]
+   },
+   {
+    "faces": 2,
+    "area_mm2": 131.4,
+    "depth_mm": 0.25,
+    "centre": [
+     0.0679,
+     -0.1119,
+     1.0497
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Colon_Descending",
+  "inside": "AN_Rectum",
+  "components": [
+   {
+    "faces": 194,
+    "area_mm2": 2611.3,
+    "depth_mm": 11.54,
+    "centre": [
+     0.0067,
+     -0.0606,
+     0.848
+    ]
+   }
+  ]
+ },
+ {
+  "organ": "AN_Rectum",
+  "inside": "AN_Colon_Descending",
+  "components": [
+   {
+    "faces": 214,
+    "area_mm2": 2110.6,
+    "depth_mm": 11.17,
+    "centre": [
+     0.0127,
+     -0.0647,
+     0.8469
+    ]
+   }
+  ]
+ }
+]

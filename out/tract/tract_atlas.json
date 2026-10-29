@@ -1,0 +1,579 @@
+{
+ "organs": {
+  "AN_Colon_Transverse": {
+   "loops": 43,
+   "big_loops": [
+    [
+     40,
+     12.7
+    ],
+    [
+     34,
+     12.9
+    ],
+    [
+     31,
+     13.6
+    ],
+    [
+     28,
+     16.7
+    ],
+    [
+     24,
+     14.0
+    ],
+    [
+     16,
+     5.3
+    ]
+   ]
+  },
+  "AN_Colon_Descending": {
+   "loops": 63,
+   "big_loops": [
+    [
+     31,
+     10.4
+    ],
+    [
+     26,
+     10.2
+    ],
+    [
+     24,
+     9.7
+    ],
+    [
+     24,
+     6.5
+    ],
+    [
+     24,
+     10.0
+    ],
+    [
+     22,
+     13.6
+    ]
+   ]
+  },
+  "AN_Rectum": {
+   "loops": 17,
+   "big_loops": [
+    [
+     38,
+     6.0
+    ],
+    [
+     16,
+     7.7
+    ],
+    [
+     14,
+     5.7
+    ],
+    [
+     12,
+     5.8
+    ]
+   ]
+  },
+  "AN_Appendix": {
+   "loops": 12,
+   "big_loops": []
+  },
+  "AN_Stomach": {
+   "loops": 4,
+   "big_loops": []
+  },
+  "AN_Colon_Ascending": {
+   "loops": 36,
+   "big_loops": [
+    [
+     44,
+     21.4
+    ],
+    [
+     28,
+     12.9
+    ],
+    [
+     24,
+     9.8
+    ],
+    [
+     18,
+     9.3
+    ],
+    [
+     18,
+     12.0
+    ],
+    [
+     18,
+     7.1
+    ]
+   ]
+  },
+  "AN_AnalCanal": "MISSING",
+  "AN_Duodenum": {
+   "loops": 5,
+   "big_loops": [
+    [
+     58,
+     6.3
+    ],
+    [
+     26,
+     5.2
+    ]
+   ]
+  },
+  "AN_Ileum": {
+   "loops": 85,
+   "big_loops": [
+    [
+     26,
+     6.7
+    ],
+    [
+     25,
+     8.7
+    ],
+    [
+     23,
+     10.0
+    ],
+    [
+     18,
+     11.3
+    ],
+    [
+     16,
+     12.1
+    ],
+    [
+     16,
+     5.3
+    ]
+   ]
+  },
+  "AN_Cecum": {
+   "loops": 3,
+   "big_loops": [
+    [
+     18,
+     11.3
+    ]
+   ]
+  },
+  "AN_Esophagus": {
+   "loops": 10,
+   "big_loops": [
+    [
+     32,
+     7.8
+    ]
+   ]
+  },
+  "AN_Jejunum": {
+   "loops": 76,
+   "big_loops": [
+    [
+     28,
+     9.9
+    ],
+    [
+     26,
+     9.7
+    ],
+    [
+     24,
+     5.0
+    ],
+    [
+     24,
+     6.6
+    ],
+    [
+     20,
+     15.8
+    ],
+    [
+     18,
+     7.6
+    ]
+   ]
+  }
+ },
+ "pairs": [
+  {
+   "pair": [
+    "AN_Esophagus",
+    "AN_Stomach"
+   ],
+   "surface_min_gap_mm": 0.02,
+   "overlapping_face_pairs": 80,
+   "end_loops": [
+    32,
+    8
+   ],
+   "end_radii_mm": [
+    7.8,
+    2.3
+   ],
+   "end_centroid_gap_mm": 263.15,
+   "end_mean_point_gap_mm": 260.39,
+   "end_centroids": [
+    [
+     -0.0024,
+     -0.0934,
+     1.3877
+    ],
+    [
+     0.01,
+     -0.111,
+     1.1254
+    ]
+   ]
+  },
+  {
+   "pair": [
+    "AN_Stomach",
+    "AN_Duodenum"
+   ],
+   "surface_min_gap_mm": 0.01,
+   "overlapping_face_pairs": 119,
+   "end_loops": [
+    8,
+    8
+   ],
+   "end_radii_mm": [
+    2.3,
+    2.8
+   ],
+   "end_centroid_gap_mm": 66.81,
+   "end_mean_point_gap_mm": 66.04,
+   "end_centroids": [
+    [
+     0.01,
+     -0.111,
+     1.1254
+    ],
+    [
+     -0.0134,
+     -0.1462,
+     1.0737
+    ]
+   ]
+  },
+  {
+   "pair": [
+    "AN_Duodenum",
+    "AN_Jejunum"
+   ],
+   "surface_min_gap_mm": 0.0,
+   "overlapping_face_pairs": 28,
+   "end_loops": [
+    26,
+    18
+   ],
+   "end_radii_mm": [
+    5.2,
+    7.6
+   ],
+   "end_centroid_gap_mm": 4.85,
+   "end_mean_point_gap_mm": 1.6,
+   "end_centroids": [
+    [
+     0.0266,
+     -0.1437,
+     1.0216
+    ],
+    [
+     0.0254,
+     -0.1392,
+     1.0204
+    ]
+   ]
+  },
+  {
+   "pair": [
+    "AN_Jejunum",
+    "AN_Ileum"
+   ],
+   "surface_min_gap_mm": 0.01,
+   "overlapping_face_pairs": 480,
+   "end_loops": [
+    14,
+    8
+   ],
+   "end_radii_mm": [
+    7.2,
+    5.5
+   ],
+   "end_centroid_gap_mm": 11.33,
+   "end_mean_point_gap_mm": 10.05,
+   "end_centroids": [
+    [
+     -0.0389,
+     -0.1569,
+     0.9365
+    ],
+    [
+     -0.0321,
+     -0.1624,
+     0.9292
+    ]
+   ]
+  },
+  {
+   "pair": [
+    "AN_Ileum",
+    "AN_Cecum"
+   ],
+   "surface_min_gap_mm": 0.0,
+   "overlapping_face_pairs": 209,
+   "end_loops": [
+    18,
+    18
+   ],
+   "end_radii_mm": [
+    11.3,
+    11.3
+   ],
+   "end_centroid_gap_mm": 0.0,
+   "end_mean_point_gap_mm": 0.0,
+   "end_centroids": [
+    [
+     -0.0716,
+     -0.1209,
+     0.9024
+    ],
+    [
+     -0.0716,
+     -0.1209,
+     0.9024
+    ]
+   ]
+  },
+  {
+   "pair": [
+    "AN_Cecum",
+    "AN_Colon_Ascending"
+   ],
+   "surface_min_gap_mm": 0.02,
+   "overlapping_face_pairs": 93,
+   "end_loops": [
+    18,
+    44
+   ],
+   "end_radii_mm": [
+    11.3,
+    21.4
+   ],
+   "end_centroid_gap_mm": 15.71,
+   "end_mean_point_gap_mm": 13.42,
+   "end_centroids": [
+    [
+     -0.0716,
+     -0.1209,
+     0.9024
+    ],
+    [
+     -0.0871,
+     -0.1206,
+     0.9049
+    ]
+   ]
+  },
+  {
+   "pair": [
+    "AN_Colon_Ascending",
+    "AN_Colon_Transverse"
+   ],
+   "surface_min_gap_mm": 0.07,
+   "overlapping_face_pairs": 23,
+   "end_loops": [
+    8,
+    10
+   ],
+   "end_radii_mm": [
+    4.7,
+    8.2
+   ],
+   "end_centroid_gap_mm": 9.14,
+   "end_mean_point_gap_mm": 6.8,
+   "end_centroids": [
+    [
+     -0.0742,
+     -0.1293,
+     1.014
+    ],
+    [
+     -0.0746,
+     -0.1379,
+     1.0172
+    ]
+   ]
+  },
+  {
+   "pair": [
+    "AN_Colon_Transverse",
+    "AN_Colon_Descending"
+   ],
+   "surface_min_gap_mm": 0.01,
+   "overlapping_face_pairs": 63,
+   "end_loops": [
+    40,
+    22
+   ],
+   "end_radii_mm": [
+    12.7,
+    13.6
+   ],
+   "end_centroid_gap_mm": 8.48,
+   "end_mean_point_gap_mm": 8.39,
+   "end_centroids": [
+    [
+     0.0646,
+     -0.1293,
+     1.0305
+    ],
+    [
+     0.0705,
+     -0.1233,
+     1.0297
+    ]
+   ]
+  },
+  {
+   "pair": [
+    "AN_Colon_Descending",
+    "AN_Rectum"
+   ],
+   "surface_min_gap_mm": 0.04,
+   "overlapping_face_pairs": 155,
+   "end_loops": [
+    10,
+    8
+   ],
+   "end_radii_mm": [
+    4.0,
+    5.0
+   ],
+   "end_centroid_gap_mm": 78.5,
+   "end_mean_point_gap_mm": 75.53,
+   "end_centroids": [
+    [
+     0.0654,
+     -0.1287,
+     0.8503
+    ],
+    [
+     0.0258,
+     -0.0627,
+     0.8348
+    ]
+   ]
+  },
+  {
+   "pair": [
+    "AN_Rectum",
+    "AN_AnalCanal"
+   ],
+   "status": "missing"
+  },
+  {
+   "pair": [
+    "AN_Cecum",
+    "AN_Appendix"
+   ],
+   "surface_min_gap_mm": 4.14,
+   "overlapping_face_pairs": 0,
+   "end_loops": [
+    18,
+    10
+   ],
+   "end_radii_mm": [
+    11.3,
+    8.3
+   ],
+   "end_centroid_gap_mm": 24.21,
+   "end_mean_point_gap_mm": 24.44,
+   "end_centroids": [
+    [
+     -0.0716,
+     -0.1209,
+     0.9024
+    ],
+    [
+     -0.0717,
+     -0.1117,
+     0.88
+    ]
+   ]
+  },
+  {
+   "pair": [
+    "AN_Ileum",
+    "AN_Cecum"
+   ],
+   "surface_min_gap_mm": 0.0,
+   "overlapping_face_pairs": 209,
+   "end_loops": [
+    18,
+    18
+   ],
+   "end_radii_mm": [
+    11.3,
+    11.3
+   ],
+   "end_centroid_gap_mm": 0.0,
+   "end_mean_point_gap_mm": 0.0,
+   "end_centroids": [
+    [
+     -0.0716,
+     -0.1209,
+     0.9024
+    ],
+    [
+     -0.0716,
+     -0.1209,
+     0.9024
+    ]
+   ]
+  },
+  {
+   "pair": [
+    "AN_Ileum",
+    "AN_Colon_Ascending"
+   ],
+   "surface_min_gap_mm": 0.02,
+   "overlapping_face_pairs": 93,
+   "end_loops": [
+    18,
+    44
+   ],
+   "end_radii_mm": [
+    11.3,
+    21.4
+   ],
+   "end_centroid_gap_mm": 15.71,
+   "end_mean_point_gap_mm": 13.42,
+   "end_centroids": [
+    [
+     -0.0716,
+     -0.1209,
+     0.9024
+    ],
+    [
+     -0.0871,
+     -0.1206,
+     0.9049
+    ]
+   ]
+  }
+ ]
+}

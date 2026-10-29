@@ -1,0 +1,323 @@
+{
+ "junctions": [
+  {
+   "pair": [
+    "AN_Esophagus",
+    "AN_Stomach"
+   ],
+   "curve_mm": 58.8,
+   "inflate_mm": 0.0,
+   "inflated": null,
+   "gaps_stitched": 0,
+   "stitch_faces": 0,
+   "centre": [
+    0.0179,
+    -0.1174,
+    1.1231
+   ],
+   "patch_radius_mm": 32.0,
+   "killed_faces": 263,
+   "AN_Esophagus": {
+    "patch_faces": 203
+   },
+   "AN_Stomach": {
+    "patch_faces": 237
+   },
+   "opening": [
+    {
+     "edges": 80,
+     "perimeter_mm": 58.8,
+     "mean_radius_mm": 8.0
+    }
+   ]
+  },
+  {
+   "pair": [
+    "AN_Stomach",
+    "AN_Duodenum"
+   ],
+   "curve_mm": 76.0,
+   "inflate_mm": 0.0,
+   "inflated": null,
+   "gaps_stitched": 0,
+   "stitch_faces": 0,
+   "centre": [
+    -0.021,
+    -0.1476,
+    1.0653
+   ],
+   "patch_radius_mm": 24.6,
+   "killed_faces": 278,
+   "AN_Stomach": {
+    "patch_faces": 308
+   },
+   "AN_Duodenum": {
+    "patch_faces": 253
+   },
+   "opening": [
+    {
+     "edges": 114,
+     "perimeter_mm": 76.0,
+     "mean_radius_mm": 10.6
+    }
+   ]
+  },
+  {
+   "pair": [
+    "AN_Duodenum",
+    "AN_Jejunum"
+   ],
+   "curve_mm": 52.2,
+   "inflate_mm": 0.0,
+   "inflated": null,
+   "gaps_stitched": 0,
+   "stitch_faces": 0,
+   "centre": [
+    0.0271,
+    -0.1375,
+    1.0207
+   ],
+   "patch_radius_mm": 21.9,
+   "killed_faces": 74,
+   "AN_Duodenum": {
+    "patch_faces": 361
+   },
+   "AN_Jejunum": {
+    "patch_faces": 130
+   },
+   "opening": [
+    {
+     "edges": 64,
+     "perimeter_mm": 52.2,
+     "mean_radius_mm": 8.1
+    }
+   ]
+  },
+  {
+   "pair": [
+    "AN_Jejunum",
+    "AN_Ileum"
+   ],
+   "curve_mm": 107.3,
+   "inflate_mm": -1.0,
+   "inflated": "AN_Jejunum",
+   "gaps_stitched": 0,
+   "stitch_faces": 0,
+   "centre": [
+    -0.043,
+    -0.1594,
+    0.9425
+   ],
+   "patch_radius_mm": 38.8,
+   "killed_faces": 106,
+   "AN_Jejunum": {
+    "patch_faces": 692
+   },
+   "AN_Ileum": {
+    "patch_faces": 777
+   },
+   "opening": [
+    {
+     "edges": 65,
+     "perimeter_mm": 107.3,
+     "mean_radius_mm": 12.7
+    }
+   ]
+  },
+  {
+   "pair": [
+    "AN_Ileum",
+    "AN_Cecum"
+   ],
+   "curve_mm": 63.7,
+   "inflate_mm": 0.0,
+   "inflated": null,
+   "gaps_stitched": 0,
+   "stitch_faces": 0,
+   "centre": [
+    -0.0705,
+    -0.1337,
+    0.8809
+   ],
+   "patch_radius_mm": 28.1,
+   "killed_faces": 156,
+   "AN_Ileum": {
+    "patch_faces": 288
+   },
+   "AN_Cecum": {
+    "patch_faces": 174
+   },
+   "opening": [
+    {
+     "edges": 69,
+     "perimeter_mm": 63.7,
+     "mean_radius_mm": 8.9
+    }
+   ]
+  },
+  {
+   "pair": [
+    "AN_Cecum",
+    "AN_Colon_Ascending"
+   ],
+   "curve_mm": 89.0,
+   "inflate_mm": 0.0,
+   "inflated": null,
+   "gaps_stitched": 0,
+   "stitch_faces": 0,
+   "centre": [
+    -0.0723,
+    -0.1149,
+    0.9139
+   ],
+   "patch_radius_mm": 37.6,
+   "killed_faces": 182,
+   "AN_Cecum": {
+    "patch_faces": 225
+   },
+   "AN_Colon_Ascending": {
+    "patch_faces": 646
+   },
+   "opening": [
+    {
+     "edges": 93,
+     "perimeter_mm": 89.0,
+     "mean_radius_mm": 12.4
+    }
+   ]
+  },
+  {
+   "pair": [
+    "AN_Colon_Ascending",
+    "AN_Colon_Transverse"
+   ],
+   "curve_mm": 86.9,
+   "inflate_mm": 0.0,
+   "inflated": null,
+   "gaps_stitched": 0,
+   "stitch_faces": 0,
+   "centre": [
+    -0.0772,
+    -0.1357,
+    1.038
+   ],
+   "patch_radius_mm": 35.9,
+   "killed_faces": 20,
+   "AN_Colon_Ascending": {
+    "patch_faces": 553
+   },
+   "AN_Colon_Transverse": {
+    "patch_faces": 496
+   },
+   "opening": [
+    {
+     "edges": 23,
+     "perimeter_mm": 86.9,
+     "mean_radius_mm": 11.6
+    }
+   ]
+  },
+  {
+   "pair": [
+    "AN_Colon_Transverse",
+    "AN_Colon_Descending"
+   ],
+   "curve_mm": 94.4,
+   "inflate_mm": 0.0,
+   "inflated": null,
+   "gaps_stitched": 0,
+   "stitch_faces": 0,
+   "centre": [
+    0.0698,
+    -0.1122,
+    1.0507
+   ],
+   "patch_radius_mm": 43.8,
+   "killed_faces": 26,
+   "AN_Colon_Transverse": {
+    "patch_faces": 649
+   },
+   "AN_Colon_Descending": {
+    "patch_faces": 761
+   },
+   "opening": [
+    {
+     "edges": 34,
+     "perimeter_mm": 94.4,
+     "mean_radius_mm": 10.7
+    }
+   ]
+  },
+  {
+   "pair": [
+    "AN_Colon_Descending",
+    "AN_Rectum"
+   ],
+   "curve_mm": 163.5,
+   "inflate_mm": 0.0,
+   "inflated": null,
+   "gaps_stitched": 0,
+   "stitch_faces": 0,
+   "centre": [
+    0.0067,
+    -0.0606,
+    0.848
+   ],
+   "patch_radius_mm": 41.4,
+   "killed_faces": 470,
+   "AN_Colon_Descending": {
+    "patch_faces": 683
+   },
+   "AN_Rectum": {
+    "patch_faces": 1000
+   },
+   "opening": [
+    {
+     "edges": 155,
+     "perimeter_mm": 163.5,
+     "mean_radius_mm": 25.4
+    }
+   ]
+  }
+ ],
+ "ileum_duplicate_cecum_faces_removed": 288,
+ "appendix": {
+  "gap_before_mm": 4.55,
+  "moved_mm": 21.87,
+  "base_to_ileal_entrance_mm": 15.7,
+  "opened": false
+ },
+ "bulges": [
+  {
+   "pair": [
+    "AN_Duodenum",
+    "AN_Jejunum"
+   ],
+   "contact": [
+    0.0308,
+    -0.1354,
+    1.022
+   ],
+   "gap_before_mm": 0.0,
+   "h_mm": 2.5,
+   "R_mm": 15.0,
+   "verts_moved": {
+    "AN_Duodenum": 121,
+    "AN_Jejunum": 63
+   }
+  }
+ ],
+ "ao_in_mean": {
+  "AN_Esophagus": 0.635,
+  "AN_Stomach": 0.946,
+  "AN_Duodenum": 0.808,
+  "AN_Jejunum": 0.502,
+  "AN_Ileum": 0.475,
+  "AN_Cecum": 0.822,
+  "AN_Appendix": 0.389,
+  "AN_Colon_Ascending": 0.907,
+  "AN_Colon_Transverse": 0.918,
+  "AN_Colon_Descending": 0.925,
+  "AN_Rectum": 0.894
+ }
+}

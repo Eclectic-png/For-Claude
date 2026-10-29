@@ -1,0 +1,215 @@
+{
+ "organs": {
+  "AN_Rectum": {
+   "loops": 9,
+   "big_loops": [
+    [
+     83,
+     13.3
+    ],
+    [
+     16,
+     5.1
+    ]
+   ]
+  },
+  "AN_AnalCanal": {
+   "loops": 2,
+   "big_loops": [
+    [
+     288,
+     0.2
+    ],
+    [
+     36,
+     4.0
+    ]
+   ]
+  },
+  "AN_Colon_Descending": {
+   "loops": 63,
+   "big_loops": [
+    [
+     31,
+     6.7
+    ],
+    [
+     26,
+     6.4
+    ],
+    [
+     24,
+     6.4
+    ],
+    [
+     24,
+     4.2
+    ],
+    [
+     24,
+     6.4
+    ],
+    [
+     22,
+     8.9
+    ]
+   ]
+  },
+  "Hips": {
+   "loops": 4,
+   "big_loops": [
+    [
+     288,
+     0.2
+    ],
+    [
+     40,
+     74.0
+    ],
+    [
+     22,
+     61.7
+    ],
+    [
+     22,
+     61.7
+    ]
+   ]
+  },
+  "AN_Rectum_LowerAmpulla": {
+   "loops": 2,
+   "big_loops": [
+    [
+     83,
+     13.3
+    ],
+    [
+     36,
+     4.0
+    ]
+   ]
+  }
+ },
+ "pairs": [
+  {
+   "pair": [
+    "AN_Colon_Descending",
+    "AN_Rectum"
+   ],
+   "surface_min_gap_mm": 0.02,
+   "overlapping_face_pairs": 152,
+   "end_loops": [
+    10,
+    8
+   ],
+   "end_radii_mm": [
+    2.6,
+    3.5
+   ],
+   "end_centroid_gap_mm": 49.97,
+   "end_mean_point_gap_mm": 49.0,
+   "end_centroids": [
+    [
+     0.0405,
+     -0.0191,
+     0.8642
+    ],
+    [
+     0.016,
+     0.023,
+     0.8531
+    ]
+   ]
+  },
+  {
+   "pair": [
+    "AN_Rectum",
+    "AN_Rectum_LowerAmpulla"
+   ],
+   "surface_min_gap_mm": 0.0,
+   "overlapping_face_pairs": 12,
+   "end_loops": [
+    83,
+    83
+   ],
+   "end_radii_mm": [
+    13.3,
+    13.3
+   ],
+   "end_centroid_gap_mm": 0.0,
+   "end_mean_point_gap_mm": 0.0,
+   "end_centroids": [
+    [
+     0.0003,
+     0.0467,
+     0.8298
+    ],
+    [
+     0.0003,
+     0.0467,
+     0.8298
+    ]
+   ]
+  },
+  {
+   "pair": [
+    "AN_Rectum_LowerAmpulla",
+    "AN_AnalCanal"
+   ],
+   "surface_min_gap_mm": 0.0,
+   "overlapping_face_pairs": 3,
+   "end_loops": [
+    36,
+    36
+   ],
+   "end_radii_mm": [
+    4.0,
+    4.0
+   ],
+   "end_centroid_gap_mm": 0.0,
+   "end_mean_point_gap_mm": 0.0,
+   "end_centroids": [
+    [
+     0.0,
+     0.0415,
+     0.8098
+    ],
+    [
+     0.0,
+     0.0415,
+     0.8098
+    ]
+   ]
+  },
+  {
+   "pair": [
+    "AN_AnalCanal",
+    "Hips"
+   ],
+   "surface_min_gap_mm": 0.0,
+   "overlapping_face_pairs": 43,
+   "end_loops": [
+    288,
+    288
+   ],
+   "end_radii_mm": [
+    0.2,
+    0.2
+   ],
+   "end_centroid_gap_mm": 0.0,
+   "end_mean_point_gap_mm": 0.0,
+   "end_centroids": [
+    [
+     0.0,
+     0.0564,
+     0.7901
+    ],
+    [
+     0.0,
+     0.0564,
+     0.7901
+    ]
+   ]
+  }
+ ]
+}
