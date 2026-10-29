@@ -249,6 +249,8 @@ def _pin_v(n_, P):
 E_POST = Vector(json.loads(os.environ.get("REC_SHIFT_DIR", "[0, 1, 0]"))).normalized()   # straight back, toward
                                                   # the sacrum (square to the vagina ran down into the perineum)
 REC_SIGMA = float(os.environ.get("REC_SHIFT_SIGMA_MM", "20")) / 1000
+REC_RAMP = [float(x) / 1000 for x in os.environ.get("REC_SHIFT_ANUS_MM", "12,30").split(",")]   # the shift eases in
+                                                                                                  # over this far from the anus
 _start_v = None; _prof = {}
 if REC_SIGMA > 0:
     _Pb = {n_: np.array([tuple(Mi @ (O[n_].matrix_world @ v.co)) for v in O[n_].data.vertices]) for n_ in BOWEL}
@@ -263,8 +265,31 @@ if REC_SIGMA > 0:
             if not ins and hit[3] >= VAG_SEPTUM:
                 continue
             h_ = _vo_t.ray_cast(pv + E_POST * 1e-6, E_POST, 0.08) if ins else (None,)
-            t_ = (h_[3] + VAG_SEPTUM) if ins and h_[0] is not None else (VAG_SEPTUM - hit[3])
-            _need_s.append(pv.z); _need_t.append(t_)
+            # (outside but within the septum: moving back gains distance only as fast as the wall faces back)
+            t_ = (h_[3] + VAG_SEPTUM) if ins and h_[0] is not None else (VAG_SEPTUM - hit[3]) / max(abs(hit[1].dot(E_POST)), 0.3)
+            # the shift eases off toward the anus, so a point there needs its slice to move further: the need is
+            # divided by the easing (a shift that fell short there left the settling pass to dent the canal's
+            # front wall where it meets the ampulla); right at the anus it is left to the settling pass
+            w_ = float(U.ss(REC_RAMP[0], REC_RAMP[1], float(np.linalg.norm(_anus - np.array(p), axis=1).min())))
+            if w_ < 0.15:
+                continue
+            _need_s.append(pv.z); _need_t.append(t_ / max(w_, 0.25))
+    # and from the vagina's side: the bowel is coarse - its faces cross the vagina between its vertices - so where a
+    # vertex of the vagina lies inside a bowel organ (or within the septum of it), that organ's wall in front of it
+    # must pass behind it: the need is the run forward to that wall plus the septum
+    for n_ in BOWEL:
+        _bt = U.tree_in(O[n_], Mi); _bo = U.tree_in(O[n_], Mi, cap=False)
+        for q in _vpts:
+            qv = Vector(q); hit = _bo.find_nearest(qv)
+            if hit[0] is None or hit[3] > 0.02 or not U.inside(_bt, qv):
+                continue
+            h_ = _bo.ray_cast(qv - E_POST * 1e-6, -E_POST, 0.08)
+            if h_[0] is None:
+                continue
+            w_ = float(U.ss(REC_RAMP[0], REC_RAMP[1], float(np.linalg.norm(_anus - np.array(h_[0]), axis=1).min())))
+            if w_ < 0.15:
+                continue
+            _need_s.append(qv.z); _need_t.append((h_[3] + VAG_SEPTUM) / max(w_, 0.25))
     _need_s, _need_t = np.array(_need_s), np.array(_need_t)
     def _shift_at(s_):
         return float((_need_t * np.exp(-((s_ - _need_s) / REC_SIGMA) ** 2)).max()) if len(_need_t) else 0.0
@@ -272,7 +297,7 @@ if REC_SIGMA > 0:
     for n_ in BOWEL:
         P_ = _Pb[n_]; ss_ = P_[:, 2]                 # horizontal sections move back together
         T_ = np.array([_shift_at(x) for x in ss_])
-        wa_ = U.ss(0.012, 0.030, np.linalg.norm(P_[:, None, :] - _anus[None, :, :], axis=2).min(1))
+        wa_ = U.ss(REC_RAMP[0], REC_RAMP[1], np.linalg.norm(P_[:, None, :] - _anus[None, :, :], axis=2).min(1))
         Q_ = P_ + (T_ * wa_)[:, None] * np.array(E_POST)
         Ml_ = (Mi @ O[n_].matrix_world).inverted(); _start_v[n_] = [tuple(Ml_ @ Vector(q)) for q in Q_]
     _prof = {int(x): round(_shift_at(x / 1000) * 1000, 1) for x in range(720, 841, 10)}   # by height (atlas z, mm)
@@ -281,6 +306,8 @@ room_v, res_v = U.make_room([O[n_] for n_ in BOWEL], Mi, Mw, [vag_tree], _pin_v,
                             U.Obstacles([(t_, 0.0008) for t_, _ in bone_trees], [(skin_tree, 0.003)], []),
                             gap=VAG_SEPTUM, decay=0.996, iters=400, rounds=10, log=_vl, expanders=[(_vpts, _vnrm)],
                             start=_start_v)
+if os.environ.get("REC_SHIFT_ONLY") and _start_v is not None:       # (development: the shift alone, no settling)
+    room_v = {n_: [np.array(_start_v[n_])] for n_ in BOWEL}
 _sk_w = U.tree_in(hips, None, cap=False)
 report["vagina_space"] = {"skin_clearance_mm": round(min(_sk_w.find_nearest(Mw @ Vector(p))[3] for p in _vpts) * 1000, 2),
                           "introitus_atlas": list(INTRO), "top_atlas": list(P2v), "length_mm": round(sum((a - b).length for a, b in zip(vc, vc[1:])) * 1000, 1),
