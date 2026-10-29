@@ -249,25 +249,44 @@ def _pin_v(n_, P):
 E_POST = Vector(json.loads(os.environ.get("REC_SHIFT_DIR", "[0, 1, 0]"))).normalized()   # straight back, toward
                                                   # the sacrum (square to the vagina ran down into the perineum)
 REC_SIGMA = float(os.environ.get("REC_SHIFT_SIGMA_MM", "20")) / 1000
-# the anal canal moves as one tube hinged at the anus: below its top (the anorectal junction, Z_J) every point takes
-# the junction's shift, eased in steadily along the canal from its still lowest 12 mm to the junction - by height
-# alone, its slanted middle (next to the vagina's lowest part) was pushed further back than its top: an S in its
-# front wall
+# the anal canal moves as one tube hinged at the anus. Each canal vertex has a place along it, t = d_anus / (d_anus +
+# d_junction) (its distances to the anus ring and to the junction ring): 0 at the anus, 1 all round the junction ring,
+# along each wall. It takes the junction's shift T_J times a ramp in t - nothing over its still lowest 12 mm, a short
+# soft start, then straight: a shear along each wall, which keeps the straight canal straight. Above the canal the
+# bowel moves by height, the junction's shift holding up to the top of the (tilted) junction ring and easing into the
+# by-height one above it. (Tried: by height alone - the canal's slanted middle went back further than its top, an S
+# in its front wall; a smoothstep in distance from the anus - an S too; a ramp along a straight axis - it saturated
+# below the ring's front, a 2 mm jog under the junction.)
 _cb2 = U.bm_in(O["AN_AnalCanal"], Mi); _lp2 = U.boundary_loops(_cb2)
-_top = max(_lp2, key=lambda lp: sum(v.co.z for v in lp) / len(lp)); _top_c = sum((v.co for v in _top), Vector()) / len(_top)
-_cb2.free()
-Z_J = _top_c.z; L_J = float(np.linalg.norm(_anus - np.array(_top_c), axis=1).min())
-REC_RAMP = [float(x) / 1000 for x in os.environ.get("REC_SHIFT_ANUS_MM", f"12,{L_J * 1000:.1f}").split(",")]
-def _ramp(d, a=0.5):
-    """0 -> 1 from REC_RAMP[0] to [1] from the anus: a soft start (no corner above the still part), then straight - a
-    smoothstep grew faster than the canal slants in its middle and put an S in the canal's front wall"""
-    t = np.clip((np.asarray(d, float) - REC_RAMP[0]) / (REC_RAMP[1] - REC_RAMP[0]), 0.0, 1.0)
-    return np.where(t < a, t * t / (2 * a), t - a / 2) / (1 - a / 2)
+_topP = np.array([tuple(v.co) for v in max(_lp2, key=lambda lp: sum(v.co.z for v in lp) / len(lp))]); _cb2.free()
+Z_J0, Z_J1 = float(_topP[:, 2].min()), float(_topP[:, 2].max())   # the junction ring's height range
+def _kd_of(P):
+    k_ = kdtree.KDTree(len(P))
+    for i_, p_ in enumerate(P):
+        k_.insert(Vector(p_), i_)
+    k_.balance(); return k_
+_kd_an, _kd_tp = _kd_of(_anus), _kd_of(_topP)
+def _t_canal(P):
+    P = np.atleast_2d(P)
+    da = np.array([_kd_an.find(Vector(p_))[2] for p_ in P]); dt = np.array([_kd_tp.find(Vector(p_))[2] for p_ in P])
+    return da / np.maximum(da + dt, 1e-9)
+_Pc = np.array([tuple(Mi @ (O["AN_AnalCanal"].matrix_world @ v.co)) for v in O["AN_AnalCanal"].data.vertices])
+REC_T0 = 0.012 / float(np.median([_kd_an.find(Vector(p_))[2] + _kd_tp.find(Vector(p_))[2] for p_ in _Pc]))   # the still part
+def _w_canal(t, a=0.25):
+    u = np.clip((np.asarray(t, float) - REC_T0) / (1 - REC_T0), 0.0, 1.0)
+    return np.where(u < a, u * u / (2 * a), u - a / 2) / (1 - a / 2)
 _start_v = None; _prof = {}
 if REC_SIGMA > 0:
     _Pb = {n_: np.array([tuple(Mi @ (O[n_].matrix_world @ v.co)) for v in O[n_].data.vertices]) for n_ in BOWEL}
     _vo_t = U.tree_in(vag_space, Mi, cap=False)
-    _need_s, _need_t = [], []
+    _need_s, _need_t, _need_c = [], [], []       # by height (above the canal); for the canal (its T_J)
+    def _add_need(organ, at, z_, t_):
+        if organ == "AN_AnalCanal":              # the canal eases off toward the anus: a point there needs T_J / w
+            w_ = float(_w_canal(_t_canal(at))[0])
+            if w_ >= 0.15:                       # (right at the anus it is left to the settling pass)
+                _need_c.append(t_ / max(w_, 0.25))
+        else:
+            _need_s.append(z_); _need_t.append(t_)
     for n_ in BOWEL:
         for p in _Pb[n_]:
             pv = Vector(p); hit = _vo_t.find_nearest(pv)
@@ -279,16 +298,10 @@ if REC_SIGMA > 0:
             h_ = _vo_t.ray_cast(pv + E_POST * 1e-6, E_POST, 0.08) if ins else (None,)
             # (outside but within the septum: moving back gains distance only as fast as the wall faces back)
             t_ = (h_[3] + VAG_SEPTUM) if ins and h_[0] is not None else (VAG_SEPTUM - hit[3]) / max(abs(hit[1].dot(E_POST)), 0.3)
-            # the shift eases off toward the anus, so a point there needs its slice to move further: the need is
-            # divided by the easing (a shift that fell short there left the settling pass to dent the canal's
-            # front wall where it meets the ampulla); right at the anus it is left to the settling pass
-            w_ = float(_ramp(float(np.linalg.norm(_anus - np.array(p), axis=1).min())))
-            if w_ < 0.15:
-                continue
-            _need_s.append(max(pv.z, Z_J)); _need_t.append(t_ / max(w_, 0.25))
+            _add_need(n_, p, pv.z, t_)
     # and from the vagina's side: the bowel is coarse - its faces cross the vagina between its vertices - so where a
-    # vertex of the vagina lies inside a bowel organ (or within the septum of it), that organ's wall in front of it
-    # must pass behind it: the need is the run forward to that wall plus the septum
+    # vertex of the vagina lies inside a bowel organ, that organ's wall in front of it must pass behind it: the need
+    # is the run forward to that wall plus the septum (a shift short of it left the settling pass to dent the canal)
     for n_ in BOWEL:
         _bt = U.tree_in(O[n_], Mi); _bo = U.tree_in(O[n_], Mi, cap=False)
         for q in _vpts:
@@ -296,25 +309,23 @@ if REC_SIGMA > 0:
             if hit[0] is None or hit[3] > 0.02 or not U.inside(_bt, qv):
                 continue
             h_ = _bo.ray_cast(qv - E_POST * 1e-6, -E_POST, 0.08)
-            if h_[0] is None:
-                continue
-            w_ = float(_ramp(float(np.linalg.norm(_anus - np.array(h_[0]), axis=1).min())))
-            if w_ < 0.15:
-                continue
-            _need_s.append(max(qv.z, Z_J)); _need_t.append((h_[3] + VAG_SEPTUM) / max(w_, 0.25))
+            if h_[0] is not None:
+                _add_need(n_, np.array(h_[0]), qv.z, h_[3] + VAG_SEPTUM)
     _need_s, _need_t = np.array(_need_s), np.array(_need_t)
-    def _shift_at(s_):
-        return float((_need_t * np.exp(-((s_ - _need_s) / REC_SIGMA) ** 2)).max()) if len(_need_t) else 0.0
+    def _shift_raw(z_):
+        return float((_need_t * np.exp(-((z_ - _need_s) / REC_SIGMA) ** 2)).max()) if len(_need_t) else 0.0
+    T_J = max([_shift_raw(z_) for z_ in np.linspace(Z_J0, Z_J1, 7)] + _need_c)
+    def _shift_at(z_):
+        return T_J if z_ <= Z_J1 else max(_shift_raw(z_), T_J * (1 - float(U.ss(Z_J1, Z_J1 + 0.012, z_))))
     _start_v = {}
     for n_ in BOWEL:
-        P_ = _Pb[n_]; ss_ = np.maximum(P_[:, 2], Z_J)   # horizontal sections move back together (below the junction:
-                                                         # its shift)
-        T_ = np.array([_shift_at(x) for x in ss_])
-        wa_ = _ramp(np.linalg.norm(P_[:, None, :] - _anus[None, :, :], axis=2).min(1))
-        Q_ = P_ + (T_ * wa_)[:, None] * np.array(E_POST)
+        P_ = _Pb[n_]
+        D_ = (T_J * _w_canal(_t_canal(P_)) if n_ == "AN_AnalCanal" else np.array([_shift_at(z_) for z_ in P_[:, 2]]))
+        Q_ = P_ + D_[:, None] * np.array(E_POST)
         Ml_ = (Mi @ O[n_].matrix_world).inverted(); _start_v[n_] = [tuple(Ml_ @ Vector(q)) for q in Q_]
-    _prof = {int(x): round(_shift_at(x / 1000) * 1000, 1) for x in range(720, 841, 10)}   # by height (atlas z, mm)
-    print("REC_SHIFT", json.dumps(_prof), "points", len(_need_t))
+    _prof = {int(x): round(_shift_at(x / 1000) * 1000, 1) for x in range(760, 841, 10)}   # by height (atlas z, mm)
+    _prof["junction"] = round(T_J * 1000, 1)
+    print("REC_SHIFT", json.dumps(_prof), "points", len(_need_t) + len(_need_c))
 room_v, res_v = U.make_room([O[n_] for n_ in BOWEL], Mi, Mw, [vag_tree], _pin_v,
                             U.Obstacles([(t_, 0.0008) for t_, _ in bone_trees], [(skin_tree, 0.003)], []),
                             gap=VAG_SEPTUM, decay=0.996, iters=400, rounds=10, log=_vl, expanders=[(_vpts, _vnrm)],
